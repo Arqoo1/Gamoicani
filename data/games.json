@@ -1,0 +1,45 @@
+[
+  {
+    "id": "wordle",
+    "title": "WORDLE",
+    "subtitle": "ქართული სიტყვა",
+    "href": "/wordle",
+    "status": "ready",
+    "content": "data/words.json"
+  },
+  {
+    "id": "geography",
+    "title": "გეოგრაფია",
+    "subtitle": "ქალაქები, რეგიონები, ღირსშესანიშნაობები",
+    "status": "soon",
+    "content": "data/content/geography.json"
+  },
+  {
+    "id": "idioms",
+    "title": "ანდაზები",
+    "subtitle": "ანდაზები და გამოთქმები",
+    "status": "soon",
+    "content": "data/content/idioms.json"
+  },
+  {
+    "id": "people",
+    "title": "ცნობილი ქართველები",
+    "subtitle": "მწერლები, სპორტსმენები, ისტორიული ფიგურები",
+    "status": "soon",
+    "content": "data/content/people.json"
+  },
+  {
+    "id": "quotes",
+    "title": "ციტატები",
+    "subtitle": "ფილმები, სიმღერები, ფრაზები",
+    "status": "soon",
+    "content": "data/content/quotes.json"
+  },
+  {
+    "id": "trivia",
+    "title": "ვიქტორინა",
+    "subtitle": "დღის მოკლე ქართული კითხვა",
+    "status": "soon",
+    "content": "data/content/trivia.json"
+  }
+]

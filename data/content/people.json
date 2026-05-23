@@ -1,0 +1,13 @@
+{
+  "gameId": "people",
+  "version": 1,
+  "items": [
+    {
+      "id": "person-001",
+      "prompt": "ვეფხისტყაოსნის ავტორი",
+      "answer": "შოთა რუსთაველი",
+      "hints": ["XII საუკუნე", "ქართული კლასიკური პოეზია"],
+      "difficulty": "easy"
+    }
+  ]
+}

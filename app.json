@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Georgian Guessing Games",
+    "slug": "georgian-guessing-games",
+    "scheme": "georgian-games",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-status-bar"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.georgiangames.wordle"
+    },
+    "android": {
+      "package": "com.georgiangames.wordle",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

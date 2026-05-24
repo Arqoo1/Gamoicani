@@ -1,7 +1,7 @@
 [
   {
     "id": "wordle",
-    "title": "WORDLE",
+    "title": "სიტყვობანა",
     "subtitle": "ქართული სიტყვა",
     "href": "/wordle",
     "status": "ready",
@@ -15,11 +15,12 @@
     "content": "data/content/geography.json"
   },
   {
-    "id": "idioms",
+    "id": "andazebi",
     "title": "ანდაზები",
-    "subtitle": "ანდაზები და გამოთქმები",
-    "status": "soon",
-    "content": "data/content/idioms.json"
+    "subtitle": "ქართული ანდაზები გამოტოვებული სიტყვებით",
+    "href": "/andazebi",
+    "status": "ready",
+    "content": "data/content/ანდაზები.json"
   },
   {
     "id": "people",

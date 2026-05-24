@@ -1,12 +1,26 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createEmptyStats, loadWordleStats, WordleStats } from "../src/storage";
+import { AppColors, useAppTheme } from "../src/theme";
+import { getDailyPuzzleNumber, WORDLE_EPOCH } from "../src/wordle";
+
+const CALENDAR_DAYS = 28;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+type CalendarDay = {
+  dateLabel: string;
+  key: string;
+  puzzleNumber: number;
+  status: "won" | "lost" | "missed" | "today";
+};
 
 export default function StatsScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [stats, setStats] = useState<WordleStats>(() => createEmptyStats());
 
   useEffect(() => {
@@ -28,9 +42,34 @@ export default function StatsScreen() {
     () => Math.max(1, ...stats.guessDistribution),
     [stats.guessDistribution]
   );
+  const calendarDays = useMemo<CalendarDay[]>(() => {
+    const todayPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
+    const firstPuzzleNumber = Math.max(1, todayPuzzleNumber - CALENDAR_DAYS + 1);
+
+    return Array.from({ length: CALENDAR_DAYS }).map((_, index) => {
+      const puzzleNumber = firstPuzzleNumber + index;
+      const completedPuzzle = stats.completedPuzzles[String(puzzleNumber)];
+      const date = new Date(WORDLE_EPOCH.getTime() + (puzzleNumber - 1) * DAY_IN_MS);
+      const status = completedPuzzle
+        ? completedPuzzle.won
+          ? "won"
+          : "lost"
+        : puzzleNumber === todayPuzzleNumber
+          ? "today"
+          : "missed";
+
+      return {
+        dateLabel: String(date.getUTCDate()),
+        key: String(puzzleNumber),
+        puzzleNumber,
+        status
+      };
+    });
+  }, [stats.completedPuzzles]);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -38,11 +77,11 @@ export default function StatsScreen() {
         >
           <Text style={styles.headerIcon}>‹</Text>
         </Pressable>
-        <Text style={styles.logo}>STATISTICS</Text>
+        <Text style={styles.logo}>სტატისტიკა</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{stats.played}</Text>
@@ -62,7 +101,36 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>GUESS DISTRIBUTION</Text>
+        <Text style={styles.sectionTitle}>დღიური სერია</Text>
+        <View style={styles.calendar}>
+          {calendarDays.map((day) => (
+            <View
+              key={day.key}
+              style={[
+                styles.calendarDay,
+                day.status === "won" && styles.calendarDayWon,
+                day.status === "lost" && styles.calendarDayLost,
+                day.status === "today" && styles.calendarDayToday
+              ]}
+            >
+              <Text
+                style={[
+                  styles.calendarDayText,
+                  (day.status === "won" || day.status === "lost") && styles.calendarDayTextStrong
+                ]}
+              >
+                {day.dateLabel}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.legend}>
+          <Text style={styles.legendItem}>მოგება</Text>
+          <Text style={styles.legendItem}>წაგება</Text>
+          <Text style={styles.legendItem}>ღია</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>ცდების განაწილება</Text>
         <View style={styles.distribution}>
           {stats.guessDistribution.map((count, index) => {
             const widthPercent = `${Math.max(8, (count / maxDistribution) * 100)}%` as `${number}%`;
@@ -79,135 +147,188 @@ export default function StatsScreen() {
             );
           })}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#f4f7fb"
-  },
-  header: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderBottomColor: "#dce3e8",
-    borderBottomWidth: 1,
-    elevation: 2,
-    flexDirection: "row",
-    height: 56,
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
-    shadowColor: "#17352d",
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8
-  },
-  headerButton: {
-    alignItems: "center",
-    backgroundColor: "#eef4f2",
-    borderRadius: 8,
-    height: 42,
-    justifyContent: "center",
-    width: 42
-  },
-  headerSpacer: {
-    height: 42,
-    width: 42
-  },
-  headerIcon: {
-    color: "#17352d",
-    fontSize: 30,
-    fontWeight: "700",
-    lineHeight: 36
-  },
-  logo: {
-    color: "#17352d",
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: 0
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 28
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "center",
-    marginBottom: 36
-  },
-  statBox: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#dce3e8",
-    borderRadius: 8,
-    borderWidth: 1,
-    elevation: 1,
-    flex: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 13,
-    shadowColor: "#17352d",
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6
-  },
-  statNumber: {
-    color: "#17352d",
-    fontSize: 30,
-    fontWeight: "800",
-    lineHeight: 36
-  },
-  statLabel: {
-    color: "#66727f",
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 4,
-    textAlign: "center"
-  },
-  sectionTitle: {
-    color: "#17352d",
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 18,
-    textAlign: "center"
-  },
-  distribution: {
-    gap: 7
-  },
-  distributionRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8
-  },
-  guessNumber: {
-    color: "#17352d",
-    fontSize: 14,
-    fontWeight: "700",
-    width: 14
-  },
-  barTrack: {
-    backgroundColor: "#e3e9ed",
-    borderRadius: 8,
-    flex: 1,
-    overflow: "hidden"
-  },
-  bar: {
-    alignItems: "flex-end",
-    backgroundColor: "#2f9e5d",
-    borderRadius: 8,
-    justifyContent: "center",
-    minHeight: 24,
-    paddingHorizontal: 8
-  },
-  barText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "900"
-  },
-  pressed: {
-    opacity: 0.64
-  }
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.card
+    },
+    scrollView: {
+      backgroundColor: colors.background
+    },
+    header: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      elevation: 2,
+      flexDirection: "row",
+      height: 56,
+      justifyContent: "space-between",
+      paddingHorizontal: 10,
+      shadowColor: colors.shadow,
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8
+    },
+    headerButton: {
+      alignItems: "center",
+      backgroundColor: colors.button,
+      borderRadius: 8,
+      height: 42,
+      justifyContent: "center",
+      width: 42
+    },
+    headerSpacer: {
+      height: 42,
+      width: 42
+    },
+    headerIcon: {
+      color: colors.primaryText,
+      fontSize: 30,
+      fontWeight: "700",
+      lineHeight: 36
+    },
+    logo: {
+      color: colors.primaryText,
+      fontSize: 22,
+      fontWeight: "900",
+      letterSpacing: 0
+    },
+    content: {
+      paddingBottom: 30,
+      paddingHorizontal: 24,
+      paddingTop: 28
+    },
+    statsGrid: {
+      flexDirection: "row",
+      gap: 10,
+      justifyContent: "center",
+      marginBottom: 32
+    },
+    statBox: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      elevation: 1,
+      flex: 1,
+      paddingHorizontal: 6,
+      paddingVertical: 13,
+      shadowColor: colors.shadow,
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6
+    },
+    statNumber: {
+      color: colors.primaryText,
+      fontSize: 30,
+      fontWeight: "800",
+      lineHeight: 36
+    },
+    statLabel: {
+      color: colors.secondaryText,
+      fontSize: 12,
+      fontWeight: "700",
+      marginTop: 4,
+      textAlign: "center"
+    },
+    sectionTitle: {
+      color: colors.primaryText,
+      fontSize: 16,
+      fontWeight: "900",
+      marginBottom: 16,
+      textAlign: "center"
+    },
+    calendar: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      justifyContent: "center",
+      marginBottom: 12
+    },
+    calendarDay: {
+      alignItems: "center",
+      backgroundColor: colors.button,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      height: 34,
+      justifyContent: "center",
+      width: 34
+    },
+    calendarDayWon: {
+      backgroundColor: colors.correct,
+      borderColor: colors.correct
+    },
+    calendarDayLost: {
+      backgroundColor: colors.absent,
+      borderColor: colors.absent
+    },
+    calendarDayToday: {
+      borderColor: colors.accent,
+      borderWidth: 2
+    },
+    calendarDayText: {
+      color: colors.secondaryText,
+      fontSize: 12,
+      fontWeight: "900"
+    },
+    calendarDayTextStrong: {
+      color: "#ffffff"
+    },
+    legend: {
+      flexDirection: "row",
+      gap: 10,
+      justifyContent: "center",
+      marginBottom: 30
+    },
+    legendItem: {
+      color: colors.secondaryText,
+      fontSize: 12,
+      fontWeight: "800"
+    },
+    distribution: {
+      gap: 7
+    },
+    distributionRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8
+    },
+    guessNumber: {
+      color: colors.primaryText,
+      fontSize: 14,
+      fontWeight: "700",
+      width: 14
+    },
+    barTrack: {
+      backgroundColor: colors.key,
+      borderRadius: 8,
+      flex: 1,
+      overflow: "hidden"
+    },
+    bar: {
+      alignItems: "flex-end",
+      backgroundColor: colors.accent,
+      borderRadius: 8,
+      justifyContent: "center",
+      minHeight: 24,
+      paddingHorizontal: 8
+    },
+    barText: {
+      color: "#ffffff",
+      fontSize: 13,
+      fontWeight: "900"
+    },
+    pressed: {
+      opacity: 0.64
+    }
+  });
+}

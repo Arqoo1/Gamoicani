@@ -1,11 +1,14 @@
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  Modal,
   Platform,
   Pressable,
   Share,
+  StatusBar,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -14,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import words from "../data/words.json";
+import { AppColors, useAppTheme } from "../src/theme";
 import {
   GameStatus,
   getDailyPuzzleNumber,
@@ -21,7 +25,8 @@ import {
   LetterScore,
   mergeLetterScores,
   scoreGuess,
-  splitWord
+  splitWord,
+  WORDLE_EPOCH
 } from "../src/wordle";
 import {
   getProgressKey,
@@ -32,14 +37,12 @@ import {
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
-const WORDLE_EPOCH = new Date(Date.UTC(2026, 0, 1));
 const DEFAULT_MESSAGE = "დღის სიტყვა";
 const USE_NATIVE_ANIMATION_DRIVER = Platform.OS !== "web";
-const KEYBOARD_ROWS = [
+const BASE_KEYBOARD_ROWS = [
   ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
   ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
-  ["ზ", "ხ", "ც", "ვ", "ბ", "ნ", "მ"],
-  ["Enter", "ჭ", "ღ", "თ", "შ", "ჟ", "ძ", "ჩ", "Backspace"]
+  ["ზ", "ხ", "ც", "ვ", "ბ", "ნ", "მ", "Backspace"]
 ];
 
 const QWERTY_TO_GEORGIAN: Record<string, string> = {
@@ -81,6 +84,20 @@ const SHIFTED_QWERTY_TO_GEORGIAN: Record<string, string> = {
   Z: "ძ"
 };
 
+const SHIFTED_GEORGIAN_KEYS: Record<string, string> = {
+  ც: "ჩ",
+  ჯ: "ჟ",
+  რ: "ღ",
+  ს: "შ",
+  ტ: "თ",
+  წ: "ჭ",
+  ზ: "ძ"
+};
+
+const SHIFT_KEY = "Shift";
+const ENTER_KEY = "Enter";
+const BACKSPACE_KEY = "Backspace";
+
 type WordsJson = {
   answers: string[];
   meta?: {
@@ -101,7 +118,10 @@ type WordleTileProps = {
   letter: string;
   score?: LetterScore;
   size: number;
+  styles: WordleStyles;
 };
+
+type WordleStyles = ReturnType<typeof createStyles>;
 
 const wordData = words as WordsJson;
 const answers = wordData.answers.filter((word) => splitWord(word).length === WORD_LENGTH);
@@ -110,7 +130,10 @@ const validWords = new Set(
     .map((word) => word.trim())
     .filter((word) => splitWord(word).length === WORD_LENGTH)
 );
-const georgianLetters = new Set(KEYBOARD_ROWS.flat().filter((key) => key.length === 1));
+const georgianLetters = new Set([
+  ...BASE_KEYBOARD_ROWS.flat().filter((key) => key.length === 1),
+  ...Object.values(SHIFTED_GEORGIAN_KEYS)
+]);
 
 function getStatusMessage(status: GameStatus, answer: string, guessesCount: number) {
   if (status === "won") {
@@ -136,7 +159,33 @@ function scoreToEmoji(score: LetterScore) {
   return "⬛";
 }
 
-function StatsIcon() {
+function triggerSelectionHaptic() {
+  if (Platform.OS === "web") {
+    return;
+  }
+
+  Haptics.selectionAsync().catch(() => {});
+}
+
+function triggerInvalidHaptic() {
+  if (Platform.OS === "web") {
+    return;
+  }
+
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+}
+
+function triggerCompletionHaptic(won: boolean) {
+  if (Platform.OS === "web") {
+    return;
+  }
+
+  Haptics.notificationAsync(
+    won ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
+  ).catch(() => {});
+}
+
+function StatsIcon({ styles }: { styles: WordleStyles }) {
   return (
     <View style={styles.statsIcon}>
       <View style={[styles.statsBar, { height: 9 }]} />
@@ -146,11 +195,18 @@ function StatsIcon() {
   );
 }
 
-function WordleTile({ delayIndex, fontSize, letter, score, size }: WordleTileProps) {
+function WordleTile({ delayIndex, fontSize, letter, score, size, styles }: WordleTileProps) {
   const flip = useRef(new Animated.Value(1)).current;
   const [visibleScore, setVisibleScore] = useState<LetterScore | undefined>(score);
+  const mounted = useRef(false);
 
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      setVisibleScore(score);
+      return;
+    }
+
     if (!score) {
       flip.stopAnimation();
       flip.setValue(1);
@@ -206,6 +262,8 @@ export default function WordleScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
   const dailyAnswerIndex = answers.length > 0 ? (dailyPuzzleNumber - 1) % answers.length : 0;
   const [answerOffset, setAnswerOffset] = useState(0);
@@ -215,6 +273,8 @@ export default function WordleScreen() {
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [toast, setToast] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isShifted, setIsShifted] = useState(false);
+  const [isResultModalVisible, setIsResultModalVisible] = useState(false);
   const [recordedCompletionKey, setRecordedCompletionKey] = useState<string | null>(null);
   const shake = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -230,7 +290,7 @@ export default function WordleScreen() {
   const actionKeyMaxWidth = Math.min(68, keyMaxWidth * 1.65);
   const tileGap = safeHeight < 700 ? 5 : 6;
   const keyboardHeight =
-    KEYBOARD_ROWS.length * keyHeight + (KEYBOARD_ROWS.length - 1) * keyboardRowGap;
+    BASE_KEYBOARD_ROWS.length * keyHeight + (BASE_KEYBOARD_ROWS.length - 1) * keyboardRowGap;
   const gameOverControlsHeight = gameStatus === "playing" ? 0 : 56;
   const availableBoardHeight =
     safeHeight - 56 - 42 - 6 - keyboardHeight - gameOverControlsHeight - 40;
@@ -256,6 +316,22 @@ export default function WordleScreen() {
       return scores;
     }, {});
   }, [answer, guesses]);
+
+  const keyboardRows = useMemo(
+    () =>
+      BASE_KEYBOARD_ROWS.map((row) =>
+        row.map((key) => (isShifted ? SHIFTED_GEORGIAN_KEYS[key] ?? key : key))
+      ),
+    [isShifted]
+  );
+  const sharePreview = useMemo(() => {
+    const result = gameStatus === "won" ? `${guesses.length}/6` : "X/6";
+    const emojiRows = guesses.map((guess) =>
+      scoreGuess(guess, answer).map(scoreToEmoji).join("")
+    );
+
+    return [`ქართული სიტყვობანა #${puzzleNumber} ${result}`, ...emojiRows].join("\n");
+  }, [answer, gameStatus, guesses, puzzleNumber]);
 
   const showToast = useCallback((nextToast: string) => {
     if (toastTimer.current) {
@@ -283,6 +359,7 @@ export default function WordleScreen() {
 
   const showInvalidGuess = useCallback(
     (nextMessage: string) => {
+      triggerInvalidHaptic();
       setMessage(nextMessage);
       showToast(nextMessage);
       shakeCurrentRow();
@@ -299,8 +376,26 @@ export default function WordleScreen() {
     setCurrentLetters([]);
     setGameStatus("playing");
     setMessage(DEFAULT_MESSAGE);
+    setIsResultModalVisible(false);
+    setIsShifted(false);
     setRecordedCompletionKey(null);
   }, []);
+
+  const startRandomPuzzle = useCallback(() => {
+    if (answers.length <= 1) {
+      resetBoard(0);
+      return;
+    }
+
+    const currentAnswerIndex = (dailyAnswerIndex + answerOffset) % answers.length;
+    let randomAnswerIndex = Math.floor(Math.random() * answers.length);
+
+    if (randomAnswerIndex === currentAnswerIndex) {
+      randomAnswerIndex = (randomAnswerIndex + 1) % answers.length;
+    }
+
+    resetBoard(randomAnswerIndex - dailyAnswerIndex);
+  }, [answerOffset, dailyAnswerIndex, resetBoard]);
 
   useEffect(() => {
     let active = true;
@@ -314,7 +409,7 @@ export default function WordleScreen() {
           return;
         }
 
-        if (progress?.answer === answer) {
+        if (progress?.answer === answer && progress.gameStatus === "playing") {
           setGuesses(progress.guesses);
           setCurrentLetters(progress.currentLetters);
           setGameStatus(progress.gameStatus);
@@ -406,6 +501,8 @@ export default function WordleScreen() {
       setGameStatus("won");
       setMessage(wonMessage);
       showToast(wonMessage);
+      triggerCompletionHaptic(true);
+      setIsResultModalVisible(true);
       return;
     }
 
@@ -414,6 +511,8 @@ export default function WordleScreen() {
       setGameStatus("lost");
       setMessage(lostMessage);
       showToast(lostMessage);
+      triggerCompletionHaptic(false);
+      setIsResultModalVisible(true);
       return;
     }
 
@@ -422,8 +521,15 @@ export default function WordleScreen() {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (key === "Enter") {
+      if (key === ENTER_KEY) {
+        triggerSelectionHaptic();
         submitGuess();
+        return;
+      }
+
+      if (key === SHIFT_KEY) {
+        triggerSelectionHaptic();
+        setIsShifted((shifted) => !shifted);
         return;
       }
 
@@ -431,7 +537,8 @@ export default function WordleScreen() {
         return;
       }
 
-      if (key === "Backspace") {
+      if (key === BACKSPACE_KEY) {
+        triggerSelectionHaptic();
         setCurrentLetters((letters) => letters.slice(0, -1));
         return;
       }
@@ -440,6 +547,7 @@ export default function WordleScreen() {
         return;
       }
 
+      triggerSelectionHaptic();
       setCurrentLetters((letters) => {
         if (letters.length >= WORD_LENGTH) {
           return letters;
@@ -447,6 +555,8 @@ export default function WordleScreen() {
 
         return [...letters, key];
       });
+
+      setIsShifted(false);
     },
     [gameStatus, submitGuess]
   );
@@ -459,13 +569,13 @@ export default function WordleScreen() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        handleKeyPress("Enter");
+        handleKeyPress(ENTER_KEY);
         return;
       }
 
       if (event.key === "Backspace") {
         event.preventDefault();
-        handleKeyPress("Backspace");
+        handleKeyPress(BACKSPACE_KEY);
         return;
       }
 
@@ -488,18 +598,14 @@ export default function WordleScreen() {
   }, [handleKeyPress]);
 
   const shareResult = useCallback(async () => {
-    const result = gameStatus === "won" ? `${guesses.length}/6` : "X/6";
-    const emojiRows = guesses.map((guess) =>
-      scoreGuess(guess, answer).map(scoreToEmoji).join("")
-    );
-
     await Share.share({
-      message: [`ქართული WORDLE #${puzzleNumber} ${result}`, ...emojiRows].join("\n")
+      message: sharePreview
     });
-  }, [answer, gameStatus, guesses, puzzleNumber]);
+  }, [sharePreview]);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -507,31 +613,32 @@ export default function WordleScreen() {
         >
           <Text style={styles.headerIcon}>‹</Text>
         </Pressable>
-        <Text style={styles.logo}>WORDLE</Text>
+        <Text style={styles.logo}>სიტყვობანა</Text>
         <View style={styles.headerActions}>
           <Pressable
-            accessibilityLabel="Stats"
+            accessibilityLabel="სტატისტიკა"
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             onPress={() => router.push("/stats")}
           >
-            <StatsIcon />
+            <StatsIcon styles={styles} />
           </Pressable>
           <Pressable
-            accessibilityLabel="New Wordle"
+            accessibilityLabel="ახალი სიტყვა"
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => resetBoard(answerOffset + 1)}
+            onPress={startRandomPuzzle}
           >
             <Text style={styles.headerIcon}>↻</Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.metaRow}>
-        <Text style={styles.metaText}>#{puzzleNumber}</Text>
-        <Text style={styles.message}>{message}</Text>
-      </View>
+      <View style={styles.boardArea}>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaText}>#{puzzleNumber}</Text>
+          <Text style={styles.message}>{message}</Text>
+        </View>
 
-      <View style={[styles.board, { gap: tileGap, width: boardWidth }]}>
+        <View style={[styles.board, { gap: tileGap, width: boardWidth }]}>
         {Array.from({ length: MAX_GUESSES }).map((_, rowIndex) => {
           const submittedGuess = guesses[rowIndex];
           const rowLetters = submittedGuess
@@ -559,67 +666,203 @@ export default function WordleScreen() {
                   letter={rowLetters[tileIndex] ?? ""}
                   score={rowScores?.[tileIndex]}
                   size={tileSize}
+                  styles={styles}
                 />
               ))}
             </Animated.View>
           );
         })}
-      </View>
-
-      {toast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{toast}</Text>
         </View>
-      )}
+
+        {toast && (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toast}</Text>
+          </View>
+        )}
+      </View>
 
       <View style={styles.footer}>
         {gameStatus !== "playing" && (
           <Pressable
             style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
-            onPress={shareResult}
+            onPress={() => setIsResultModalVisible(true)}
           >
-            <Text style={styles.shareText}>გაზიარება</Text>
+            <Text style={styles.shareText}>შედეგი</Text>
           </Pressable>
         )}
 
         <View style={[styles.keyboard, { gap: keyboardRowGap }]}>
-          {KEYBOARD_ROWS.map((row) => (
-            <View key={row.join("")} style={[styles.keyboardRow, { gap: keyboardGap }]}>
-              {row.map((key) => {
-                const score = letterScores[key];
-                const isAction = key === "Enter" || key === "Backspace";
+          <View style={[styles.keyboardRow, { gap: keyboardGap }]}>
+            {keyboardRows[0].map((key) => {
+              const score = letterScores[key];
 
-                return (
-                  <Pressable
-                    key={key}
-                    style={({ pressed }) => [
-                      styles.key,
-                      {
-                        height: keyHeight,
-                        maxWidth: isAction ? actionKeyMaxWidth : keyMaxWidth
-                      },
-                      isAction && styles.actionKey,
-                      score && keyScoreStyles[score],
-                      pressed && styles.keyPressed
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [
+                    styles.key,
+                    { height: keyHeight, maxWidth: keyMaxWidth },
+                    score && keyScoreStyles[score],
+                    pressed && styles.keyPressed
+                  ]}
+                  onPress={() => handleKeyPress(key)}
+                >
+                  <Text style={[styles.keyText, score && styles.keyTextScored]}>{key}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={[styles.keyboardRow, { gap: keyboardGap }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.key,
+                styles.actionKey,
+                styles.shiftKey,
+                { height: keyHeight, maxWidth: actionKeyMaxWidth },
+                isShifted && styles.shiftKeyActive,
+                pressed && styles.keyPressed
+              ]}
+              onPress={() => handleKeyPress(SHIFT_KEY)}
+            >
+              <Text style={[styles.shiftKeyText, isShifted && styles.keyTextScored]}>⇧</Text>
+            </Pressable>
+
+            {keyboardRows[1].map((key) => {
+              const score = letterScores[key];
+
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [
+                    styles.key,
+                    { height: keyHeight, maxWidth: keyMaxWidth },
+                    score && keyScoreStyles[score],
+                    pressed && styles.keyPressed
+                  ]}
+                  onPress={() => handleKeyPress(key)}
+                >
+                  <Text style={[styles.keyText, score && styles.keyTextScored]}>{key}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={[styles.keyboardRow, { gap: keyboardGap }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.key,
+                styles.actionKey,
+                { height: keyHeight, maxWidth: actionKeyMaxWidth },
+                pressed && styles.keyPressed
+              ]}
+              onPress={() => handleKeyPress(ENTER_KEY)}
+            >
+              <Text
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                style={[styles.keyText, styles.actionKeyText]}
+              >
+                შეყვანა
+              </Text>
+            </Pressable>
+
+            {keyboardRows[2].map((key) => {
+              const isBackspace = key === BACKSPACE_KEY;
+              const score = letterScores[key];
+
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [
+                    styles.key,
+                    {
+                      height: keyHeight,
+                      maxWidth: isBackspace ? actionKeyMaxWidth : keyMaxWidth
+                    },
+                    isBackspace && styles.actionKey,
+                    score && keyScoreStyles[score],
+                    pressed && styles.keyPressed
+                  ]}
+                  onPress={() => handleKeyPress(key)}
+                >
+                  <Text
+                    style={[
+                      styles.keyText,
+                      score && styles.keyTextScored,
+                      isBackspace && styles.backspaceKeyText
                     ]}
-                    onPress={() => handleKeyPress(key)}
                   >
-                    <Text
-                      style={[
-                        styles.keyText,
-                        score && styles.keyTextScored,
-                        isAction && styles.actionKeyText
-                      ]}
-                    >
-                      {key === "Backspace" ? "⌫" : key === "Enter" ? "ENTER" : key}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+                    {isBackspace ? "⌫" : key}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={gameStatus !== "playing" && isResultModalVisible}
+        onRequestClose={() => setIsResultModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.resultModal}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.resultKicker}>#{puzzleNumber}</Text>
+                <Text style={styles.resultTitle}>
+                  {gameStatus === "won" ? "მოიგე" : "სცადე კიდევ"}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="შედეგის დახურვა"
+                style={({ pressed }) => [styles.modalCloseButton, pressed && styles.pressed]}
+                onPress={() => setIsResultModalVisible(false)}
+              >
+                <Text style={styles.modalCloseText}>×</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.resultSubtitle}>
+              {gameStatus === "won"
+                ? `${guesses.length} ცდაში გამოიცანი`
+                : `სიტყვა იყო ${answer}`}
+            </Text>
+
+            <View style={styles.previewBox}>
+              {sharePreview.split("\n").map((line, index) => (
+                <Text key={`${line}-${index}`} style={styles.previewText}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.resultActions}>
+              <Pressable
+                style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
+                onPress={shareResult}
+              >
+                <Text style={styles.resultButtonText}>გაზიარება</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.resultButton,
+                  styles.secondaryResultButton,
+                  pressed && styles.pressed
+                ]}
+                onPress={startRandomPuzzle}
+              >
+                <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>
+                  ახალი სიტყვა
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -651,22 +894,23 @@ const keyScoreStyles = StyleSheet.create({
   }
 });
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#f4f7fb"
+    backgroundColor: colors.card
   },
   header: {
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderBottomColor: "#dce3e8",
+    backgroundColor: colors.card,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     elevation: 2,
     flexDirection: "row",
     height: 56,
     justifyContent: "space-between",
     paddingHorizontal: 10,
-    shadowColor: "#17352d",
+    shadowColor: colors.shadow,
     shadowOffset: { height: 2, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 8
@@ -677,20 +921,20 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     alignItems: "center",
-    backgroundColor: "#eef4f2",
+    backgroundColor: colors.button,
     borderRadius: 8,
     height: 42,
     justifyContent: "center",
     width: 42
   },
   headerIcon: {
-    color: "#17352d",
+    color: colors.primaryText,
     fontSize: 30,
     fontWeight: "700",
     lineHeight: 36
   },
   logo: {
-    color: "#17352d",
+    color: colors.primaryText,
     fontSize: 29,
     fontWeight: "900",
     letterSpacing: 0,
@@ -705,15 +949,15 @@ const styles = StyleSheet.create({
     width: 22
   },
   statsBar: {
-    backgroundColor: "#17352d",
+    backgroundColor: colors.primaryText,
     borderRadius: 2,
     width: 4
   },
   metaRow: {
     alignItems: "center",
     alignSelf: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#dce3e8",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     elevation: 1,
@@ -723,20 +967,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     minHeight: 42,
     paddingHorizontal: 14,
-    shadowColor: "#17352d",
+    shadowColor: colors.shadow,
     shadowOffset: { height: 1, width: 0 },
     shadowOpacity: 0.06,
     shadowRadius: 5
   },
   metaText: {
-    color: "#66727f",
+    color: colors.secondaryText,
     fontSize: 13,
     fontWeight: "800"
   },
   message: {
-    color: "#17352d",
+    color: colors.primaryText,
     fontSize: 14,
     fontWeight: "800"
+  },
+  boardArea: {
+    flex: 1,
+    backgroundColor: colors.background
   },
   board: {
     alignSelf: "center",
@@ -747,18 +995,18 @@ const styles = StyleSheet.create({
   },
   tile: {
     alignItems: "center",
-    backgroundColor: "#fbfcfd",
-    borderColor: "#cad5dc",
+    backgroundColor: colors.tile,
+    borderColor: colors.tileBorder,
     borderRadius: 8,
     borderWidth: 2,
     justifyContent: "center"
   },
   tileFilled: {
-    backgroundColor: "#ffffff",
-    borderColor: "#17352d"
+    backgroundColor: colors.tileFilled,
+    borderColor: colors.primaryText
   },
   tileText: {
-    color: "#17352d",
+    color: colors.primaryText,
     fontSize: 27,
     fontWeight: "900",
     lineHeight: 34,
@@ -769,7 +1017,7 @@ const styles = StyleSheet.create({
   },
   toast: {
     alignSelf: "center",
-    backgroundColor: "#17352d",
+    backgroundColor: colors.buttonStrong,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -791,7 +1039,7 @@ const styles = StyleSheet.create({
   shareButton: {
     alignItems: "center",
     alignSelf: "center",
-    backgroundColor: "#2f9e5d",
+    backgroundColor: colors.accent,
     borderRadius: 8,
     marginBottom: 10,
     paddingHorizontal: 22,
@@ -804,15 +1052,15 @@ const styles = StyleSheet.create({
   },
   keyboard: {
     alignSelf: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#dce3e8",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     elevation: 2,
     maxWidth: 460,
     paddingHorizontal: 4,
     paddingVertical: 8,
-    shadowColor: "#17352d",
+    shadowColor: colors.shadow,
     shadowOffset: { height: 3, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -824,13 +1072,13 @@ const styles = StyleSheet.create({
   },
   key: {
     alignItems: "center",
-    backgroundColor: "#e3e9ed",
+    backgroundColor: colors.key,
     borderRadius: 8,
     elevation: 1,
     flex: 1,
     justifyContent: "center",
     minWidth: 23,
-    shadowColor: "#17352d",
+    shadowColor: colors.shadow,
     shadowOffset: { height: 1, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 2
@@ -838,8 +1086,14 @@ const styles = StyleSheet.create({
   actionKey: {
     flex: 1.55
   },
+  shiftKey: {
+    backgroundColor: colors.button
+  },
+  shiftKeyActive: {
+    backgroundColor: colors.keyActive
+  },
   keyText: {
-    color: "#17352d",
+    color: colors.primaryText,
     fontSize: 17,
     fontWeight: "900"
   },
@@ -847,7 +1101,110 @@ const styles = StyleSheet.create({
     color: "#ffffff"
   },
   actionKeyText: {
-    fontSize: 11
+    fontSize: 11,
+    paddingHorizontal: 2
+  },
+  shiftKeyText: {
+    color: colors.primaryText,
+    fontSize: 22,
+    fontWeight: "900",
+    lineHeight: 26
+  },
+  backspaceKeyText: {
+    fontSize: 15
+  },
+  modalBackdrop: {
+    alignItems: "center",
+    backgroundColor: colors.overlay,
+    flex: 1,
+    justifyContent: "center",
+    padding: 18
+  },
+  resultModal: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 420,
+    padding: 18,
+    width: "100%"
+  },
+  modalHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12
+  },
+  resultKicker: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  resultTitle: {
+    color: colors.primaryText,
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: 0
+  },
+  modalCloseButton: {
+    alignItems: "center",
+    backgroundColor: colors.button,
+    borderRadius: 8,
+    height: 38,
+    justifyContent: "center",
+    width: 38
+  },
+  modalCloseText: {
+    color: colors.primaryText,
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 29
+  },
+  resultSubtitle: {
+    color: colors.secondaryText,
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 14
+  },
+  previewBox: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    marginBottom: 16,
+    padding: 14
+  },
+  previewText: {
+    color: colors.primaryText,
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 24,
+    textAlign: "center"
+  },
+  resultActions: {
+    flexDirection: "row",
+    gap: 10
+  },
+  resultButton: {
+    alignItems: "center",
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 12
+  },
+  resultButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  secondaryResultButton: {
+    backgroundColor: colors.button
+  },
+  secondaryResultButtonText: {
+    color: colors.primaryText
   },
   pressed: {
     opacity: 0.64
@@ -855,4 +1212,5 @@ const styles = StyleSheet.create({
   keyPressed: {
     opacity: 0.72
   }
-});
+  });
+}

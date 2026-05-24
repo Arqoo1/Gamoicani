@@ -1,6 +1,8 @@
 export type LetterScore = "correct" | "present" | "absent";
 export type GameStatus = "playing" | "won" | "lost";
 
+export const WORDLE_EPOCH = new Date(Date.UTC(2026, 0, 1));
+
 const scoreRank: Record<LetterScore, number> = {
   absent: 0,
   present: 1,

@@ -17,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import words from "../data/words.json";
+import { fetchGameContent } from "../src/api";
 import { AppColors, useAppTheme } from "../src/theme";
 import {
   GameStatus,
@@ -123,13 +124,7 @@ type WordleTileProps = {
 
 type WordleStyles = ReturnType<typeof createStyles>;
 
-const wordData = words as WordsJson;
-const answers = wordData.answers.filter((word) => splitWord(word).length === WORD_LENGTH);
-const validWords = new Set(
-  [...wordData.answers, ...wordData.validWords]
-    .map((word) => word.trim())
-    .filter((word) => splitWord(word).length === WORD_LENGTH)
-);
+const fallbackWordData = words as WordsJson;
 const georgianLetters = new Set([
   ...BASE_KEYBOARD_ROWS.flat().filter((key) => key.length === 1),
   ...Object.values(SHIFTED_GEORGIAN_KEYS)
@@ -264,7 +259,21 @@ export default function WordleScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [wordData, setWordData] = useState<WordsJson>(fallbackWordData);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
+  const answers = useMemo(
+    () => wordData.answers.filter((word) => splitWord(word).length === WORD_LENGTH),
+    [wordData.answers]
+  );
+  const validWords = useMemo(
+    () =>
+      new Set(
+        [...wordData.answers, ...wordData.validWords]
+          .map((word) => word.trim())
+          .filter((word) => splitWord(word).length === WORD_LENGTH)
+      ),
+    [wordData.answers, wordData.validWords]
+  );
   const dailyAnswerIndex = answers.length > 0 ? (dailyPuzzleNumber - 1) % answers.length : 0;
   const [answerOffset, setAnswerOffset] = useState(0);
   const [guesses, setGuesses] = useState<string[]>([]);
@@ -278,6 +287,22 @@ export default function WordleScreen() {
   const [recordedCompletionKey, setRecordedCompletionKey] = useState<string | null>(null);
   const shake = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchGameContent<WordsJson>("wordle")
+      .then((nextWordData) => {
+        if (active && nextWordData.answers?.length && nextWordData.validWords?.length) {
+          setWordData(nextWordData);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const answer = answers[(dailyAnswerIndex + answerOffset) % answers.length] ?? "სახლი";
   const puzzleNumber = dailyPuzzleNumber + answerOffset;
@@ -395,7 +420,7 @@ export default function WordleScreen() {
     }
 
     resetBoard(randomAnswerIndex - dailyAnswerIndex);
-  }, [answerOffset, dailyAnswerIndex, resetBoard]);
+  }, [answerOffset, answers, answers.length, dailyAnswerIndex, resetBoard]);
 
   useEffect(() => {
     let active = true;
@@ -462,10 +487,10 @@ export default function WordleScreen() {
     }
 
     setRecordedCompletionKey(completionKey);
-    recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length).catch(() => {
+    recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length, guesses).catch(() => {
       setRecordedCompletionKey(null);
     });
-  }, [answer, gameStatus, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
+  }, [answer, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
 
   useEffect(() => {
     return () => {
@@ -517,7 +542,7 @@ export default function WordleScreen() {
     }
 
     setMessage(DEFAULT_MESSAGE);
-  }, [answer, currentLetters, gameStatus, guesses, showInvalidGuess, showToast]);
+  }, [answer, currentLetters, gameStatus, guesses, showInvalidGuess, showToast, validWords]);
 
   const handleKeyPress = useCallback(
     (key: string) => {

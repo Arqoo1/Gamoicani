@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import proverbs from "../data/content/ანდაზები.json";
+import { fetchGameContent, submitScore } from "../src/api";
 import { AppColors, useAppTheme } from "../src/theme";
 
 type Level = "easy" | "medium" | "hard";
@@ -66,8 +67,7 @@ type AndazebiStats = {
 };
 type AndazebiStyles = ReturnType<typeof createStyles>;
 
-const proverbData = proverbs as ProverbsJson;
-const items = proverbData.items;
+const fallbackProverbData = proverbs as ProverbsJson;
 const DAILY_LIMIT = 5;
 const DEFAULT_FEEDBACK = "შეავსე გამოტოვებული სიტყვები";
 const PROGRESS_STORAGE_KEY = "andazebi:daily-progress:v3";
@@ -209,9 +209,9 @@ function createSeededRandom(seed: number) {
   };
 }
 
-function getDailyItems(dateKey: string) {
+function getDailyItems(sourceItems: ProverbItem[], dateKey: string) {
   const random = createSeededRandom(getSeed(dateKey));
-  const shuffledItems = [...items];
+  const shuffledItems = [...sourceItems];
 
   for (let index = shuffledItems.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
@@ -223,15 +223,16 @@ function getDailyItems(dateKey: string) {
   return shuffledItems.slice(0, Math.min(DAILY_LIMIT, shuffledItems.length));
 }
 
-function getRandomPracticeItem(excludeId?: string) {
-  if (items.length <= 1) {
-    return items[0] ?? null;
+function getRandomPracticeItem(sourceItems: ProverbItem[], excludeId?: string) {
+  if (sourceItems.length <= 1) {
+    return sourceItems[0] ?? null;
   }
 
-  let nextItem = items[Math.floor(Math.random() * items.length)] ?? items[0];
+  let nextItem = sourceItems[Math.floor(Math.random() * sourceItems.length)] ?? sourceItems[0];
 
   if (nextItem?.id === excludeId) {
-    nextItem = items[(items.findIndex((item) => item.id === excludeId) + 1) % items.length];
+    nextItem =
+      sourceItems[(sourceItems.findIndex((item) => item.id === excludeId) + 1) % sourceItems.length];
   }
 
   return nextItem ?? null;
@@ -293,6 +294,28 @@ function BackIcon({ styles }: { styles: AndazebiStyles }) {
   return <Text style={styles.headerIcon}>‹</Text>;
 }
 
+function reportProverbCompletion(
+  item: ProverbItem,
+  dateKey: string,
+  attempts: number,
+  method: CompletionMethod
+) {
+  submitScore({
+    attempts,
+    completionMethod: method,
+    gameId: "andazebi",
+    itemId: item.id,
+    level: item.level,
+    metadata: {
+      itemId: item.id
+    },
+    mode: "daily",
+    puzzleKey: `${dateKey}:${item.id}`,
+    streakKey: dateKey,
+    won: method === "solved"
+  }).catch(() => {});
+}
+
 export default function AndazebiScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -301,11 +324,13 @@ export default function AndazebiScreen() {
   const shake = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(1)).current;
   const dateKey = useMemo(() => getLocalDateKey(), []);
-  const dailyItems = useMemo(() => getDailyItems(dateKey), [dateKey]);
+  const [proverbData, setProverbData] = useState<ProverbsJson>(fallbackProverbData);
+  const items = proverbData.items;
+  const dailyItems = useMemo(() => getDailyItems(items, dateKey), [dateKey, items]);
   const [gameMode, setGameMode] = useState<GameMode>("daily");
   const [itemIndex, setItemIndex] = useState(0);
   const [practiceItem, setPracticeItem] = useState<ProverbItem | null>(() =>
-    getRandomPracticeItem()
+    getRandomPracticeItem(fallbackProverbData.items)
   );
   const currentItem = gameMode === "daily" ? dailyItems[itemIndex] ?? null : practiceItem;
   const [answers, setAnswers] = useState<string[]>(() =>
@@ -321,6 +346,25 @@ export default function AndazebiScreen() {
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [wordStatuses, setWordStatuses] = useState<Array<WordStatus | undefined>>([]);
   const [isShifted, setIsShifted] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchGameContent<ProverbsJson>("andazebi")
+      .then((nextProverbData) => {
+        if (active && nextProverbData.items?.length) {
+          setProverbData(nextProverbData);
+          setPracticeItem((currentPracticeItem) =>
+            currentPracticeItem ? currentPracticeItem : getRandomPracticeItem(nextProverbData.items)
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -564,28 +608,33 @@ export default function AndazebiScreen() {
 
       setCompletedItems((currentCompletedItems) => {
         const existingItem = currentCompletedItems.find((item) => item.id === currentItem.id);
+        const attempts = method === "solved" ? wrongAttempts + 1 : wrongAttempts;
         const nextCompletedItems = existingItem
           ? currentCompletedItems.map((item) =>
               item.id === currentItem.id
-                ? { ...item, attempts: Math.max(item.attempts, wrongAttempts), method }
+                ? { ...item, attempts: Math.max(item.attempts, attempts), method }
                 : item
             )
           : [
               ...currentCompletedItems,
               {
-                attempts: wrongAttempts,
+                attempts,
                 id: currentItem.id,
                 level: currentItem.level,
                 method
               }
             ];
 
+        if (!existingItem) {
+          reportProverbCompletion(currentItem, dateKey, attempts, method);
+        }
+
         saveDailyProgress(itemIndex, nextCompletedItems);
 
         return nextCompletedItems;
       });
     },
-    [currentItem, isPracticeMode, itemIndex, saveDailyProgress, wrongAttempts]
+    [currentItem, dateKey, isPracticeMode, itemIndex, saveDailyProgress, wrongAttempts]
   );
 
   const submitAnswer = useCallback(() => {
@@ -667,7 +716,7 @@ export default function AndazebiScreen() {
     triggerSelectionHaptic();
 
     if (isPracticeMode) {
-      setPracticeItem(getRandomPracticeItem(currentItem.id));
+      setPracticeItem(getRandomPracticeItem(items, currentItem.id));
       return;
     }
 
@@ -675,7 +724,8 @@ export default function AndazebiScreen() {
       const nextIndex = Math.min(currentIndex + 1, dailyItems.length);
 
       setCompletedItems((currentCompletedItems) => {
-        const nextCompletedItems = currentCompletedItems.some((item) => item.id === currentItem.id)
+        const existingItem = currentCompletedItems.some((item) => item.id === currentItem.id);
+        const nextCompletedItems = existingItem
           ? currentCompletedItems
           : [
               ...currentCompletedItems,
@@ -686,6 +736,10 @@ export default function AndazebiScreen() {
                 method: "solved" as CompletionMethod
               }
             ];
+
+        if (!existingItem) {
+          reportProverbCompletion(currentItem, dateKey, wrongAttempts + 1, "solved");
+        }
 
         saveDailyProgress(nextIndex, nextCompletedItems);
 
@@ -701,7 +755,9 @@ export default function AndazebiScreen() {
   }, [
     currentItem,
     dailyItems.length,
+    dateKey,
     isPracticeMode,
+    items,
     recordDailyCompletion,
     saveDailyProgress,
     wrongAttempts
@@ -715,12 +771,13 @@ export default function AndazebiScreen() {
     triggerSelectionHaptic();
 
     if (isPracticeMode) {
-      setPracticeItem(getRandomPracticeItem(currentItem.id));
+      setPracticeItem(getRandomPracticeItem(items, currentItem.id));
       return;
     }
 
     setCompletedItems((currentCompletedItems) => {
-      const nextCompletedItems = currentCompletedItems.some((item) => item.id === currentItem.id)
+      const existingItem = currentCompletedItems.some((item) => item.id === currentItem.id);
+      const nextCompletedItems = existingItem
         ? currentCompletedItems
         : [
             ...currentCompletedItems,
@@ -732,6 +789,10 @@ export default function AndazebiScreen() {
             }
           ];
       const nextIndex = Math.min(itemIndex + 1, dailyItems.length);
+
+      if (!existingItem) {
+        reportProverbCompletion(currentItem, dateKey, wrongAttempts, "skipped");
+      }
 
       saveDailyProgress(nextIndex, nextCompletedItems);
 
@@ -746,7 +807,9 @@ export default function AndazebiScreen() {
   }, [
     currentItem,
     dailyItems.length,
+    dateKey,
     isPracticeMode,
+    items,
     itemIndex,
     recordDailyCompletion,
     result,
@@ -789,14 +852,14 @@ export default function AndazebiScreen() {
       setGameMode(nextMode);
 
       if (nextMode === "practice") {
-        setPracticeItem(getRandomPracticeItem(currentItem?.id));
+        setPracticeItem(getRandomPracticeItem(items, currentItem?.id));
       } else {
         setItemIndex((currentIndex) =>
           Math.min(Math.max(currentIndex, completedItems.length), dailyItems.length)
         );
       }
     },
-    [completedItems.length, currentItem?.id, dailyItems.length, gameMode]
+    [completedItems.length, currentItem?.id, dailyItems.length, gameMode, items]
   );
 
   const handleKeyPress = useCallback(

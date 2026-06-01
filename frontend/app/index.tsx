@@ -1,9 +1,11 @@
 import { Href, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import games from "../data/games.json";
+import { fetchGames, GameItem as ApiGameItem } from "../src/api";
+import { useAuth } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
 
 type GameItem = {
@@ -14,7 +16,7 @@ type GameItem = {
   title: string;
 };
 
-const gameList = games as GameItem[];
+const fallbackGameList = games as GameItem[];
 const normalGuideRows = [
   ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
   ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
@@ -157,11 +159,49 @@ function BookIcon({ color }: { color: string }) {
   );
 }
 
+function LeaderboardIcon({ color }: { color: string }) {
+  return (
+    <View style={{ alignItems: "flex-end", flexDirection: "row", gap: 3, height: 20, width: 22 }}>
+      <View style={{ backgroundColor: color, borderRadius: 2, height: 9, width: 4 }} />
+      <View style={{ backgroundColor: color, borderRadius: 2, height: 16, width: 4 }} />
+      <View style={{ backgroundColor: color, borderRadius: 2, height: 12, width: 4 }} />
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { colors, isDark, toggleTheme } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [guideVisible, setGuideVisible] = useState(false);
+  const [gameList, setGameList] = useState<GameItem[]>(fallbackGameList);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchGames()
+      .then((nextGames: ApiGameItem[]) => {
+        if (!active) {
+          return;
+        }
+
+        setGameList(
+          nextGames.map((game) => ({
+            href: (game.href ?? undefined) as Href | undefined,
+            id: game.id ?? game.gameId ?? game.title,
+            status: game.status,
+            subtitle: game.subtitle,
+            title: game.title
+          }))
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -193,6 +233,22 @@ export default function HomeScreen() {
               onPress={() => setGuideVisible(true)}
             >
               <BookIcon color={colors.primaryText} />
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="ლიდერბორდის გახსნა"
+              style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
+              onPress={() => router.push("/leaderboard")}
+            >
+              <LeaderboardIcon color={colors.primaryText} />
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="პროფილის გახსნა"
+              style={({ pressed }) => [styles.profileButton, pressed && styles.cardPressed]}
+              onPress={() => router.push("/profile")}
+            >
+              <Text style={styles.profileButtonText}>{user?.username.slice(0, 2).toUpperCase()}</Text>
             </Pressable>
           </View>
         </View>
@@ -354,6 +410,20 @@ function createStyles(colors: AppColors) {
       height: 42,
       justifyContent: "center",
       width: 42
+    },
+    profileButton: {
+      alignItems: "center",
+      backgroundColor: colors.accent,
+      borderRadius: 8,
+      height: 42,
+      justifyContent: "center",
+      minWidth: 42,
+      paddingHorizontal: 8
+    },
+    profileButtonText: {
+      color: "#ffffff",
+      fontSize: 13,
+      fontWeight: "900"
     },
     list: {
       gap: 14

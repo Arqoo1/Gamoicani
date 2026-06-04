@@ -13,8 +13,20 @@ const gameStatSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const achievementSchema = new mongoose.Schema(
+  {
+    earnedAt: { default: Date.now, type: Date },
+    id: { required: true, trim: true, type: String }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
+    achievements: {
+      default: () => [],
+      type: [achievementSchema]
+    },
     displayName: {
       maxlength: 60,
       required: true,

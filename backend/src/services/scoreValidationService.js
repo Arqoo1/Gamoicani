@@ -151,6 +151,91 @@ function getAndazebiItemId(payload) {
   return separatorIndex === -1 ? "" : puzzleKey.slice(separatorIndex + 1);
 }
 
+function getTriviaLevel(item) {
+  return ["easy", "medium", "hard"].includes(item.difficulty) ? item.difficulty : "easy";
+}
+
+function getTriviaAnswers(payload) {
+  const answers = payload.metadata?.answers;
+
+  if (!Array.isArray(answers) || answers.length === 0) {
+    throw createHttpError(400, "Trivia answers are required");
+  }
+
+  return answers.map((answer) => ({
+    choice: normalizeAnswer(answer?.choice),
+    itemId: String(answer?.itemId ?? "").trim()
+  }));
+}
+
+async function validateTriviaScore(payload) {
+  const mode = payload.mode === "practice" ? "practice" : "daily";
+
+  if (mode !== "daily") {
+    throw createHttpError(400, "Only daily Trivia scores are accepted");
+  }
+
+  const dateKey = assertDateKey(payload.streakKey ?? payload.puzzleKey);
+  const submittedAnswers = getTriviaAnswers(payload);
+  const content = await getContentPayload("trivia");
+  const itemMap = new Map((content.items ?? []).map((item) => [item.id, item]));
+  const seenItemIds = new Set();
+  let correctCount = 0;
+  let points = 0;
+
+  const checkedAnswers = submittedAnswers.map((answer) => {
+    if (!answer.itemId || seenItemIds.has(answer.itemId)) {
+      throw createHttpError(400, "Trivia answers must have unique itemIds");
+    }
+
+    seenItemIds.add(answer.itemId);
+    const item = itemMap.get(answer.itemId);
+
+    if (!item) {
+      throw createHttpError(400, "Trivia item does not exist");
+    }
+
+    const level = getTriviaLevel(item);
+    const correct = answer.choice === normalizeAnswer(item.answer);
+
+    if (correct) {
+      correctCount += 1;
+      points += calculatePoints({ gameId: "trivia", level, won: true });
+    }
+
+    return {
+      correct,
+      itemId: item.id,
+      level,
+      selected: answer.choice
+    };
+  });
+
+  const attempts = assertInteger(payload.attempts ?? submittedAnswers.length, "Trivia attempts must match answers", {
+    min: submittedAnswers.length,
+    max: submittedAnswers.length
+  });
+  const won = correctCount >= Math.ceil(submittedAnswers.length * 0.6);
+
+  return {
+    affectsStreak: true,
+    attempts,
+    completionMethod: won ? "solved" : "lost",
+    gameId: "trivia",
+    level: null,
+    metadata: {
+      answers: checkedAnswers,
+      correctCount,
+      totalQuestions: submittedAnswers.length
+    },
+    mode,
+    points,
+    puzzleKey: dateKey,
+    streakKey: dateKey,
+    won
+  };
+}
+
 async function validateAndazebiScore(payload) {
   const mode = payload.mode === "practice" ? "practice" : "daily";
 
@@ -214,6 +299,10 @@ export async function validateScorePayload(payload, options = {}) {
 
   if (gameId === "andazebi") {
     return validateAndazebiScore(payload);
+  }
+
+  if (gameId === "trivia") {
+    return validateTriviaScore(payload);
   }
 
   throw createHttpError(400, "Unsupported gameId");

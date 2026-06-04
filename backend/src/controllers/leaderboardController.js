@@ -86,6 +86,7 @@ export const getMyLeaderboardRanks = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).lean();
   const wordleStats = getGameStat(user, "wordle");
   const andazebiStats = getGameStat(user, "andazebi");
+  const triviaStats = getGameStat(user, "trivia");
 
   res.json({
     data: {
@@ -104,6 +105,12 @@ export const getMyLeaderboardRanks = asyncHandler(async (req, res) => {
         pointsRank: await getRankByField("gameStats.wordle.points", wordleStats.points ?? 0),
         streak: wordleStats.maxStreak ?? 0,
         streakRank: await getRankByField("gameStats.wordle.maxStreak", wordleStats.maxStreak ?? 0)
+      },
+      trivia: {
+        points: triviaStats.points ?? 0,
+        pointsRank: await getRankByField("gameStats.trivia.points", triviaStats.points ?? 0),
+        streak: triviaStats.maxStreak ?? 0,
+        streakRank: await getRankByField("gameStats.trivia.maxStreak", triviaStats.maxStreak ?? 0)
       }
     }
   });

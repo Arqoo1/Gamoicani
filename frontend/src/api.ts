@@ -12,12 +12,31 @@ type ApiEnvelope<T> = {
 };
 
 export type AuthUser = {
+  achievements: UserAchievement[];
   displayName: string;
   email: string | null;
+  gameStats: Record<string, GameStat>;
   id: string;
   role: "user" | "admin";
   totalPoints: number;
   username: string;
+};
+
+export type GameStat = {
+  currentStreak: number;
+  lastCompletedKey: string | null;
+  lastPlayedAt: string | null;
+  maxStreak: number;
+  plays: number;
+  points: number;
+  wins: number;
+};
+
+export type UserAchievement = {
+  description?: string;
+  earnedAt: string;
+  id: string;
+  title?: string;
 };
 
 export type AuthResponse = {
@@ -79,6 +98,56 @@ export type MyLeaderboardRanks = {
     streak: number;
     streakRank: number | null;
   };
+  trivia: {
+    points: number;
+    pointsRank: number | null;
+    streak: number;
+    streakRank: number | null;
+  };
+};
+
+export type ScoreResult = {
+  duplicate: boolean;
+  event: {
+    completionMethod: string;
+    gameId: string;
+    mode: string;
+    points: number;
+    puzzleKey: string | null;
+    streakKey: string | null;
+    won: boolean;
+  };
+  user: AuthUser;
+};
+
+export type GameSummary = {
+  achievements: UserAchievement[];
+  completedPuzzles: Record<
+    string,
+    {
+      completedAt: string;
+      guesses: number;
+      won: boolean;
+    }
+  >;
+  currentStreak: number;
+  dailyResults: Record<
+    string,
+    {
+      completedAt: string;
+      correctCount: number;
+      points: number;
+      totalQuestions: number;
+      won: boolean;
+    }
+  >;
+  gameId: string;
+  guessDistribution: number[];
+  lastCompletedKey: string | null;
+  maxStreak: number;
+  played: number;
+  points: number;
+  wins: number;
 };
 
 const TOKEN_STORAGE_KEY = "auth:token:v1";
@@ -167,10 +236,12 @@ export async function updateMyProfile(input: { displayName?: string; username?: 
 
 export async function submitScore(payload: ScorePayload) {
   try {
-    return await requestJson("/scores", {
+    const response = await requestJson<ScoreResult>("/scores", {
       body: JSON.stringify(payload),
       method: "POST"
     });
+
+    return response.data;
   } catch {
     return null;
   }
@@ -216,6 +287,12 @@ export async function fetchStreakLeaderboard(gameId: string, limit = 10) {
 
 export async function fetchMyLeaderboardRanks() {
   const response = await requestJson<MyLeaderboardRanks>("/leaderboards/me");
+
+  return response.data;
+}
+
+export async function fetchMyGameSummary(gameId: string) {
+  const response = await requestJson<GameSummary>(`/scores/me/${gameId}`);
 
   return response.data;
 }

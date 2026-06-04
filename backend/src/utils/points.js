@@ -37,5 +37,9 @@ export function calculatePoints({ attempts, gameId, level, won }) {
     return getLevelPoints(level);
   }
 
+  if (gameId === "trivia") {
+    return getLevelPoints(level);
+  }
+
   return getLevelPoints(level) || getWordlePoints(Number(attempts)) || 1;
 }

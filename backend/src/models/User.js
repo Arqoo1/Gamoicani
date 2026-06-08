@@ -67,6 +67,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true
     },
+    friends: {
+      default: () => [],
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    },
+    friendRequests: {
+      default: () => [],
+      type: [
+        {
+          _id: false,
+          createdAt: { type: Date, default: Date.now },
+          from: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }
+        }
+      ]
+    },
     gameStats: {
       default: () => ({}),
       of: gameStatSchema,

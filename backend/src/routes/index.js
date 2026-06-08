@@ -4,6 +4,7 @@ import { getMe } from "../controllers/authController.js";
 import { requireAuth } from "../middleware/auth.js";
 import { adminRoutes } from "./adminRoutes.js";
 import { authRoutes } from "./authRoutes.js";
+import { friendRoutes } from "./friendRoutes.js";
 import { gameRoutes } from "./gameRoutes.js";
 import { leaderboardRoutes } from "./leaderboardRoutes.js";
 import { scoreRoutes } from "./scoreRoutes.js";
@@ -19,6 +20,7 @@ apiRoutes.get("/health", (req, res) => {
 apiRoutes.get("/me", requireAuth, getMe);
 apiRoutes.use("/admin", adminRoutes);
 apiRoutes.use("/auth", authRoutes);
+apiRoutes.use("/friends", friendRoutes);
 apiRoutes.use("/games", gameRoutes);
 apiRoutes.use("/leaderboards", leaderboardRoutes);
 apiRoutes.use("/scores", scoreRoutes);

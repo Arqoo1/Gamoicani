@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import {
   Alert,
   Image,
@@ -16,7 +17,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { API_BASE_URL } from "../src/api";
+import {
+  acceptFriendRequest,
+  API_BASE_URL,
+  FriendRequest,
+  FriendUser,
+  listFriendRequests,
+  listFriends,
+  rejectFriendRequest,
+  removeFriend,
+  searchUsers,
+  sendFriendRequest
+} from "../src/api";
 import { useAuth, useLogoutAndGoLogin } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
 
@@ -43,6 +55,16 @@ const GAME_META: Record<string, { label: string; emoji: string }> = {
   wordle:   { label: "Wordle",   emoji: "🟩" },
   andazebi: { label: "Andazebi", emoji: "🎯" },
   trivia:   { label: "Trivia",   emoji: "🧠" }
+};
+
+const ACHIEVEMENTS_META: Record<string, { label: string; emoji: string }> = {
+  "first-win": { label: "პირველი გამარჯვება", emoji: "🏆" },
+  "wordle-1": { label: "პირველივე ცდა", emoji: "🎯" },
+  "wordle-2": { label: "ორი ცდა", emoji: "⚡" },
+  "wordle-3": { label: "სამი ცდა", emoji: "🧠" },
+  "streak-7": { label: "7 დღის სტრიქი", emoji: "🔥" },
+  "perfect-week": { label: "იდეალური კვირა", emoji: "⭐" },
+  "all-games": { label: "ყველა თამაში", emoji: "🎮" }
 };
 
 function getInitials(name: string): string {
@@ -186,6 +208,89 @@ export default function ProfileScreen() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Friends state
+  const [friends, setFriends] = useState<FriendUser[]>([]);
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadFriends();
+    }
+  }, [user]);
+
+  const loadFriends = async () => {
+    try {
+      const [f, r] = await Promise.all([listFriends(), listFriendRequests()]);
+      setFriends(f);
+      setRequests(r);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSearch = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await searchUsers(text);
+      setSearchResults(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSendRequest = async (id: string) => {
+    try {
+      await sendFriendRequest(id);
+      Alert.alert("გაგზავნილია", "მეგობრობის მოთხოვნა გაგზავნილია!");
+      setSearchResults(searchResults.filter(u => u.id !== id));
+    } catch (e) {
+      Alert.alert("შეცდომა", e instanceof Error ? e.message : "ვერ გაიგზავნა");
+    }
+  };
+
+  const handleAcceptRequest = async (id: string) => {
+    try {
+      await acceptFriendRequest(id);
+      loadFriends();
+    } catch (e) {
+      Alert.alert("შეცდომა", e instanceof Error ? e.message : "ვერ მივიღეთ");
+    }
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    try {
+      await rejectFriendRequest(id);
+      loadFriends();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRemoveFriend = async (id: string) => {
+    Alert.alert("წაშლა", "ნამდვილად გსურთ მეგობრის წაშლა?", [
+      { text: "არა", style: "cancel" },
+      { text: "კი", style: "destructive", onPress: async () => {
+          try {
+            await removeFriend(id);
+            loadFriends();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    ]);
+  };
+
   const handleCoverTap = useCallback(() => {
     setActionSheet("cover");
   }, []);
@@ -312,7 +417,9 @@ export default function ProfileScreen() {
             </>
           )}
           <View style={styles.coverOverlay} />
-          <Text style={styles.coverHint}>tap to change cover</Text>
+          <View style={styles.coverEditBtn}>
+            <Feather name="edit-3" size={20} color="#fff" />
+          </View>
         </TouchableOpacity>
 
         {/* ── Avatar row ── */}
@@ -459,6 +566,115 @@ export default function ProfileScreen() {
               <Text style={styles.fieldLabel}>როლი</Text>
               <Text style={styles.fieldValue}>{user.role === "admin" ? "👑 ადმინი" : "👤 მომხმარებელი"}</Text>
             </View>
+          </View>
+        </View>
+
+        {/* ── Badges / Achievements ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🏆 მიღწევები</Text>
+          <View style={styles.achievementsGrid}>
+            {Object.entries(ACHIEVEMENTS_META).map(([id, meta]) => {
+              const achievement = user.achievements?.find(a => a.id === id);
+              const isLocked = !achievement;
+              return (
+                <View key={id} style={[styles.achievementBadge, isLocked && styles.achievementBadgeLocked]}>
+                  <Text style={[styles.achievementEmoji, isLocked && styles.achievementEmojiLocked]}>{meta.emoji}</Text>
+                  <Text style={styles.achievementLabel}>{meta.label}</Text>
+                  {isLocked && <Feather name="lock" size={12} color={colors.secondaryText} style={{ marginTop: 4 }} />}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Friends ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>👥 მეგობრები</Text>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            {/* Search */}
+            <View style={styles.searchBox}>
+              <Feather name="search" size={18} color={colors.secondaryText} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="მოძებნე მეგობარი (@username)"
+                placeholderTextColor={colors.secondaryText}
+                value={searchQuery}
+                onChangeText={handleSearch}
+              />
+            </View>
+
+            {/* Search Results */}
+            {searchQuery.length > 0 && (
+              <View style={styles.searchResults}>
+                {isSearching ? (
+                  <Text style={styles.friendListEmpty}>ვეძებთ...</Text>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map(u => (
+                    <View key={u.id} style={styles.friendRow}>
+                      <View style={[styles.friendAvatar, { backgroundColor: u.avatarColor }]}>
+                        <Text style={styles.friendAvatarInitials}>{getInitials(u.displayName)}</Text>
+                      </View>
+                      <View style={styles.friendInfo}>
+                        <Text style={styles.friendName}>{u.displayName}</Text>
+                        <Text style={styles.friendUsername}>@{u.username}</Text>
+                      </View>
+                      <Pressable style={styles.addFriendBtn} onPress={() => handleSendRequest(u.id)}>
+                        <Text style={styles.addFriendBtnText}>+ დამატება</Text>
+                      </Pressable>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.friendListEmpty}>მომხმარებელი არ მოიძებნა</Text>
+                )}
+              </View>
+            )}
+
+            {/* Pending Requests */}
+            {requests.length > 0 && (
+              <>
+                <Text style={styles.friendSectionTitle}>მოთხოვნები ({requests.length})</Text>
+                {requests.map(req => (
+                  <View key={req.from.id} style={styles.friendRow}>
+                    <View style={[styles.friendAvatar, { backgroundColor: req.from.avatarColor }]}>
+                      <Text style={styles.friendAvatarInitials}>{getInitials(req.from.displayName)}</Text>
+                    </View>
+                    <View style={styles.friendInfo}>
+                      <Text style={styles.friendName}>{req.from.displayName}</Text>
+                      <Text style={styles.friendUsername}>@{req.from.username}</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <Pressable style={styles.acceptBtn} onPress={() => handleAcceptRequest(req.from.id)}>
+                        <Feather name="check" size={16} color="#fff" />
+                      </Pressable>
+                      <Pressable style={styles.rejectBtn} onPress={() => handleRejectRequest(req.from.id)}>
+                        <Feather name="x" size={16} color="#e63946" />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
+
+            {/* Friends List */}
+            <Text style={styles.friendSectionTitle}>ჩემი მეგობრები ({friends.length})</Text>
+            {friends.length === 0 ? (
+              <Text style={styles.friendListEmpty}>ჯერ არ გყავთ მეგობრები</Text>
+            ) : (
+              friends.map(f => (
+                <View key={f.id} style={styles.friendRow}>
+                  <View style={[styles.friendAvatar, { backgroundColor: f.avatarColor }]}>
+                    <Text style={styles.friendAvatarInitials}>{getInitials(f.displayName)}</Text>
+                  </View>
+                  <View style={styles.friendInfo}>
+                    <Text style={styles.friendName}>{f.displayName}</Text>
+                    <Text style={styles.friendUsername}>@{f.username}</Text>
+                  </View>
+                  <Pressable style={styles.removeBtn} onPress={() => handleRemoveFriend(f.id)}>
+                    <Feather name="user-minus" size={18} color={colors.secondaryText} />
+                  </Pressable>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -701,24 +917,34 @@ function createStyles(colors: AppColors) {
       position: "relative"
     },
     coverGradientTop: {
-      ...StyleSheet.absoluteFillObject,
-      bottom: "50%"
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      height: "50%"
     },
     coverGradientBottom: {
-      ...StyleSheet.absoluteFillObject,
-      top: "50%"
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: "50%"
     },
     coverOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.18)"
+      backgroundColor: "#000",
+      opacity: 0.18
     },
-    coverHint: {
-      bottom: 8,
-      color: "rgba(255,255,255,0.6)",
-      fontSize: 11,
-      fontWeight: "600",
+    coverEditBtn: {
       position: "absolute",
-      right: 12
+      right: 16,
+      top: 16,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "center",
+      alignItems: "center"
     },
 
     // Avatar row
@@ -997,6 +1223,32 @@ function createStyles(colors: AppColors) {
     dialogCancelBtn: { flex: 1, backgroundColor: colors.button, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
     dialogCancelBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
     dialogDangerBtn: { flex: 1, backgroundColor: "#e63946", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-    dialogDangerBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" }
+    dialogDangerBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+
+    // Achievements
+    achievementsGrid: { flexDirection: "row", flexWrap: "wrap", padding: 16, paddingTop: 4, gap: 12, justifyContent: "center" },
+    achievementBadge: { alignItems: "center", backgroundColor: colors.background, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, width: 100 },
+    achievementBadgeLocked: { opacity: 0.5, backgroundColor: "transparent" },
+    achievementEmoji: { fontSize: 28, marginBottom: 6 },
+    achievementEmojiLocked: { opacity: 0.3 },
+    achievementLabel: { color: colors.primaryText, fontSize: 11, fontWeight: "800", textAlign: "center" },
+
+    // Friends
+    searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, marginBottom: 16 },
+    searchInput: { flex: 1, color: colors.primaryText, fontSize: 15, fontWeight: "600", minHeight: 44, paddingHorizontal: 8 },
+    searchResults: { backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 16 },
+    friendSectionTitle: { color: colors.secondaryText, fontSize: 12, fontWeight: "800", textTransform: "uppercase", marginBottom: 12, marginTop: 8 },
+    friendRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+    friendAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", marginRight: 12 },
+    friendAvatarInitials: { color: "#fff", fontSize: 16, fontWeight: "900" },
+    friendInfo: { flex: 1 },
+    friendName: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
+    friendUsername: { color: colors.secondaryText, fontSize: 13, fontWeight: "600" },
+    addFriendBtn: { backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+    addFriendBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+    acceptBtn: { backgroundColor: colors.accent, padding: 8, borderRadius: 8 },
+    rejectBtn: { backgroundColor: colors.button, borderColor: "#e63946", borderWidth: 1, padding: 7, borderRadius: 8 },
+    removeBtn: { padding: 8 },
+    friendListEmpty: { color: colors.secondaryText, fontSize: 14, fontWeight: "600", textAlign: "center", paddingVertical: 12 }
   });
 }

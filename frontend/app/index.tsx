@@ -2,6 +2,7 @@ import { Href, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 
 import games from "../data/games.json";
 import { fetchGames, GameItem as ApiGameItem } from "../src/api";
@@ -241,6 +242,14 @@ export default function HomeScreen() {
               onPress={() => router.push("/leaderboard")}
             >
               <LeaderboardIcon color={colors.primaryText} />
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="მულტიპლეერი"
+              style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
+              onPress={() => router.push("/lobby")}
+            >
+              <Feather name="users" size={18} color={colors.primaryText} />
             </Pressable>
 
             <Pressable

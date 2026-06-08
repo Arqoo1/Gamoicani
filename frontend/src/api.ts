@@ -16,11 +16,13 @@ export type AuthUser = {
   avatarColor: string;
   bio: string;
   coverGradient: number;
+  coverPhotoUrl: string | null;
   createdAt: string | null;
   displayName: string;
   email: string | null;
   gameStats: Record<string, GameStat>;
   id: string;
+  profilePhotoUrl: string | null;
   role: "user" | "admin";
   totalPoints: number;
   username: string;
@@ -41,6 +43,19 @@ export type UserAchievement = {
   earnedAt: string;
   id: string;
   title?: string;
+};
+
+export type FriendUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarColor: string;
+  totalPoints?: number;
+};
+
+export type FriendRequest = {
+  from: FriendUser;
+  createdAt: string;
 };
 
 export type AuthResponse = {
@@ -280,9 +295,12 @@ export async function fetchGameContent<T>(gameId: string) {
   return response.data;
 }
 
-export async function fetchGlobalLeaderboard(limit = 10) {
-  const response = await requestJson<LeaderboardEntry[]>(`/leaderboards/global?limit=${limit}`, {
-    auth: false
+export async function fetchGlobalLeaderboard(limit = 10, friendsOnly = false) {
+  const query = new URLSearchParams({ limit: limit.toString() });
+  if (friendsOnly) query.append("friendsOnly", "true");
+  
+  const response = await requestJson<LeaderboardEntry[]>(`/leaderboards/global?${query.toString()}`, {
+    auth: friendsOnly
   });
 
   return response.data;
@@ -359,5 +377,51 @@ export async function uploadProfilePhoto(uri: string) {
 export async function uploadCoverPhoto(uri: string) {
   const response = await uploadFile("/uploads/cover", uri);
   await setAuthToken(response.data.token);
+  return response.data;
+}
+
+export async function searchUsers(query: string) {
+  const response = await requestJson<FriendUser[]>(`/friends/search?q=${encodeURIComponent(query)}`);
+  return response.data;
+}
+
+export async function sendFriendRequest(userId: string) {
+  const response = await requestJson<{ message: string }>("/friends/request", {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+  return response.data;
+}
+
+export async function acceptFriendRequest(userId: string) {
+  const response = await requestJson<{ message: string }>("/friends/accept", {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+  return response.data;
+}
+
+export async function rejectFriendRequest(userId: string) {
+  const response = await requestJson<{ message: string }>("/friends/reject", {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+  return response.data;
+}
+
+export async function removeFriend(userId: string) {
+  const response = await requestJson<{ message: string }>(`/friends/${userId}`, {
+    method: "DELETE",
+  });
+  return response.data;
+}
+
+export async function listFriends() {
+  const response = await requestJson<FriendUser[]>("/friends");
+  return response.data;
+}
+
+export async function listFriendRequests() {
+  const response = await requestJson<FriendRequest[]>("/friends/requests");
   return response.data;
 }

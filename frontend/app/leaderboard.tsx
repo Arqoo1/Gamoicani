@@ -38,6 +38,7 @@ export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [myRanks, setMyRanks] = useState<MyLeaderboardRanks | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [friendsOnly, setFriendsOnly] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -45,7 +46,7 @@ export default function LeaderboardScreen() {
     setLoadState("loading");
     const request =
       mode === "global"
-        ? fetchGlobalLeaderboard(10)
+        ? fetchGlobalLeaderboard(10, friendsOnly)
         : fetchStreakLeaderboard(mode, 10);
 
     Promise.all([request, fetchMyLeaderboardRanks().catch(() => null)])
@@ -66,7 +67,7 @@ export default function LeaderboardScreen() {
     return () => {
       active = false;
     };
-  }, [mode]);
+  }, [mode, friendsOnly]);
 
   const title = boardCopy[mode].title;
   const emptyText =
@@ -108,6 +109,23 @@ export default function LeaderboardScreen() {
             </Pressable>
           ))}
         </View>
+
+        {mode === "global" && (
+          <View style={styles.friendsToggleBox}>
+            <Pressable
+              style={({ pressed }) => [styles.friendsToggleBtn, !friendsOnly && styles.friendsToggleActive, pressed && styles.pressed]}
+              onPress={() => setFriendsOnly(false)}
+            >
+              <Text style={[styles.friendsToggleText, !friendsOnly && styles.friendsToggleTextActive]}>ყველა</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.friendsToggleBtn, friendsOnly && styles.friendsToggleActive, pressed && styles.pressed]}
+              onPress={() => setFriendsOnly(true)}
+            >
+              <Text style={[styles.friendsToggleText, friendsOnly && styles.friendsToggleTextActive]}>მეგობრები</Text>
+            </Pressable>
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>{title}</Text>
 
@@ -237,6 +255,39 @@ function createStyles(colors: AppColors) {
       textAlign: "center"
     },
     modeButtonTextActive: {
+      color: colors.primaryText
+    },
+    friendsToggleBox: {
+      alignSelf: "center",
+      backgroundColor: colors.button,
+      borderRadius: 8,
+      flexDirection: "row",
+      marginBottom: 16,
+      maxWidth: 240,
+      padding: 4,
+      width: "100%"
+    },
+    friendsToggleBtn: {
+      alignItems: "center",
+      borderRadius: 6,
+      flex: 1,
+      justifyContent: "center",
+      paddingVertical: 6
+    },
+    friendsToggleActive: {
+      backgroundColor: colors.card,
+      elevation: 1,
+      shadowColor: colors.shadow,
+      shadowOffset: { height: 1, width: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2
+    },
+    friendsToggleText: {
+      color: colors.secondaryText,
+      fontSize: 12,
+      fontWeight: "800"
+    },
+    friendsToggleTextActive: {
       color: colors.primaryText
     },
     sectionTitle: {

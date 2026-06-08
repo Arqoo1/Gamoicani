@@ -1,6 +1,7 @@
 import { User } from "../models/User.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { parseLimit, sanitizeGameId } from "../utils/validators.js";
+import { verifyAuthToken } from "../utils/tokens.js";
 
 function getGameStat(user, gameId) {
   return user.gameStats?.[gameId] ?? {};
@@ -14,9 +15,40 @@ async function getRankByField(fieldPath, value) {
   return (await User.countDocuments({ [fieldPath]: { $gt: value } })) + 1;
 }
 
+async function resolveOptionalUser(req) {
+  try {
+    const header = req.get("authorization") ?? "";
+    const [scheme, token] = header.split(" ");
+
+    if (scheme?.toLowerCase() !== "bearer" || !token) {
+      return null;
+    }
+
+    const payload = verifyAuthToken(token);
+    const user = await User.findById(payload.sub);
+
+    return user ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const getGlobalLeaderboard = asyncHandler(async (req, res) => {
   const limit = parseLimit(req.query.limit, 10);
-  const users = await User.find({})
+  const friendsOnly = req.query.friendsOnly === "true";
+
+  let filter = {};
+
+  if (friendsOnly) {
+    const currentUser = req.user ?? (await resolveOptionalUser(req));
+
+    if (currentUser) {
+      const friendIds = currentUser.friends ?? [];
+      filter = { _id: { $in: [...friendIds, currentUser._id] } };
+    }
+  }
+
+  const users = await User.find(filter)
     .sort({ totalPoints: -1, updatedAt: 1 })
     .limit(limit)
     .lean();

@@ -8,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth } from "../src/auth";
 import { ThemeProvider, useAppTheme } from "../src/theme";
+import { SocketProvider } from "../src/socket";
 
 function ThemedStack() {
   const { colors, isDark } = useAppTheme();
@@ -63,7 +64,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <ThemedStack />
+          <SocketProvider>
+            <ThemedStack />
+          </SocketProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

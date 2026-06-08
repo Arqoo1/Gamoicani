@@ -3,6 +3,8 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import { config } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -19,6 +21,11 @@ export function createApp() {
   app.use(cors({ origin: corsOrigin }));
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan("dev"));
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
+  
   app.use(
     rateLimit({
       legacyHeaders: false,

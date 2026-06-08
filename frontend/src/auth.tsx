@@ -3,17 +3,21 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 
 import {
   AuthUser,
+  changePassword as apiChangePassword,
   clearAuthToken,
   fetchMe,
   getAuthToken,
   loginAccount,
   registerAccount,
-  updateMyProfile
+  updateMyProfile,
+  uploadCoverPhoto as apiUploadCoverPhoto,
+  uploadProfilePhoto as apiUploadProfilePhoto
 } from "./api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
+  changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   error: string | null;
   login: (input: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -25,7 +29,17 @@ type AuthContextValue = {
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
   status: AuthStatus;
-  updateProfile: (input: { displayName?: string; username?: string }) => Promise<void>;
+  updateProfile: (input: {
+    avatarColor?: string;
+    bio?: string;
+    coverGradient?: number;
+    coverPhotoUrl?: string | null;
+    displayName?: string;
+    profilePhotoUrl?: string | null;
+    username?: string;
+  }) => Promise<void>;
+  uploadCoverPhoto: (uri: string) => Promise<void>;
+  uploadProfilePhoto: (uri: string) => Promise<void>;
   user: AuthUser | null;
 };
 
@@ -78,9 +92,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const updateProfile = useCallback(async (input: { displayName?: string; username?: string }) => {
+  const updateProfile = useCallback(async (input: {
+    avatarColor?: string;
+    bio?: string;
+    coverGradient?: number;
+    coverPhotoUrl?: string | null;
+    displayName?: string;
+    profilePhotoUrl?: string | null;
+    username?: string;
+  }) => {
     setError(null);
     const response = await updateMyProfile(input);
+    setUser(response.user);
+    setStatus("authenticated");
+  }, []);
+
+  const changePassword = useCallback(
+    async (input: { currentPassword: string; newPassword: string }) => {
+      setError(null);
+      await apiChangePassword(input);
+    },
+    []
+  );
+
+  const uploadProfilePhoto = useCallback(async (uri: string) => {
+    setError(null);
+    const response = await apiUploadProfilePhoto(uri);
+    setUser(response.user);
+    setStatus("authenticated");
+  }, []);
+
+  const uploadCoverPhoto = useCallback(async (uri: string) => {
+    setError(null);
+    const response = await apiUploadCoverPhoto(uri);
     setUser(response.user);
     setStatus("authenticated");
   }, []);
@@ -93,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      changePassword,
       error,
       login,
       logout,
@@ -100,9 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       status,
       updateProfile,
+      uploadCoverPhoto,
+      uploadProfilePhoto,
       user
     }),
-    [error, login, logout, refreshUser, register, status, updateProfile, user]
+    [
+      changePassword,
+      error,
+      login,
+      logout,
+      refreshUser,
+      register,
+      status,
+      updateProfile,
+      uploadCoverPhoto,
+      uploadProfilePhoto,
+      user
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

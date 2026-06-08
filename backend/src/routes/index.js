@@ -7,6 +7,7 @@ import { authRoutes } from "./authRoutes.js";
 import { gameRoutes } from "./gameRoutes.js";
 import { leaderboardRoutes } from "./leaderboardRoutes.js";
 import { scoreRoutes } from "./scoreRoutes.js";
+import { uploadRoutes } from "./uploadRoutes.js";
 import { userRoutes } from "./userRoutes.js";
 
 export const apiRoutes = Router();
@@ -21,4 +22,5 @@ apiRoutes.use("/auth", authRoutes);
 apiRoutes.use("/games", gameRoutes);
 apiRoutes.use("/leaderboards", leaderboardRoutes);
 apiRoutes.use("/scores", scoreRoutes);
+apiRoutes.use("/uploads", uploadRoutes);
 apiRoutes.use("/users", userRoutes);

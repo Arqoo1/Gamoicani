@@ -27,6 +27,31 @@ const userSchema = new mongoose.Schema(
       default: () => [],
       type: [achievementSchema]
     },
+    avatarColor: {
+      default: "#2f9e5d",
+      trim: true,
+      type: String
+    },
+    bio: {
+      default: "",
+      maxlength: 200,
+      trim: true,
+      type: String
+    },
+    coverPhotoUrl: {
+      default: null,
+      type: String
+    },
+    profilePhotoUrl: {
+      default: null,
+      type: String
+    },
+    coverGradient: {
+      default: 0,
+      max: 7,
+      min: 0,
+      type: Number
+    },
     displayName: {
       maxlength: 60,
       required: true,

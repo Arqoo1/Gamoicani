@@ -82,6 +82,41 @@ export const updateMe = asyncHandler(async (req, res) => {
     updates.username = assertUsername(req.body.username);
   }
 
+  if (req.body.bio !== undefined) {
+    const bio = String(req.body.bio ?? "").trim().slice(0, 200);
+    updates.bio = bio;
+  }
+
+  if (req.body.avatarColor !== undefined) {
+    const color = String(req.body.avatarColor ?? "").trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+      req.user.avatarColor = color;
+      req.user.markModified('avatarColor');
+      updates.avatarColor = color;
+    }
+  }
+
+  if (req.body.coverGradient !== undefined) {
+    const gradient = Number(req.body.coverGradient);
+    if (Number.isFinite(gradient) && gradient >= 0 && gradient <= 7) {
+      req.user.coverGradient = Math.floor(gradient);
+      req.user.markModified('coverGradient');
+      updates.coverGradient = Math.floor(gradient);
+    }
+  }
+
+  if (req.body.profilePhotoUrl === null || req.body.profilePhotoUrl === "") {
+    req.user.profilePhotoUrl = null;
+    req.user.markModified('profilePhotoUrl');
+    updates.profilePhotoUrl = null;
+  }
+
+  if (req.body.coverPhotoUrl === null || req.body.coverPhotoUrl === "") {
+    req.user.coverPhotoUrl = null;
+    req.user.markModified('coverPhotoUrl');
+    updates.coverPhotoUrl = null;
+  }
+
   if (Object.keys(updates).length === 0) {
     res.json({ data: { user: serializeUser(req.user) } });
     return;
@@ -93,10 +128,43 @@ export const updateMe = asyncHandler(async (req, res) => {
     if (existingUser) {
       throw createHttpError(409, "Username is already taken");
     }
+    req.user.username = updates.username;
+    req.user.markModified('username');
   }
 
-  Object.assign(req.user, updates);
+  if (updates.displayName) {
+    req.user.displayName = updates.displayName;
+    req.user.markModified('displayName');
+  }
+  
+  if (updates.bio !== undefined) {
+    req.user.bio = updates.bio;
+    req.user.markModified('bio');
+  }
+
   await req.user.save();
 
   res.json({ data: authResponse(req.user) });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const currentPassword = String(req.body.currentPassword ?? "");
+  const newPassword = assertPassword(req.body.newPassword);
+
+  const userWithHash = await User.findById(req.user._id).select("+passwordHash");
+
+  if (!userWithHash?.passwordHash) {
+    throw createHttpError(400, "No password set for this account");
+  }
+
+  const passwordMatches = await bcrypt.compare(currentPassword, userWithHash.passwordHash);
+
+  if (!passwordMatches) {
+    throw createHttpError(401, "Current password is incorrect");
+  }
+
+  userWithHash.passwordHash = await bcrypt.hash(newPassword, 12);
+  await userWithHash.save();
+
+  res.json({ data: { message: "Password changed successfully" } });
 });

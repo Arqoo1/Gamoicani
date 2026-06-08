@@ -10,10 +10,16 @@ export function serializeUser(user) {
       earnedAt: achievement.earnedAt,
       id: achievement.id
     })),
+    avatarColor: source.avatarColor ?? "#2f9e5d",
+    bio: source.bio ?? "",
+    coverGradient: source.coverGradient ?? 0,
+    coverPhotoUrl: source.coverPhotoUrl ?? null,
+    createdAt: source.createdAt ?? null,
     displayName: source.displayName,
     email: source.email ?? null,
     gameStats,
     id: String(source._id),
+    profilePhotoUrl: source.profilePhotoUrl ?? null,
     role: source.role ?? "user",
     totalPoints: source.totalPoints ?? 0,
     username: source.username

@@ -13,6 +13,10 @@ type ApiEnvelope<T> = {
 
 export type AuthUser = {
   achievements: UserAchievement[];
+  avatarColor: string;
+  bio: string;
+  coverGradient: number;
+  createdAt: string | null;
   displayName: string;
   email: string | null;
   gameStats: Record<string, GameStat>;
@@ -152,7 +156,7 @@ export type GameSummary = {
 
 const TOKEN_STORAGE_KEY = "auth:token:v1";
 const defaultApiUrl = Platform.OS === "android" ? "http://10.0.2.2:4000/api" : "http://localhost:4000/api";
-const API_BASE_URL = process?.env?.EXPO_PUBLIC_API_URL ?? defaultApiUrl;
+export const API_BASE_URL = process?.env?.EXPO_PUBLIC_API_URL ?? defaultApiUrl;
 
 export async function getAuthToken() {
   return AsyncStorage.getItem(TOKEN_STORAGE_KEY);
@@ -223,13 +227,30 @@ export async function fetchMe() {
   return response.data.user;
 }
 
-export async function updateMyProfile(input: { displayName?: string; username?: string }) {
+export async function updateMyProfile(input: {
+  avatarColor?: string;
+  bio?: string;
+  coverGradient?: number;
+  coverPhotoUrl?: string | null;
+  displayName?: string;
+  profilePhotoUrl?: string | null;
+  username?: string;
+}) {
   const response = await requestJson<AuthResponse>("/auth/me", {
     body: JSON.stringify(input),
     method: "PATCH"
   });
 
   await setAuthToken(response.data.token);
+
+  return response.data;
+}
+
+export async function changePassword(input: { currentPassword: string; newPassword: string }) {
+  const response = await requestJson<{ message: string }>("/auth/change-password", {
+    body: JSON.stringify(input),
+    method: "POST"
+  });
 
   return response.data;
 }
@@ -294,5 +315,49 @@ export async function fetchMyLeaderboardRanks() {
 export async function fetchMyGameSummary(gameId: string) {
   const response = await requestJson<GameSummary>(`/scores/me/${gameId}`);
 
+  return response.data;
+}
+
+async function uploadFile(path: string, uri: string) {
+  const token = await getAuthToken();
+  const formData = new FormData();
+  
+  const filename = uri.split("/").pop() || "photo.jpg";
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : "image/jpeg";
+
+  formData.append("photo", {
+    name: filename,
+    type,
+    uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri
+  } as any);
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: formData
+  });
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message ?? `Upload failed with ${response.status}`);
+  }
+
+  return payload as ApiEnvelope<AuthResponse>;
+}
+
+export async function uploadProfilePhoto(uri: string) {
+  const response = await uploadFile("/uploads/avatar", uri);
+  await setAuthToken(response.data.token);
+  return response.data;
+}
+
+export async function uploadCoverPhoto(uri: string) {
+  const response = await uploadFile("/uploads/cover", uri);
+  await setAuthToken(response.data.token);
   return response.data;
 }

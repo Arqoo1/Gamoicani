@@ -92,12 +92,10 @@ export const acceptFriendRequest = asyncHandler(async (req, res) => {
     throw createHttpError(404, "User not found");
   }
 
-  // Remove the request
   req.user.friendRequests = req.user.friendRequests.filter(
     (r) => String(r.from) !== String(userId)
   );
 
-  // Add to both users' friends arrays (bidirectional)
   if (!req.user.friends.some((fId) => String(fId) === String(userId))) {
     req.user.friends.push(userId);
   }
@@ -150,7 +148,6 @@ export const removeFriend = asyncHandler(async (req, res) => {
     throw createHttpError(404, "User is not in your friends list");
   }
 
-  // Remove from both users' friends arrays (bidirectional)
   req.user.friends = req.user.friends.filter(
     (fId) => String(fId) !== String(userId)
   );

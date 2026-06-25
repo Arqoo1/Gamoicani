@@ -10,7 +10,6 @@ async function startServer() {
   const app = createApp();
   const httpServer = createServer(app);
 
-  // Initialize socket.io with the http server
   initSocket(httpServer);
 
   httpServer.listen(config.port, () => {

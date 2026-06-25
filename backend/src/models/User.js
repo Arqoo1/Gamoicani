@@ -109,6 +109,23 @@ const userSchema = new mongoose.Schema(
       trim: true,
       type: String,
       unique: true
+    },
+    inventory: {
+      default: () => [],
+      type: [{
+        _id: false,
+        itemId: { type: String, required: true, trim: true },
+        purchasedAt: { type: Date, default: Date.now }
+      }]
+    },
+    equippedItems: {
+      default: () => ({}),
+      type: {
+        avatar: { type: String, default: null },
+        banner: { type: String, default: null },
+        nameTag: { type: String, default: null }
+      },
+      _id: false
     }
   },
   {

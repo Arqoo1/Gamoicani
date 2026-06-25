@@ -5,10 +5,9 @@ import { config } from "./config/env.js";
 import { User } from "./models/User.js";
 import { ContentPack } from "./models/ContentPack.js";
 
-// In-memory state
-const rooms = new Map(); // roomId -> { players: [socket1, socket2], gameType, answer, passcode, puzzle, guesses: { odId: [] }, finished: Set }
-const publicQueue = new Map(); // gameType -> [socket]
-const privateRooms = new Map(); // passcode -> roomId
+const rooms = new Map(); 
+const publicQueue = new Map(); 
+const privateRooms = new Map(); 
 
 const MAX_WORDLE_ATTEMPTS = 6;
 const MAX_ANDAZEBI_ATTEMPTS = 8;
@@ -56,7 +55,6 @@ function scoreWordleGuess(guess, answer) {
   const answerChars = [...answer];
   const guessChars = [...guess];
 
-  // First pass: correct positions
   for (let i = 0; i < guessChars.length; i++) {
     if (guessChars[i] === answerChars[i]) {
       result[i] = "correct";
@@ -65,7 +63,6 @@ function scoreWordleGuess(guess, answer) {
     }
   }
 
-  // Second pass: present but wrong position
   for (let i = 0; i < guessChars.length; i++) {
     if (guessChars[i] === null) {
       continue;
@@ -82,11 +79,11 @@ function scoreWordleGuess(guess, answer) {
   return result;
 }
 
-async function pickPuzzle(gameType) {
+async function pickPuzzle(gameType, roundIndex = 0) {
   let actualType = gameType;
 
   if (gameType === "mix") {
-    actualType = Math.random() < 0.5 ? "wordle" : "andazebi";
+    actualType = roundIndex % 2 === 0 ? "wordle" : "andazebi";
   }
 
   const pack = await ContentPack.findOne({ gameId: actualType }).lean();
@@ -112,7 +109,6 @@ async function pickPuzzle(gameType) {
     };
   }
 
-  // andazebi
   const items = pack.payload.items ?? pack.payload.proverbs ?? [];
 
   if (items.length === 0) {
@@ -141,7 +137,7 @@ async function startGame(io, roomId) {
     return;
   }
 
-  const puzzleData = await pickPuzzle(room.gameType);
+  const puzzleData = await pickPuzzle(room.gameType, room.roundIndex);
 
   if (!puzzleData) {
     room.players.forEach((s) =>
@@ -158,6 +154,9 @@ async function startGame(io, roomId) {
   room.puzzle = puzzleData.puzzle;
   room.guesses = {};
   room.finished = new Set();
+  if (room.gameType === "mix") {
+    room.roundResults[room.roundIndex] = [];
+  }
 
   room.players.forEach((s) => {
     room.guesses[s.user._id.toString()] = [];
@@ -166,8 +165,17 @@ async function startGame(io, roomId) {
   io.to(roomId).emit("game-start", {
     gameType: puzzleData.actualType,
     puzzle: puzzleData.puzzle,
-    roomId
+    roomId,
+    roundIndex: room.roundIndex,
+    totalRounds: room.totalRounds
   });
+}
+
+async function startNextMixRound(io, roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  room.roundIndex += 1;
+  await startGame(io, roomId);
 }
 
 export function initSocket(httpServer) {
@@ -178,7 +186,6 @@ export function initSocket(httpServer) {
     }
   });
 
-  // JWT auth middleware
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -202,13 +209,60 @@ export function initSocket(httpServer) {
   });
 
   io.on("connection", (socket) => {
-    // --- Public Matchmaking ---
+    socket.join("global-chat");
+    socket.lastChatAt = 0;
+
+    socket.on("chat-send", ({ text }) => {
+      if (!text || typeof text !== "string") return;
+      const msg = text.trim().slice(0, 200);
+      if (!msg) return;
+
+      const now = Date.now();
+      if (now - socket.lastChatAt < 2000) {
+        socket.emit("error-message", { message: "Too many messages. Please wait." });
+        return;
+      }
+      socket.lastChatAt = now;
+
+      io.to("global-chat").emit("chat-message", {
+        id: generateId(),
+        userId: socket.user._id.toString(),
+        username: socket.user.username,
+        displayName: socket.user.displayName,
+        text: msg,
+        timestamp: now,
+      });
+    });
+
+    socket.on("profile-update", async ({ equippedItems }) => {
+      const result = findRoomBySocket(socket);
+      if (!result) return;
+      const { roomId } = result;
+      const opponent = getOpponent(result.room, socket);
+      if (!opponent) return;
+
+      try {
+        const freshUser = await User.findById(socket.user._id).lean();
+        const items = (freshUser && freshUser.equippedItems) ? freshUser.equippedItems : equippedItems;
+        opponent.emit("opponent-profile", {
+          equippedItems: items,
+          displayName: socket.user.displayName,
+          username: socket.user.username,
+        });
+      } catch {
+        opponent.emit("opponent-profile", {
+          equippedItems,
+          displayName: socket.user.displayName,
+          username: socket.user.username,
+        });
+      }
+    });
+
     socket.on("join-public-queue", async ({ gameType }) => {
       if (!["wordle", "andazebi", "mix"].includes(gameType)) {
         return socket.emit("error-message", { message: "Invalid game type" });
       }
 
-      // Remove from any existing queue first
       removeFromQueue(socket);
 
       if (!publicQueue.has(gameType)) {
@@ -217,7 +271,6 @@ export function initSocket(httpServer) {
 
       const queue = publicQueue.get(gameType);
 
-      // Check if someone is already waiting
       if (queue.length > 0) {
         const opponent = queue.shift();
 
@@ -225,7 +278,6 @@ export function initSocket(httpServer) {
           publicQueue.delete(gameType);
         }
 
-        // Create a room for both players
         const roomId = generateId();
         rooms.set(roomId, {
           gameType,
@@ -234,7 +286,11 @@ export function initSocket(httpServer) {
           passcode: null,
           puzzle: null,
           guesses: {},
-          finished: new Set()
+          finished: new Set(),
+          roundIndex: 0,
+          totalRounds: gameType === "mix" ? 3 : 1,
+          roundResults: [],
+          scores: {}
         });
 
         opponent.join(roomId);
@@ -260,7 +316,6 @@ export function initSocket(httpServer) {
       socket.emit("queue-left");
     });
 
-    // --- Private Room ---
     socket.on("create-private-room", ({ gameType }) => {
       if (!["wordle", "andazebi", "mix"].includes(gameType)) {
         return socket.emit("error-message", { message: "Invalid game type" });
@@ -276,7 +331,11 @@ export function initSocket(httpServer) {
         passcode,
         puzzle: null,
         guesses: {},
-        finished: new Set()
+        finished: new Set(),
+        roundIndex: 0,
+        totalRounds: gameType === "mix" ? 3 : 1,
+        roundResults: [],
+        scores: {}
       });
 
       privateRooms.set(passcode, roomId);
@@ -304,7 +363,6 @@ export function initSocket(httpServer) {
         return socket.emit("error-message", { message: "Room is full" });
       }
 
-      // Don't let the same user join their own room
       if (room.players.some((s) => s.user._id.toString() === socket.user._id.toString())) {
         return socket.emit("error-message", { message: "Already in this room" });
       }
@@ -312,7 +370,6 @@ export function initSocket(httpServer) {
       room.players.push(socket);
       socket.join(roomId);
 
-      // Remove the passcode so no one else can join
       privateRooms.delete(passcode);
 
       io.to(roomId).emit("room-joined", {
@@ -327,7 +384,6 @@ export function initSocket(httpServer) {
       await startGame(io, roomId);
     });
 
-    // --- Gameplay ---
     socket.on("submit-guess", ({ guess }) => {
       const found = findRoomBySocket(socket);
 
@@ -347,23 +403,21 @@ export function initSocket(httpServer) {
       }
 
       const normalizedGuess = guess.trim().toLowerCase();
+      let isCorrect = false;
+      let playerGuesses = room.guesses[playerId] ?? [];
 
       if (room.actualType === "wordle") {
-        // Validate against valid words list
         const validWords = room.puzzle?.validWords ?? [];
-
         if (validWords.length > 0 && !validWords.includes(normalizedGuess)) {
           return socket.emit("error-message", { message: "Not a valid word" });
         }
 
         const tiles = scoreWordleGuess(normalizedGuess, room.answer);
-        const isCorrect = tiles.every((t) => t === "correct");
-        const playerGuesses = room.guesses[playerId] ?? [];
+        isCorrect = tiles.every((t) => t === "correct");
 
         playerGuesses.push({ guess: normalizedGuess, tiles });
         room.guesses[playerId] = playerGuesses;
 
-        // Send result back to the guesser
         socket.emit("guess-result", {
           attempt: playerGuesses.length,
           guess: normalizedGuess,
@@ -371,45 +425,15 @@ export function initSocket(httpServer) {
           tiles
         });
 
-        // Send progress to opponent (colors only, not the guess text)
         const opponent = getOpponent(room, socket);
-
         if (opponent) {
           opponent.emit("opponent-guess", {
             attempt: playerGuesses.length,
             tiles
           });
         }
-
-        // Check game over conditions
-        if (isCorrect || playerGuesses.length >= MAX_WORDLE_ATTEMPTS) {
-          room.finished.add(playerId);
-
-          const result = isCorrect ? "won" : "lost";
-
-          socket.emit("game-over", {
-            answer: room.answer,
-            attempts: playerGuesses.length,
-            result
-          });
-
-          if (opponent) {
-            const opponentId = opponent.user._id.toString();
-
-            if (room.finished.has(opponentId)) {
-              // Both done — determine final results
-            } else {
-              opponent.emit("opponent-finished", {
-                attempts: playerGuesses.length,
-                result
-              });
-            }
-          }
-        }
       } else {
-        // andazebi mode
-        const isCorrect = normalizedGuess === room.answer.toLowerCase();
-        const playerGuesses = room.guesses[playerId] ?? [];
+        isCorrect = normalizedGuess === room.answer.toLowerCase();
 
         playerGuesses.push({ guess: normalizedGuess, correct: isCorrect });
         room.guesses[playerId] = playerGuesses;
@@ -421,47 +445,79 @@ export function initSocket(httpServer) {
         });
 
         const opponent = getOpponent(room, socket);
-
         if (opponent) {
           opponent.emit("opponent-guess", {
             attempt: playerGuesses.length,
             isCorrect
           });
         }
+      }
 
-        if (isCorrect || playerGuesses.length >= MAX_ANDAZEBI_ATTEMPTS) {
-          room.finished.add(playerId);
+      const maxAttempts = room.actualType === "wordle" ? MAX_WORDLE_ATTEMPTS : MAX_ANDAZEBI_ATTEMPTS;
 
-          const result = isCorrect ? "won" : "lost";
-
-          socket.emit("game-over", {
-            answer: room.answer,
-            attempts: playerGuesses.length,
-            result
-          });
-
-          if (opponent) {
-            const opponentId = opponent.user._id.toString();
-
-            if (room.finished.has(opponentId)) {
-              // Both done
-            } else {
-              opponent.emit("opponent-finished", {
-                attempts: playerGuesses.length,
-                result
-              });
+      if (isCorrect || playerGuesses.length >= maxAttempts) {
+        room.finished.add(playerId);
+        const result = isCorrect ? "won" : "lost";
+        
+        if (room.gameType === "mix") {
+            room.roundResults[room.roundIndex].push({
+                playerId,
+                result,
+                attempts: playerGuesses.length
+            });
+            if (result === "won") {
+                room.scores[playerId] = (room.scores[playerId] ?? 0) + 1;
             }
+        }
+
+        socket.emit("game-over", {
+          answer: room.answer,
+          attempts: playerGuesses.length,
+          result,
+          roundIndex: room.roundIndex
+        });
+
+        const opponent = getOpponent(room, socket);
+        if (opponent) {
+          const opponentId = opponent.user._id.toString();
+
+          if (room.finished.has(opponentId)) {
+            if (room.gameType === "mix") {
+                const roundResults = room.roundResults[room.roundIndex];
+                if (room.roundIndex + 1 < room.totalRounds) {
+                    io.to(roomId).emit("mix-round-over", {
+                        roundIndex: room.roundIndex,
+                        roundResults,
+                        scores: room.scores
+                    });
+                    setTimeout(() => {
+                        startNextMixRound(io, roomId);
+                    }, 3000);
+                } else {
+                    io.to(roomId).emit("mix-game-over", {
+                        scores: room.scores,
+                        roundResults: room.roundResults
+                    });
+                }
+            }
+          } else {
+            opponent.emit("opponent-finished", {
+              attempts: playerGuesses.length,
+              result
+            });
           }
+        } else if (room.gameType === "mix" && room.roundIndex + 1 >= room.totalRounds) {
+             io.to(roomId).emit("mix-game-over", {
+                scores: room.scores,
+                roundResults: room.roundResults
+            });
         }
       }
     });
 
-    // --- Disconnect ---
     socket.on("disconnect", () => {
-      // Remove from matchmaking queue
       removeFromQueue(socket);
 
-      // Handle in-game disconnect
       const found = findRoomBySocket(socket);
 
       if (found) {
@@ -473,7 +529,6 @@ export function initSocket(httpServer) {
             message: "Your opponent has disconnected"
           });
 
-          // If game was in progress and opponent hasn't finished, they win by default
           const opponentId = opponent.user._id.toString();
 
           if (!room.finished.has(opponentId) && room.answer) {
@@ -482,10 +537,16 @@ export function initSocket(httpServer) {
               attempts: 0,
               result: "won"
             });
+            
+            if (room.gameType === "mix") {
+                io.to(roomId).emit("mix-game-over", {
+                    scores: { [opponentId]: (room.scores[opponentId] ?? 0) + 1 },
+                    roundResults: room.roundResults
+                });
+            }
           }
         }
 
-        // Clean up the room
         if (room.passcode) {
           privateRooms.delete(room.passcode);
         }

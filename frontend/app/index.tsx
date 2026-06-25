@@ -29,7 +29,7 @@ const shiftedGuideRows = [
   ["⇧", "ძ", "ხ", "ჩ", "ვ", "ბ", "ნ", "მ", "⌫"]
 ];
 
-/** Moon crescent icon built from Views */
+
 function MoonIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
@@ -57,7 +57,6 @@ function MoonIcon({ color }: { color: string }) {
             right: -3,
             borderWidth: 3,
             borderColor: color,
-            // This overlay darkens the right side, forming the crescent
           }}
         />
       </View>
@@ -65,7 +64,7 @@ function MoonIcon({ color }: { color: string }) {
   );
 }
 
-/** Sun icon built from Views */
+
 function SunIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
@@ -98,7 +97,7 @@ function SunIcon({ color }: { color: string }) {
   );
 }
 
-/** Open book icon built from Views */
+
 function BookIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 20, height: 18, alignItems: "center", justifyContent: "center" }}>
@@ -218,13 +217,13 @@ export default function HomeScreen() {
 
           {/* icon buttons row — centered */}
           <View style={styles.toolRow}>
-            {/* dark-mode toggle */}
+            {/* settings */}
             <Pressable
-              accessibilityLabel="თემის შეცვლა"
+              accessibilityLabel="პარამეტრები"
               style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
-              onPress={toggleTheme}
+              onPress={() => router.push("/settings" as any)}
             >
-              {isDark ? <SunIcon color={colors.primaryText} /> : <MoonIcon color={colors.primaryText} />}
+              <Feather name="settings" size={18} color={colors.primaryText} />
             </Pressable>
 
             {/* keyboard guide */}

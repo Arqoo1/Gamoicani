@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSocket } from "../src/socket";
@@ -13,15 +13,18 @@ export default function MultiplayerScreen() {
   const puzzle = useMemo(() => puzzleStr ? JSON.parse(puzzleStr) : null, [puzzleStr]);
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { socket } = useSocket();
+  const { socket, opponentProfile } = useSocket();
 
-  // Local state for Wordle
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
-  const [guessResults, setGuessResults] = useState<any[]>([]); // Results back from server
+  const [guessResults, setGuessResults] = useState<any[]>([]); 
   const [opponentProgress, setOpponentProgress] = useState<any[]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [results, setResults] = useState<any>(null);
+
+  const [activeEmote, setActiveEmote] = useState<string | null>(null);
+  const emoteAnimY = useRef(new Animated.Value(0)).current;
+  const emoteAnimOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!socket) return;
@@ -39,16 +42,61 @@ export default function MultiplayerScreen() {
       setResults(data);
     }
 
+    function onReceiveEmote(data: { emote: string }) {
+      setActiveEmote(data.emote);
+      emoteAnimY.setValue(20);
+      emoteAnimOpacity.setValue(1);
+      
+      Animated.parallel([
+        Animated.timing(emoteAnimY, {
+          toValue: -40,
+          duration: 1500,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true
+        }),
+        Animated.timing(emoteAnimOpacity, {
+          toValue: 0,
+          duration: 1500,
+          delay: 500,
+          useNativeDriver: true
+        })
+      ]).start(() => setActiveEmote(null));
+    }
+
     socket.on("guess-result", onGuessResult);
     socket.on("opponent-guess", onOpponentGuess);
     socket.on("game-over", onGameOver);
+    socket.on("receive-emote", onReceiveEmote);
 
     return () => {
       socket.off("guess-result", onGuessResult);
       socket.off("opponent-guess", onOpponentGuess);
       socket.off("game-over", onGameOver);
+      socket.off("receive-emote", onReceiveEmote);
     };
-  }, [socket]);
+  }, [socket, emoteAnimY, emoteAnimOpacity]);
+
+  const sendEmote = (emote: string) => {
+    socket?.emit("send-emote", { roomId, emote });
+    setActiveEmote(emote);
+    emoteAnimY.setValue(20);
+    emoteAnimOpacity.setValue(1);
+    
+    Animated.parallel([
+      Animated.timing(emoteAnimY, {
+        toValue: -40,
+        duration: 1500,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true
+      }),
+      Animated.timing(emoteAnimOpacity, {
+        toValue: 0,
+        duration: 1500,
+        delay: 500,
+        useNativeDriver: true
+      })
+    ]).start(() => setActiveEmote(null));
+  };
 
   const submitGuess = () => {
     if (currentGuess.length !== 5) return;
@@ -72,7 +120,6 @@ export default function MultiplayerScreen() {
     router.replace("/lobby");
   };
 
-  // Keyboard layout
   const kbRows = [
     ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
     ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
@@ -100,7 +147,36 @@ export default function MultiplayerScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Opponent Progress (Mini Grid) */}
         <View style={styles.opponentBox}>
-          <Text style={styles.opponentLabel}>მოწინააღმდეგე</Text>
+          {/* Opponent Profile Sync */}
+          {opponentProfile?.equippedItems?.banner && (
+            <View style={styles.opponentBannerStrip}>
+              {/* Note: In a full app we'd fetch the exact colors for the banner ID here, 
+                  but we'll use a stylized fallback for the live sync demo if colors aren't passed via socket */}
+              <View style={[styles.opponentBannerFill, { backgroundColor: colors.accent + "55" }]} />
+            </View>
+          )}
+          <View style={styles.opponentProfileHeader}>
+            <View style={[styles.opponentAvatar, { backgroundColor: colors.button }]}>
+              <Text style={styles.opponentAvatarText}>
+                {opponentProfile?.equippedItems?.avatar === "avatar_ninja" ? "🥷" :
+                 opponentProfile?.equippedItems?.avatar === "avatar_wizard" ? "🧙‍♂️" :
+                 opponentProfile?.equippedItems?.avatar === "avatar_cat" ? "🐱" : "👤"}
+              </Text>
+            </View>
+            <View style={styles.opponentNameBox}>
+              <Text style={styles.opponentName}>
+                {opponentProfile?.displayName || "მოწინააღმდეგე"}
+              </Text>
+              {opponentProfile?.equippedItems?.nameTag && (
+                <View style={[styles.opponentTag, { borderColor: colors.accent }]}>
+                  <Text style={[styles.opponentTagText, { color: colors.accent }]}>
+                    {opponentProfile.equippedItems.nameTag === "tag_pro" ? "🏆 პრო" : "⭐ მოთამაშე"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
           <View style={styles.miniGrid}>
             {Array.from({ length: 6 }).map((_, rIdx) => {
               const rowResult = opponentProgress[rIdx];
@@ -119,6 +195,19 @@ export default function MultiplayerScreen() {
               );
             })}
           </View>
+          {activeEmote && (
+            <Animated.Text
+              style={[
+                styles.floatingEmote,
+                {
+                  opacity: emoteAnimOpacity,
+                  transform: [{ translateY: emoteAnimY }]
+                }
+              ]}
+            >
+              {activeEmote}
+            </Animated.Text>
+          )}
         </View>
 
         {/* My Grid */}
@@ -170,6 +259,21 @@ export default function MultiplayerScreen() {
             </View>
           ))}
         </View>
+
+        {/* Emotes Row */}
+        {!gameOver && (
+          <View style={styles.emotesRow}>
+            {["🤬", "🧠", "🎯", "🔥", "😂"].map(emote => (
+              <Pressable
+                key={emote}
+                style={({ pressed }) => [styles.emoteBtn, pressed && styles.pressed]}
+                onPress={() => sendEmote(emote)}
+              >
+                <Text style={styles.emoteBtnText}>{emote}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Game Over Overlay */}
@@ -230,6 +334,12 @@ function createStyles(colors: AppColors) {
       height: 12,
       width: 12
     },
+    floatingEmote: {
+      position: "absolute",
+      fontSize: 48,
+      zIndex: 10,
+      elevation: 10
+    },
 
     myGrid: { gap: 6, marginBottom: 40 },
     gridRow: { flexDirection: "row", gap: 6 },
@@ -258,8 +368,69 @@ function createStyles(colors: AppColors) {
     kbKeyLarge: { flex: 1.5, maxWidth: 60 },
     kbKeyText: { color: colors.primaryText, fontSize: 16, fontWeight: "800" },
 
+    emotesRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 12,
+      marginTop: 20,
+    },
+    emoteBtn: {
+      backgroundColor: colors.button,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+    },
+    emoteBtnText: {
+      fontSize: 22,
+    },
+    opponentBannerStrip: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 36,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      overflow: "hidden",
+    },
+    opponentBannerFill: { flex: 1 },
+    opponentProfileHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 16,
+      marginTop: 4,
+      zIndex: 2,
+    },
+    opponentAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: colors.card,
+    },
+    opponentAvatarText: { fontSize: 22 },
+    opponentNameBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+    opponentName: { color: colors.primaryText, fontSize: 16, fontWeight: "900" },
+    opponentTag: {
+      borderWidth: 1,
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    opponentTagText: { fontSize: 10, fontWeight: "800" },
+
     overlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.overlay,
       alignItems: "center",
       justifyContent: "center",

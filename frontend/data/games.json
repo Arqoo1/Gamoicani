@@ -20,7 +20,7 @@
     "subtitle": "ქართული ანდაზები გამოტოვებული სიტყვებით",
     "href": "/andazebi",
     "status": "ready",
-    "content": "data/content/ანდაზები.json"
+    "content": "data/content/andazebi.json"
   },
   {
     "id": "people",

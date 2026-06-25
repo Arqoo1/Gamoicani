@@ -14,13 +14,18 @@ import {
   StyleSheet,
   Text,
   useWindowDimensions,
-  View
+  View,
+  Modal
 } from "react-native";
+import ConfettiCannon from "react-native-confetti-cannon";
+import ViewShot, { captureRef } from "react-native-view-shot";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import proverbs from "../data/content/ანდაზები.json";
+import proverbs from "../data/content/andazebi.json";
 import { fetchGameContent, submitScore } from "../src/api";
 import { AppColors, useAppTheme } from "../src/theme";
+import { playPop, playBuzz, playWin, playLoss, playReveal } from "../src/sound";
+import { cacheGameContent, getCachedGameContent } from "../src/storage";
 
 type Level = "easy" | "medium" | "hard";
 
@@ -43,7 +48,7 @@ type ProverbsJson = {
 };
 
 type ResultState = "idle" | "wrong" | "correct";
-type GameMode = "daily" | "practice";
+type GameMode = "daily" | "practice" | "tutorial" | null;
 type CompletionMethod = "solved" | "revealed" | "skipped";
 type WordStatus = "correct" | "wrong";
 type CompletedItem = {
@@ -267,6 +272,7 @@ function getHintButtonText(hintLevel: number) {
 }
 
 function triggerSelectionHaptic() {
+  playPop();
   if (Platform.OS === "web") {
     return;
   }
@@ -275,6 +281,7 @@ function triggerSelectionHaptic() {
 }
 
 function triggerInvalidHaptic() {
+  playBuzz();
   if (Platform.OS === "web") {
     return;
   }
@@ -283,6 +290,7 @@ function triggerInvalidHaptic() {
 }
 
 function triggerSuccessHaptic() {
+  playWin();
   if (Platform.OS === "web") {
     return;
   }
@@ -327,12 +335,24 @@ export default function AndazebiScreen() {
   const [proverbData, setProverbData] = useState<ProverbsJson>(fallbackProverbData);
   const items = proverbData.items;
   const dailyItems = useMemo(() => getDailyItems(items, dateKey), [dateKey, items]);
-  const [gameMode, setGameMode] = useState<GameMode>("daily");
+  const [isOffline, setIsOffline] = useState(false);
+  const [gameMode, setGameMode] = useState<GameMode>(null);
   const [itemIndex, setItemIndex] = useState(0);
   const [practiceItem, setPracticeItem] = useState<ProverbItem | null>(() =>
     getRandomPracticeItem(fallbackProverbData.items)
   );
-  const currentItem = gameMode === "daily" ? dailyItems[itemIndex] ?? null : practiceItem;
+  
+  const tutorialItem: ProverbItem = useMemo(() => ({
+    id: "tutorial",
+    level: "easy",
+    fullText: "რაც მოგივა დავითაო, ყველა შენი თავითაო",
+    prompt: "რაც მოგივა დავითაო, ყველა შენი _ _ _ _ _ _ _",
+    answer: "თავითაო",
+    missingWords: ["თავითაო"],
+    hint: "შენი საკუთარი..."
+  }), []);
+
+  const currentItem = gameMode === "daily" ? dailyItems[itemIndex] ?? null : gameMode === "tutorial" ? tutorialItem : practiceItem;
   const [answers, setAnswers] = useState<string[]>(() =>
     Array.from({ length: currentItem?.missingWords.length ?? 0 }, () => "")
   );
@@ -347,6 +367,9 @@ export default function AndazebiScreen() {
   const [wordStatuses, setWordStatuses] = useState<Array<WordStatus | undefined>>([]);
   const [isShifted, setIsShifted] = useState(false);
 
+  const confettiRef = useRef<ConfettiCannon>(null);
+  const viewShotRef = useRef<any>(null);
+
   useEffect(() => {
     let active = true;
 
@@ -357,9 +380,17 @@ export default function AndazebiScreen() {
           setPracticeItem((currentPracticeItem) =>
             currentPracticeItem ? currentPracticeItem : getRandomPracticeItem(nextProverbData.items)
           );
+          cacheGameContent("andazebi", nextProverbData).catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(async () => {
+        if (!active) return;
+        const cached = await getCachedGameContent<ProverbsJson>("andazebi").catch(() => null);
+        if (active && cached?.items?.length) {
+          setProverbData(cached);
+          setPracticeItem((cur) => cur ?? getRandomPracticeItem(cached.items));
+        }
+      });
 
     return () => {
       active = false;
@@ -431,6 +462,12 @@ export default function AndazebiScreen() {
       active = false;
     };
   }, [dailyItems, dateKey]);
+
+  useEffect(() => {
+    if (isOffline) {
+      setGameMode("practice");
+    }
+  }, [isOffline]);
 
   const saveDailyProgress = useCallback(
     (nextIndex: number, nextCompletedItems: CompletedItem[]) => {
@@ -678,6 +715,7 @@ export default function AndazebiScreen() {
     setWordStatuses(nextWordStatuses);
     setResult("correct");
     setFeedback("სწორია, გადადი შემდეგზე");
+    confettiRef.current?.start();
     completeCurrentItem("solved");
     pulseCorrectAnswer();
     triggerSuccessHaptic();
@@ -703,6 +741,7 @@ export default function AndazebiScreen() {
     setWordStatuses(Array.from({ length: currentItem.missingWords.length }, () => "correct"));
     setResult("correct");
     setFeedback("პასუხი ნაჩვენებია");
+    playReveal();
     setHintLevel(2);
     completeCurrentItem("revealed");
     pulseCorrectAnswer();
@@ -715,8 +754,13 @@ export default function AndazebiScreen() {
 
     triggerSelectionHaptic();
 
-    if (isPracticeMode) {
+    if (gameMode === "practice") {
       setPracticeItem(getRandomPracticeItem(items, currentItem.id));
+      return;
+    }
+
+    if (gameMode === "tutorial") {
+      setGameMode(null);
       return;
     }
 
@@ -770,8 +814,13 @@ export default function AndazebiScreen() {
 
     triggerSelectionHaptic();
 
-    if (isPracticeMode) {
+    if (gameMode === "practice") {
       setPracticeItem(getRandomPracticeItem(items, currentItem.id));
+      return;
+    }
+
+    if (gameMode === "tutorial") {
+      setGameMode(null);
       return;
     }
 
@@ -801,6 +850,7 @@ export default function AndazebiScreen() {
       }
 
       setItemIndex(nextIndex);
+      playLoss();
 
       return nextCompletedItems;
     });
@@ -832,9 +882,20 @@ export default function AndazebiScreen() {
   }, [currentItem, isDailyComplete, result]);
 
   const shareResult = useCallback(async () => {
-    await Share.share({
-      message: sharePreview
-    });
+    if (Platform.OS === "web") {
+      await Share.share({ message: sharePreview });
+      return;
+    }
+    try {
+      const uri = await viewShotRef.current?.capture?.();
+      if (uri) {
+        await Share.share({ url: uri, message: sharePreview });
+      } else {
+        await Share.share({ message: sharePreview });
+      }
+    } catch {
+      await Share.share({ message: sharePreview });
+    }
   }, [sharePreview]);
 
   const setHintToNextLevel = useCallback(() => {
@@ -968,7 +1029,78 @@ export default function AndazebiScreen() {
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+      <ConfettiCannon
+        ref={confettiRef}
+        count={180}
+        origin={{ x: width / 2, y: -10 }}
+        autoStart={false}
+        fadeOut
+      />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={gameMode === null}
+        onRequestClose={() => router.push("/")}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modePickerModal}>
+            <Text style={styles.modePickerKicker}>ანდაზები</Text>
+            <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, pressed && styles.pressed]}
+              onPress={() => setGameMode("daily")}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>📅</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>დღის ანდაზები</Text>
+                <Text style={styles.modePickerOptionSub}>5 ახალი ანდაზა ყოველდღე</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              onPress={() => setGameMode("practice")}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>🔁</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>ვარჯიში</Text>
+                <Text style={styles.modePickerOptionSub}>უსასრულო რეჟიმი</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              onPress={() => setGameMode("tutorial")}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>🎓</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>როგორ ვითამაშოთ</Text>
+                <Text style={styles.modePickerOptionSub}>ინტერაქტიული გაკვეთილი</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerBack, pressed && styles.pressed]}
+              onPress={() => router.push("/")}
+            >
+              <Text style={styles.modePickerBackText}>← უკან</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="უკან დაბრუნება"
@@ -990,93 +1122,72 @@ export default function AndazebiScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.modeRow}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                gameMode === "daily" && styles.modeButtonActive,
-                pressed && styles.pressed
-              ]}
-              onPress={() => switchGameMode("daily")}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  gameMode === "daily" && styles.modeButtonTextActive
+          {!isOffline && (
+            <View style={styles.modeRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modeButton,
+                  gameMode === "daily" && styles.modeButtonActive,
+                  pressed && styles.pressed
                 ]}
+                onPress={() => switchGameMode("daily")}
               >
-                დღიური
-              </Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                gameMode === "practice" && styles.modeButtonActive,
-                pressed && styles.pressed
-              ]}
-              onPress={() => switchGameMode("practice")}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  gameMode === "practice" && styles.modeButtonTextActive
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    gameMode === "daily" && styles.modeButtonTextActive
+                  ]}
+                >
+                  დღიური
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modeButton,
+                  gameMode === "practice" && styles.modeButtonActive,
+                  pressed && styles.pressed
                 ]}
+                onPress={() => switchGameMode("practice")}
               >
-                ვარჯიში
-              </Text>
-            </Pressable>
-          </View>
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    gameMode === "practice" && styles.modeButtonTextActive
+                  ]}
+                >
+                  ვარჯიში
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
           {isDailyComplete ? (
-            <View style={styles.doneCard}>
-              <Text style={styles.doneTitle}>დღეს დასრულებულია</Text>
-              <Text style={styles.doneCount}>{progressText}</Text>
-              <Text style={styles.doneText}>
-                ხვალ დაბრუნდი ახალი შემთხვევითი ხუთეულისთვის.
-              </Text>
-              <View style={styles.resultStats}>
-                <View style={styles.resultStatBox}>
-                  <Text style={styles.resultStatNumber}>{stats.currentStreak}</Text>
-                  <Text style={styles.resultStatLabel}>დღის სერია</Text>
+            <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }}>
+              <View style={styles.doneCard}>
+                <Text style={styles.doneTitle}>დღევანდელი ანდაზები დასრულებულია!</Text>
+                <Text style={styles.doneText}>ახალი ანდაზები დაემატება ხვალ</Text>
+
+                <Text style={styles.doneCount}>{dailyItems.length}</Text>
+                <Text style={[styles.doneText, { marginBottom: 16 }]}>ანდაზა</Text>
+
+                <Text style={styles.doneText}>{sharePreview}</Text>
+
+                <View style={styles.actions}>
+                  <Pressable
+                    style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+                    onPress={shareResult}
+                  >
+                    <Text style={styles.primaryButtonText}>გაზიარება</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+                    onPress={() => router.push("/")}
+                  >
+                    <Text style={styles.secondaryButtonText}>მთავარი</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.resultStatBox}>
-                  <Text style={styles.resultStatNumber}>{stats.maxStreak}</Text>
-                  <Text style={styles.resultStatLabel}>რეკორდი</Text>
-                </View>
               </View>
-              <View style={styles.levelSummary}>
-                {(["easy", "medium", "hard"] as Level[]).map((level) => (
-                  <View key={level} style={[styles.summaryPill, styles[`${level}Level`]]}>
-                    <Text style={styles.summaryPillText}>
-                      {levelCopy[level].label}: {levelSummary[level]}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.doneText}>
-                სწორი: {completedMethods.solved} · ნაჩვენები: {completedMethods.revealed} · გამოტოვებული: {completedMethods.skipped}
-              </Text>
-              <View style={styles.resultActions}>
-                <Pressable
-                  style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
-                  onPress={shareResult}
-                >
-                  <Text style={styles.resultButtonText}>გაზიარება</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.resultButton,
-                    styles.secondaryResultButton,
-                    pressed && styles.pressed
-                  ]}
-                  onPress={() => switchGameMode("practice")}
-                >
-                  <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>
-                    ვარჯიში
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            </ViewShot>
           ) : currentItem ? (
             <>
               <View style={styles.metaRow}>
@@ -1806,6 +1917,88 @@ function createStyles(colors: AppColors) {
     },
     keyPressed: {
       opacity: 0.72
+    },
+    modalBackdrop: {
+      alignItems: "center",
+      backgroundColor: colors.overlay,
+      flex: 1,
+      justifyContent: "center",
+      padding: 24
+    },
+    modePickerModal: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      maxWidth: 420,
+      padding: 24,
+      width: "100%"
+    },
+    modePickerKicker: {
+      color: colors.accent,
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 2,
+      marginBottom: 4,
+      textAlign: "center",
+      textTransform: "uppercase"
+    },
+    modePickerTitle: {
+      color: colors.primaryText,
+      fontSize: 26,
+      fontWeight: "900",
+      letterSpacing: -0.5,
+      marginBottom: 24,
+      textAlign: "center"
+    },
+    modePickerOption: {
+      alignItems: "center",
+      backgroundColor: colors.accent,
+      borderRadius: 14,
+      flexDirection: "row",
+      marginBottom: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16
+    },
+    modePickerOptionSecondary: {
+      backgroundColor: colors.button,
+      borderColor: colors.border,
+      borderWidth: 1
+    },
+    modePickerIconWrap: {
+      marginRight: 14
+    },
+    modePickerIcon: {
+      fontSize: 28
+    },
+    modePickerText: {
+      flex: 1
+    },
+    modePickerOptionTitle: {
+      color: "#ffffff",
+      fontSize: 17,
+      fontWeight: "900"
+    },
+    modePickerOptionSub: {
+      color: "rgba(255,255,255,0.75)",
+      fontSize: 13,
+      fontWeight: "600",
+      marginTop: 2
+    },
+    modePickerArrow: {
+      color: "rgba(255,255,255,0.7)",
+      fontSize: 24,
+      fontWeight: "700"
+    },
+    modePickerBack: {
+      alignItems: "center",
+      marginTop: 8,
+      paddingVertical: 10
+    },
+    modePickerBackText: {
+      color: colors.secondaryText,
+      fontSize: 14,
+      fontWeight: "700"
     }
   });
 }

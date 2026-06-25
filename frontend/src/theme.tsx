@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useColorScheme } from "react-native";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 export type AppColors = {
   absent: string;
@@ -30,6 +31,7 @@ type ThemeContextValue = {
   colors: AppColors;
   isDark: boolean;
   mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
 };
 
@@ -84,40 +86,48 @@ const darkColors: AppColors = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>("light");
+  const systemColorScheme = useColorScheme();
+  const [mode, setModeState] = useState<ThemeMode>("system");
 
   useEffect(() => {
     let active = true;
-
     AsyncStorage.getItem(THEME_KEY)
       .then((storedMode) => {
-        if (active && (storedMode === "light" || storedMode === "dark")) {
-          setMode(storedMode);
+        if (active && (storedMode === "light" || storedMode === "dark" || storedMode === "system")) {
+          setModeState(storedMode);
         }
       })
       .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
-    return () => {
-      active = false;
-    };
+  const setMode = useCallback((nextMode: ThemeMode) => {
+    setModeState(nextMode);
+    AsyncStorage.setItem(THEME_KEY, nextMode).catch(() => {});
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setMode((currentMode) => {
+    setModeState((currentMode) => {
       const nextMode = currentMode === "dark" ? "light" : "dark";
       AsyncStorage.setItem(THEME_KEY, nextMode).catch(() => {});
       return nextMode;
     });
   }, []);
 
+  const resolvedDark = useMemo(() => {
+    if (mode === "system") return systemColorScheme === "dark";
+    return mode === "dark";
+  }, [mode, systemColorScheme]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
-      colors: mode === "dark" ? darkColors : lightColors,
-      isDark: mode === "dark",
+      colors: resolvedDark ? darkColors : lightColors,
+      isDark: resolvedDark,
       mode,
+      setMode,
       toggleTheme
     }),
-    [mode, toggleTheme]
+    [resolvedDark, mode, setMode, toggleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -125,10 +135,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useAppTheme() {
   const value = useContext(ThemeContext);
-
-  if (!value) {
-    throw new Error("useAppTheme must be used inside ThemeProvider");
-  }
-
+  if (!value) throw new Error("useAppTheme must be used inside ThemeProvider");
   return value;
 }

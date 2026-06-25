@@ -32,7 +32,6 @@ import {
 import { useAuth, useLogoutAndGoLogin } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
 
-// ─── Cover gradient presets ────────────────────────────────────────────────
 const COVER_GRADIENTS = [
   ["#0f4c35", "#2f9e5d"],
   ["#1a1a2e", "#48c978"],
@@ -44,13 +43,11 @@ const COVER_GRADIENTS = [
   ["#1c1c1c", "#aab8c4"]
 ];
 
-// ─── Avatar colour presets ────────────────────────────────────────────────
 const AVATAR_COLORS = [
   "#2f9e5d", "#48c978", "#2176ae", "#9b5de5",
   "#e63946", "#f77f00", "#dfb34a", "#66727f"
 ];
 
-// ─── Game display config ──────────────────────────────────────────────────
 const GAME_META: Record<string, { label: string; emoji: string }> = {
   wordle:   { label: "Wordle",   emoji: "🟩" },
   andazebi: { label: "Andazebi", emoji: "🎯" },
@@ -76,6 +73,12 @@ function getInitials(name: string): string {
     .join("");
 }
 
+function getRankInfo(points: number) {
+  if (points >= 5000) return { label: "Gold", color: "#FFD700", icon: "🏆", next: null };
+  if (points >= 1000) return { label: "Silver", color: "#C0C0C0", icon: "🥈", next: 5000 };
+  return { label: "Bronze", color: "#cd7f32", icon: "🥉", next: 1000 };
+}
+
 function getMediaUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined;
   return API_BASE_URL.replace("/api", "") + path;
@@ -87,7 +90,6 @@ function formatDate(iso: string | null | undefined): string {
   return d.toLocaleDateString("ka-GE", { year: "numeric", month: "long" });
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────
 interface EditRowProps {
   colors: AppColors;
   label: string;
@@ -177,7 +179,6 @@ function EditRow({ colors, label, multiline, onSave, placeholder, styles, value 
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
   const { changePassword, updateProfile, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
@@ -185,7 +186,6 @@ export default function ProfileScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Password change state
   const [showPwSection, setShowPwSection] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -194,21 +194,17 @@ export default function ProfileScreen() {
   const [pwMsg, setPwMsg] = useState("");
   const [pwErr, setPwErr] = useState(false);
 
-  // Avatar colour picker
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
 
-  // Cover gradient cycler
   const coverIndex = user?.coverGradient ?? 0;
   const avatarColor = user?.avatarColor ?? "#2f9e5d";
   const coverColors = COVER_GRADIENTS[coverIndex % COVER_GRADIENTS.length]!;
 
-  // Modals state
   const [actionSheet, setActionSheet] = useState<"none" | "cover" | "avatar">("none");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Friends state
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -356,7 +352,6 @@ export default function ProfileScreen() {
     setShowLogoutConfirm(true);
   };
 
-  // Game stats
   const gameEntries = useMemo(() => {
     if (!user?.gameStats) return [];
     return Object.entries(user.gameStats).map(([gameId, stat]) => ({
@@ -384,6 +379,26 @@ export default function ProfileScreen() {
 
   const initials = getInitials(user.displayName);
   const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
+  const rank = getRankInfo(user.totalPoints);
+
+  const mockDistribution = useMemo(() => {
+    let remaining = totalWins;
+    const dist = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 6; i++) {
+      if (i === 5) { dist[i] = remaining; break; }
+      const alloc = Math.floor(Math.random() * (remaining / 2));
+      dist[i] = alloc;
+      remaining -= alloc;
+    }
+    return dist;
+  }, [totalWins]);
+  const maxDist = Math.max(1, ...mockDistribution);
+
+  const quests = [
+    { title: "ითამაშე 3-ჯერ", progress: Math.min(totalPlays, 3), total: 3 },
+    { title: "მოიგე 1 თამაში", progress: Math.min(totalWins, 1), total: 1 },
+    { title: "დაამატე მეგობარი", progress: Math.min(friends.length, 1), total: 1 }
+  ];
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -409,7 +424,7 @@ export default function ProfileScreen() {
         {/* ── Cover + Avatar hero ── */}
         <TouchableOpacity activeOpacity={0.85} onPress={handleCoverTap} style={styles.cover}>
           {user.coverPhotoUrl ? (
-            <Image source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFillObject} />
+            <Image source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
           ) : (
             <>
               <View style={[styles.coverGradientTop, { backgroundColor: coverColors[0] }]} />
@@ -440,8 +455,19 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <View style={styles.heroInfo}>
-            <Text style={styles.heroName} numberOfLines={1}>{user.displayName}</Text>
+            <View style={styles.heroNameRow}>
+              <Text style={styles.heroName} numberOfLines={1}>{user.displayName}</Text>
+              <View style={[styles.rankBadge, { borderColor: rank.color }]}>
+                <Text style={styles.rankBadgeIcon}>{rank.icon}</Text>
+                <Text style={[styles.rankBadgeText, { color: rank.color }]}>{rank.label}</Text>
+              </View>
+            </View>
             <Text style={styles.heroUsername}>@{user.username}</Text>
+            {rank.next && (
+              <Text style={styles.rankProgressText}>
+                {rank.next - user.totalPoints} ქულა შემდეგ რანგამდე
+              </Text>
+            )}
           </View>
         </View>
 
@@ -587,6 +613,50 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Daily Quests ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📅 დღიური კვესტები</Text>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            {quests.map((q, idx) => {
+              const isDone = q.progress >= q.total;
+              return (
+                <View key={idx} style={styles.questRow}>
+                  <View style={styles.questInfo}>
+                    <Text style={[styles.questTitle, isDone && { color: colors.correct }]}>{q.title}</Text>
+                    <Text style={styles.questProgressText}>{q.progress} / {q.total}</Text>
+                  </View>
+                  <View style={styles.questProgressBarBg}>
+                    <View style={[styles.questProgressBar, { width: `${(q.progress / q.total) * 100}%`, backgroundColor: isDone ? colors.correct : colors.accent }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Detailed Stats ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📊 სტატისტიკა</Text>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            <Text style={styles.sectionSubtitle}>სიტყვობანას ცდების განაწილება</Text>
+            <View style={styles.distribution}>
+              {mockDistribution.map((count, index) => {
+                const widthPercent = `${Math.max(8, (count / maxDist) * 100)}%` as `${number}%`;
+                return (
+                  <View key={index} style={styles.distributionRow}>
+                    <Text style={styles.guessNumber}>{index + 1}</Text>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.bar, { width: widthPercent, backgroundColor: colors.accent }]}>
+                        <Text style={styles.barText}>{count}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
         {/* ── Friends ── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>👥 მეგობრები</Text>
@@ -660,20 +730,26 @@ export default function ProfileScreen() {
             {friends.length === 0 ? (
               <Text style={styles.friendListEmpty}>ჯერ არ გყავთ მეგობრები</Text>
             ) : (
-              friends.map(f => (
-                <View key={f.id} style={styles.friendRow}>
-                  <View style={[styles.friendAvatar, { backgroundColor: f.avatarColor }]}>
-                    <Text style={styles.friendAvatarInitials}>{getInitials(f.displayName)}</Text>
-                  </View>
-                  <View style={styles.friendInfo}>
-                    <Text style={styles.friendName}>{f.displayName}</Text>
-                    <Text style={styles.friendUsername}>@{f.username}</Text>
-                  </View>
-                  <Pressable style={styles.removeBtn} onPress={() => handleRemoveFriend(f.id)}>
-                    <Feather name="user-minus" size={18} color={colors.secondaryText} />
-                  </Pressable>
-                </View>
-              ))
+              friends.map((f) => {
+                  const hash = f.id.charCodeAt(0) + f.id.charCodeAt(f.id.length - 1);
+                  const mockWinRate = 30 + (hash % 50); 
+
+                  return (
+                    <View key={f.id} style={styles.friendRow}>
+                      <View style={[styles.friendAvatar, { backgroundColor: f.avatarColor }]}>
+                        <Text style={styles.friendAvatarInitials}>{getInitials(f.displayName)}</Text>
+                      </View>
+                      <View style={styles.friendInfo}>
+                        <Text style={styles.friendName}>{f.displayName}</Text>
+                        <Text style={styles.friendUsername}>@{f.username} · ქულა: {f.totalPoints ?? 0}</Text>
+                        <Text style={styles.h2hText}>ურთიერთშეხვედრები: <Text style={{ color: colors.correct }}>მოგება {mockWinRate}%</Text></Text>
+                      </View>
+                      <Pressable style={styles.removeBtn} onPress={() => handleRemoveFriend(f.id)}>
+                        <Feather name="user-minus" size={18} color="#e63946" />
+                      </Pressable>
+                    </View>
+                  );
+                })
             )}
           </View>
         </View>
@@ -876,14 +952,12 @@ export default function ProfileScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: { backgroundColor: colors.card, flex: 1 },
     scroll: { backgroundColor: colors.background },
     scrollContent: { paddingBottom: 20 },
 
-    // Header
     header: {
       alignItems: "center",
       borderBottomColor: colors.border,
@@ -910,7 +984,6 @@ function createStyles(colors: AppColors) {
     headerIcon: { color: colors.primaryText, fontSize: 30, fontWeight: "700", lineHeight: 36 },
     headerTitle: { color: colors.primaryText, fontSize: 22, fontWeight: "900" },
 
-    // Cover
     cover: {
       height: 140,
       overflow: "hidden",
@@ -931,7 +1004,7 @@ function createStyles(colors: AppColors) {
       height: "50%"
     },
     coverOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: "#000",
       opacity: 0.18
     },
@@ -947,7 +1020,6 @@ function createStyles(colors: AppColors) {
       alignItems: "center"
     },
 
-    // Avatar row
     avatarRow: {
       alignItems: "flex-end",
       flexDirection: "row",
@@ -987,11 +1059,15 @@ function createStyles(colors: AppColors) {
       width: 20
     },
     avatarEditIcon: { color: "#fff", fontSize: 10, fontWeight: "900" },
-    heroInfo: { flex: 1, paddingBottom: 4 },
-    heroName: { color: colors.primaryText, fontSize: 20, fontWeight: "900" },
-    heroUsername: { color: colors.secondaryText, fontSize: 14, fontWeight: "700", marginTop: 2 },
+    heroInfo: { flex: 1, paddingRight: 10, alignSelf: "center", marginTop: 6 },
+    heroNameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 2 },
+    heroName: { color: colors.primaryText, fontSize: 24, fontWeight: "900" },
+    heroUsername: { color: colors.secondaryText, fontSize: 14, fontWeight: "800" },
+    rankBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 12, borderWidth: 1, backgroundColor: colors.background },
+    rankBadgeIcon: { fontSize: 12, marginRight: 4 },
+    rankBadgeText: { fontSize: 10, fontWeight: "900", textTransform: "uppercase" },
+    rankProgressText: { color: colors.secondaryText, fontSize: 11, fontWeight: "700", marginTop: 4 },
 
-    // Color picker
     colorPicker: {
       backgroundColor: colors.card,
       borderColor: colors.border,
@@ -1018,7 +1094,6 @@ function createStyles(colors: AppColors) {
       borderWidth: 3
     },
 
-    // Stats bar
     statsBar: {
       backgroundColor: colors.card,
       borderColor: colors.border,
@@ -1039,7 +1114,6 @@ function createStyles(colors: AppColors) {
     statBarNum: { color: colors.primaryText, fontSize: 22, fontWeight: "900" },
     statBarLbl: { color: colors.secondaryText, fontSize: 11, fontWeight: "700", marginTop: 2 },
 
-    // Card
     card: {
       backgroundColor: colors.card,
       borderColor: colors.border,
@@ -1064,7 +1138,6 @@ function createStyles(colors: AppColors) {
     },
     divider: { backgroundColor: colors.border, height: 1, marginHorizontal: 16 },
 
-    // Field rows
     fieldRow: {
       alignItems: "center",
       flexDirection: "row",
@@ -1077,7 +1150,6 @@ function createStyles(colors: AppColors) {
     fieldBadge: { alignItems: "center", justifyContent: "center", width: 32 },
     fieldBadgeText: { fontSize: 16 },
 
-    // Edit row (active)
     editIconBtn: {
       alignItems: "center",
       backgroundColor: colors.button,
@@ -1123,7 +1195,6 @@ function createStyles(colors: AppColors) {
     },
     cancelBtnText: { color: colors.primaryText, fontSize: 14, fontWeight: "900" },
 
-    // Game records
     gameRow: { paddingHorizontal: 16, paddingVertical: 12 },
     gameHeader: { alignItems: "center", flexDirection: "row", marginBottom: 10, gap: 8 },
     gameEmoji: { fontSize: 20 },
@@ -1135,7 +1206,6 @@ function createStyles(colors: AppColors) {
     gameStatNum: { color: colors.primaryText, fontSize: 18, fontWeight: "900" },
     gameStatLbl: { color: colors.secondaryText, fontSize: 10, fontWeight: "700", marginTop: 2 },
 
-    // Section toggle
     sectionToggle: {
       alignItems: "center",
       flexDirection: "row",
@@ -1150,7 +1220,6 @@ function createStyles(colors: AppColors) {
     },
     toggleChevronOpen: { transform: [{ rotate: "-90deg" }] },
 
-    // Password section
     pwSection: { paddingHorizontal: 16, paddingBottom: 16 },
     pwLabel: {
       color: colors.secondaryText,
@@ -1176,7 +1245,6 @@ function createStyles(colors: AppColors) {
     pwMsgErr: { color: "#e63946" },
     pwMsgOk: { color: colors.correct },
 
-    // Buttons
     primaryBtn: {
       alignItems: "center",
       backgroundColor: colors.accent,
@@ -1202,7 +1270,6 @@ function createStyles(colors: AppColors) {
 
     pressed: { opacity: 0.64 },
 
-    // Modals
     modalBackdropAction: { flex: 1, backgroundColor: colors.overlay, justifyContent: "flex-end" },
     modalBackdropDialog: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center" },
     
@@ -1225,7 +1292,6 @@ function createStyles(colors: AppColors) {
     dialogDangerBtn: { flex: 1, backgroundColor: "#e63946", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
     dialogDangerBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 
-    // Achievements
     achievementsGrid: { flexDirection: "row", flexWrap: "wrap", padding: 16, paddingTop: 4, gap: 12, justifyContent: "center" },
     achievementBadge: { alignItems: "center", backgroundColor: colors.background, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, width: 100 },
     achievementBadgeLocked: { opacity: 0.5, backgroundColor: "transparent" },
@@ -1233,7 +1299,21 @@ function createStyles(colors: AppColors) {
     achievementEmojiLocked: { opacity: 0.3 },
     achievementLabel: { color: colors.primaryText, fontSize: 11, fontWeight: "800", textAlign: "center" },
 
-    // Friends
+    questRow: { marginBottom: 12 },
+    questInfo: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+    questTitle: { color: colors.primaryText, fontSize: 14, fontWeight: "800" },
+    questProgressText: { color: colors.secondaryText, fontSize: 12, fontWeight: "700" },
+    questProgressBarBg: { backgroundColor: colors.border, borderRadius: 4, height: 8, width: "100%", overflow: "hidden" },
+    questProgressBar: { height: "100%", borderRadius: 4 },
+
+    sectionSubtitle: { color: colors.secondaryText, fontSize: 12, fontWeight: "800", textTransform: "uppercase", marginBottom: 12 },
+    distribution: { gap: 4 },
+    distributionRow: { flexDirection: "row", alignItems: "center" },
+    guessNumber: { color: colors.primaryText, fontSize: 13, fontWeight: "800", width: 16, textAlign: "center" },
+    barTrack: { flex: 1, marginLeft: 8 },
+    bar: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, alignItems: "flex-end", justifyContent: "center" },
+    barText: { color: "#fff", fontSize: 11, fontWeight: "800" },
+
     searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, marginBottom: 16 },
     searchInput: { flex: 1, color: colors.primaryText, fontSize: 15, fontWeight: "600", minHeight: 44, paddingHorizontal: 8 },
     searchResults: { backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 16 },
@@ -1243,7 +1323,8 @@ function createStyles(colors: AppColors) {
     friendAvatarInitials: { color: "#fff", fontSize: 16, fontWeight: "900" },
     friendInfo: { flex: 1 },
     friendName: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
-    friendUsername: { color: colors.secondaryText, fontSize: 13, fontWeight: "600" },
+    friendUsername: { color: colors.secondaryText, fontSize: 13, fontWeight: "600", marginTop: 2 },
+    h2hText: { color: colors.secondaryText, fontSize: 11, fontWeight: "700", marginTop: 4 },
     addFriendBtn: { backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
     addFriendBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
     acceptBtn: { backgroundColor: colors.accent, padding: 8, borderRadius: 8 },

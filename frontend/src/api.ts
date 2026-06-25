@@ -425,3 +425,66 @@ export async function listFriendRequests() {
   const response = await requestJson<FriendRequest[]>("/friends/requests");
   return response.data;
 }
+
+
+export type ShopItem = {
+  id: string;
+  category: "avatar" | "nameTag" | "banner";
+  label: string;
+  price: number;
+  description: string;
+  emoji?: string;
+  color?: string;
+  colors?: string[];
+  owned: boolean;
+  equipped: boolean;
+};
+
+export type ShopData = {
+  items: ShopItem[];
+  totalPoints: number;
+  equippedItems: { avatar: string | null; nameTag: string | null; banner: string | null };
+};
+
+export async function fetchShopData(): Promise<ShopData> {
+  const response = await requestJson<ShopData>("/shop");
+  return response.data;
+}
+
+export async function buyItem(itemId: string): Promise<{ message: string; totalPoints: number; items: ShopItem[] }> {
+  const response = await requestJson<{ message: string; totalPoints: number; items: ShopItem[] }>("/shop/buy", {
+    method: "POST",
+    body: JSON.stringify({ itemId }),
+  });
+  return response.data;
+}
+
+export async function equipItem(itemId: string): Promise<{ equippedItems: ShopData["equippedItems"] }> {
+  const response = await requestJson<{ equippedItems: ShopData["equippedItems"] }>("/shop/equip", {
+    method: "POST",
+    body: JSON.stringify({ itemId }),
+  });
+  return response.data;
+}
+
+
+export type FeedEvent = {
+  id: string;
+  gameId: string;
+  mode: string;
+  points: number;
+  attempts: number | null;
+  occurredAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarColor: string;
+    profilePhotoUrl: string | null;
+  };
+};
+
+export async function fetchSocialFeed(): Promise<FeedEvent[]> {
+  const response = await requestJson<FeedEvent[]>("/social/feed");
+  return response.data;
+}

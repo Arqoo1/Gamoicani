@@ -7,12 +7,13 @@ import {
   fetchGlobalLeaderboard,
   fetchMyLeaderboardRanks,
   fetchStreakLeaderboard,
+  listFriends,
   LeaderboardEntry,
   MyLeaderboardRanks
 } from "../src/api";
 import { AppColors, useAppTheme } from "../src/theme";
 
-type BoardMode = "global" | "wordle" | "andazebi";
+type BoardMode = "global" | "wordle" | "andazebi" | "friends";
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 const boardCopy: Record<BoardMode, { empty: string; title: string }> = {
@@ -27,6 +28,10 @@ const boardCopy: Record<BoardMode, { empty: string; title: string }> = {
   wordle: {
     empty: "სიტყვობანას სერია ჯერ ცარიელია",
     title: "სიტყვობანას სერია"
+  },
+  friends: {
+    empty: "მეგობრები არ გყავთ",
+    title: "ჩემი მეგობრები"
   }
 };
 
@@ -44,10 +49,21 @@ export default function LeaderboardScreen() {
     let active = true;
 
     setLoadState("loading");
-    const request =
-      mode === "global"
-        ? fetchGlobalLeaderboard(10, friendsOnly)
-        : fetchStreakLeaderboard(mode, 10);
+    let request: Promise<LeaderboardEntry[]>;
+    if (mode === "global") {
+      request = fetchGlobalLeaderboard(10, friendsOnly);
+    } else if (mode === "friends") {
+      request = listFriends().then(friends => 
+        friends.map((f, i) => ({
+          displayName: f.displayName,
+          username: f.username,
+          rank: i + 1,
+          totalPoints: f.totalPoints || 0
+        }))
+      );
+    } else {
+      request = fetchStreakLeaderboard(mode, 10);
+    }
 
     Promise.all([request, fetchMyLeaderboardRanks().catch(() => null)])
       .then(([nextEntries, nextRanks]) => {
@@ -93,7 +109,7 @@ export default function LeaderboardScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.modeRow}>
-          {(["global", "wordle", "andazebi"] as BoardMode[]).map((nextMode) => (
+          {(["global", "wordle", "andazebi", "friends"] as BoardMode[]).map((nextMode) => (
             <Pressable
               key={nextMode}
               style={({ pressed }) => [
@@ -104,7 +120,7 @@ export default function LeaderboardScreen() {
               onPress={() => setMode(nextMode)}
             >
               <Text style={[styles.modeButtonText, mode === nextMode && styles.modeButtonTextActive]}>
-                {nextMode === "global" ? "ქულები" : nextMode === "wordle" ? "სიტყვა" : "ანდაზები"}
+                {nextMode === "global" ? "ქულები" : nextMode === "wordle" ? "სიტყვა" : nextMode === "andazebi" ? "ანდაზები" : "მეგობრები"}
               </Text>
             </Pressable>
           ))}
@@ -132,11 +148,11 @@ export default function LeaderboardScreen() {
         <View style={styles.myRankBox}>
           <Text style={styles.myRankLabel}>ჩემი ადგილი</Text>
           <Text style={styles.myRankValue}>
-            {mode === "global"
+            {mode === "global" || mode === "friends"
               ? myRanks?.global.rank
                 ? `#${myRanks.global.rank} · ${myRanks.global.totalPoints} ქულა`
                 : "ჯერ ქულა არ გაქვს"
-              : myRanks?.[mode].streakRank
+              : myRanks?.[mode]?.streakRank
                 ? `#${myRanks[mode].streakRank} · ${myRanks[mode].streak} სერია`
                 : "ჯერ სერია არ გაქვს"}
           </Text>
@@ -145,14 +161,26 @@ export default function LeaderboardScreen() {
         <View style={styles.board}>
           {entries.length > 0 ? (
             entries.map((entry) => {
-              const score = mode === "global" ? entry.totalPoints ?? 0 : entry.streak ?? 0;
-              const label = mode === "global" ? "ქულა" : "სერია";
+              const score = mode === "global" || mode === "friends" ? entry.totalPoints ?? 0 : entry.streak ?? 0;
+              const label = mode === "global" || mode === "friends" ? "ქულა" : "სერია";
+              const pointsForRank = entry.totalPoints ?? (score > 10 ? 2000 : 500); 
+              let rankIcon = "🥉";
+              let rankColor = "#cd7f32";
+              if (pointsForRank >= 5000) { rankIcon = "🏆"; rankColor = "#FFD700"; }
+              else if (pointsForRank >= 1000) { rankIcon = "🥈"; rankColor = "#C0C0C0"; }
 
               return (
                 <View key={`${entry.username}-${entry.rank}`} style={styles.row}>
                   <Text style={styles.rank}>{entry.rank}</Text>
                   <View style={styles.playerCopy}>
-                    <Text style={styles.playerName}>{entry.displayName}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={styles.playerName}>{entry.displayName}</Text>
+                      {mode === "global" && (
+                        <View style={{ paddingHorizontal: 4, paddingVertical: 1, borderRadius: 8, borderWidth: 1, borderColor: rankColor }}>
+                          <Text style={{ fontSize: 10 }}>{rankIcon}</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.username}>@{entry.username}</Text>
                   </View>
                   <View style={styles.scoreBox}>

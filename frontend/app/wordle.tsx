@@ -14,6 +14,8 @@ import {
   useWindowDimensions,
   View
 } from "react-native";
+import ConfettiCannon from "react-native-confetti-cannon";
+import ViewShot, { captureRef } from "react-native-view-shot";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import words from "../data/words.json";
@@ -33,8 +35,11 @@ import {
   getProgressKey,
   loadWordleProgress,
   recordWordleCompletion,
-  saveWordleProgress
+  saveWordleProgress,
+  cacheGameContent,
+  getCachedGameContent,
 } from "../src/storage";
+import { playPop, playBuzz, playWin, playLoss, playReveal } from "../src/sound";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -155,6 +160,7 @@ function scoreToEmoji(score: LetterScore) {
 }
 
 function triggerSelectionHaptic() {
+  playPop();
   if (Platform.OS === "web") {
     return;
   }
@@ -163,6 +169,7 @@ function triggerSelectionHaptic() {
 }
 
 function triggerInvalidHaptic() {
+  playBuzz();
   if (Platform.OS === "web") {
     return;
   }
@@ -171,6 +178,7 @@ function triggerInvalidHaptic() {
 }
 
 function triggerCompletionHaptic(won: boolean) {
+  if (won) playWin(); else playLoss();
   if (Platform.OS === "web") {
     return;
   }
@@ -191,51 +199,62 @@ function StatsIcon({ styles }: { styles: WordleStyles }) {
 }
 
 function WordleTile({ delayIndex, fontSize, letter, score, size, styles }: WordleTileProps) {
-  const flip = useRef(new Animated.Value(1)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
   const [visibleScore, setVisibleScore] = useState<LetterScore | undefined>(score);
-  const mounted = useRef(false);
+  const animIdRef = useRef(0);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      setVisibleScore(score);
-      return;
-    }
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     if (!score) {
-      flip.stopAnimation();
-      flip.setValue(1);
+      rotation.stopAnimation();
+      rotation.setValue(0);
       setVisibleScore(undefined);
       return;
     }
 
-    flip.setValue(1);
+    const myId = ++animIdRef.current;
+    rotation.stopAnimation();
+    rotation.setValue(0);
     setVisibleScore(undefined);
 
     Animated.sequence([
       Animated.delay(delayIndex * 110),
-      Animated.timing(flip, {
-        duration: 120,
-        easing: Easing.in(Easing.cubic),
-        toValue: 0,
+      Animated.timing(rotation, {
+        duration: 130,
+        easing: Easing.in(Easing.quad),
+        toValue: 90,
         useNativeDriver: USE_NATIVE_ANIMATION_DRIVER
       })
-    ]).start(() => {
+    ]).start(({ finished }) => {
+      if (!finished || !isMounted.current || animIdRef.current !== myId) return;
       setVisibleScore(score);
-      Animated.timing(flip, {
-        duration: 120,
-        easing: Easing.out(Easing.cubic),
-        toValue: 1,
+      playReveal();
+      Animated.timing(rotation, {
+        duration: 130,
+        easing: Easing.out(Easing.quad),
+        toValue: 0,
         useNativeDriver: USE_NATIVE_ANIMATION_DRIVER
       }).start();
     });
-  }, [delayIndex, flip, score]);
+  }, [delayIndex, rotation, score]);
+
+  const rotateX = rotation.interpolate({
+    inputRange: [0, 90],
+    outputRange: ["0deg", "90deg"]
+  });
 
   return (
     <Animated.View
       style={[
         styles.tile,
-        { height: size, transform: [{ scaleY: flip }], width: size },
+        { height: size, transform: [{ perspective: 800 }, { rotateX }], width: size },
         letter && !visibleScore && styles.tileFilled,
         visibleScore && tileScoreStyles[visibleScore]
       ]}
@@ -259,6 +278,8 @@ export default function WordleScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [isOffline, setIsOffline] = useState(false);
+  const [gameMode, setGameMode] = useState<"daily" | "practice" | "tutorial" | null>(null);
   const [wordData, setWordData] = useState<WordsJson>(fallbackWordData);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
   const answers = useMemo(
@@ -287,6 +308,8 @@ export default function WordleScreen() {
   const [recordedCompletionKey, setRecordedCompletionKey] = useState<string | null>(null);
   const shake = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confettiRef = useRef<ConfettiCannon>(null);
+  const viewShotRef = useRef<any>(null);
 
   useEffect(() => {
     let active = true;
@@ -295,16 +318,26 @@ export default function WordleScreen() {
       .then((nextWordData) => {
         if (active && nextWordData.answers?.length && nextWordData.validWords?.length) {
           setWordData(nextWordData);
+          cacheGameContent("wordle", nextWordData).catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(async () => {
+        if (!active) return;
+        const cached = await getCachedGameContent<WordsJson>("wordle").catch(() => null);
+        if (active && cached?.answers?.length && cached.validWords?.length) {
+          setWordData(cached);
+        }
+      });
 
     return () => {
       active = false;
     };
   }, []);
 
-  const answer = answers[(dailyAnswerIndex + answerOffset) % answers.length] ?? "სახლი";
+  useEffect(() => {
+  }, []);
+
+  const answer = gameMode === "tutorial" ? "სახლი" : (answers[(dailyAnswerIndex + answerOffset) % answers.length] ?? "სახლი");
   const puzzleNumber = dailyPuzzleNumber + answerOffset;
   const progressKey = getProgressKey(puzzleNumber, answer);
   const safeHeight = Math.max(0, height - insets.top - insets.bottom);
@@ -445,7 +478,11 @@ export default function WordleScreen() {
           setGuesses([]);
           setCurrentLetters([]);
           setGameStatus("playing");
-          setMessage(DEFAULT_MESSAGE);
+          if (gameMode === "tutorial") {
+            setMessage("აკრიფეთ 'ხეობა'");
+          } else {
+            setMessage(DEFAULT_MESSAGE);
+          }
         }
 
         setIsHydrated(true);
@@ -462,7 +499,7 @@ export default function WordleScreen() {
   }, [answer, progressKey]);
 
   useEffect(() => {
-    if (!isHydrated) {
+    if (!isHydrated || gameMode === "practice" || gameMode === "tutorial") {
       return;
     }
 
@@ -474,10 +511,10 @@ export default function WordleScreen() {
       puzzleNumber,
       savedAt: new Date().toISOString()
     }).catch(() => {});
-  }, [answer, currentLetters, gameStatus, guesses, isHydrated, progressKey, puzzleNumber]);
+  }, [answer, currentLetters, gameMode, gameStatus, guesses, isHydrated, progressKey, puzzleNumber]);
 
   useEffect(() => {
-    if (!isHydrated || gameStatus === "playing") {
+    if (!isHydrated || gameStatus === "playing" || gameMode === "practice" || gameMode === "tutorial") {
       return;
     }
 
@@ -490,7 +527,7 @@ export default function WordleScreen() {
     recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length, guesses).catch(() => {
       setRecordedCompletionKey(null);
     });
-  }, [answer, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
+  }, [answer, gameMode, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
 
   useEffect(() => {
     return () => {
@@ -512,9 +549,24 @@ export default function WordleScreen() {
       return;
     }
 
-    if (!validWords.has(guess)) {
-      showInvalidGuess("სიტყვა სიაში არ არის");
-      return;
+    if (gameMode === "tutorial") {
+      if (guesses.length === 0 && guess !== "ხეობა") {
+        showInvalidGuess("გთხოვთ აკრიფოთ 'ხეობა'");
+        return;
+      }
+      if (guesses.length === 1 && guess !== "ხალხი") {
+        showInvalidGuess("გთხოვთ აკრიფოთ 'ხალხი'");
+        return;
+      }
+      if (guesses.length === 2 && guess !== "სახლი") {
+        showInvalidGuess("გთხოვთ აკრიფოთ 'სახლი'");
+        return;
+      }
+    } else {
+      if (!validWords.has(guess)) {
+        showInvalidGuess("სიტყვა სიაში არ არის");
+        return;
+      }
     }
 
     const nextGuesses = [...guesses, guess];
@@ -527,6 +579,7 @@ export default function WordleScreen() {
       setMessage(wonMessage);
       showToast(wonMessage);
       triggerCompletionHaptic(true);
+      confettiRef.current?.start();
       setIsResultModalVisible(true);
       return;
     }
@@ -541,8 +594,16 @@ export default function WordleScreen() {
       return;
     }
 
-    setMessage(DEFAULT_MESSAGE);
-  }, [answer, currentLetters, gameStatus, guesses, showInvalidGuess, showToast, validWords]);
+    if (gameMode === "tutorial") {
+      if (nextGuesses.length === 1) {
+        setMessage("მწვანე 'ხ' სწორია! ახლა სცადეთ 'ხალხი'");
+      } else if (nextGuesses.length === 2) {
+        setMessage("ყვითელი 'ლ' სხვაგანაა. სცადეთ 'სახლი'");
+      }
+    } else {
+      setMessage(DEFAULT_MESSAGE);
+    }
+  }, [answer, currentLetters, gameStatus, guesses, showInvalidGuess, showToast, validWords, gameMode]);
 
   const handleKeyPress = useCallback(
     (key: string) => {
@@ -623,14 +684,99 @@ export default function WordleScreen() {
   }, [handleKeyPress]);
 
   const shareResult = useCallback(async () => {
-    await Share.share({
-      message: sharePreview
-    });
+    if (Platform.OS === "web") {
+      await Share.share({ message: sharePreview });
+      return;
+    }
+    try {
+      const uri = await viewShotRef.current?.capture?.();
+      if (uri) {
+        await Share.share({ url: uri, message: sharePreview });
+      } else {
+        await Share.share({ message: sharePreview });
+      }
+    } catch {
+      await Share.share({ message: sharePreview });
+    }
   }, [sharePreview]);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+      <ConfettiCannon
+        ref={confettiRef}
+        count={180}
+        origin={{ x: width / 2, y: -10 }}
+        autoStart={false}
+        fadeOut
+      />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
+
+      {/* ── Mode-picker modal (shown before game starts) ─────── */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={gameMode === null}
+        onRequestClose={() => router.push("/")}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modePickerModal}>
+            <Text style={styles.modePickerKicker}>სიტყვობანა</Text>
+            <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
+
+            {/* Daily */}
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, pressed && styles.pressed]}
+              onPress={() => setGameMode("daily")}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>📅</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>დღის სიტყვა</Text>
+                <Text style={styles.modePickerOptionSub}>#{puzzleNumber} · ქულები ითვლება</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              onPress={() => { startRandomPuzzle(); setGameMode("practice"); }}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>🔁</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>ვარჯიში</Text>
+                <Text style={styles.modePickerOptionSub}>შემთხვევითი სიტყვა · ქულების გარეშე</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            {/* Tutorial */}
+            <Pressable
+              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              onPress={() => { resetBoard(0); setGameMode("tutorial"); setMessage("აკრიფეთ 'ხეობა'"); }}
+            >
+              <View style={styles.modePickerIconWrap}>
+                <Text style={styles.modePickerIcon}>🎓</Text>
+              </View>
+              <View style={styles.modePickerText}>
+                <Text style={styles.modePickerOptionTitle}>როგორ ვითამაშოთ</Text>
+                <Text style={styles.modePickerOptionSub}>ინტერაქტიული გაკვეთილი დამწყებთათვის</Text>
+              </View>
+              <Text style={styles.modePickerArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.modePickerBack, pressed && styles.pressed]}
+              onPress={() => router.push("/")}
+            >
+              <Text style={styles.modePickerBackText}>← უკან</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -640,13 +786,19 @@ export default function WordleScreen() {
         </Pressable>
         <Text style={styles.logo}>სიტყვობანა</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel="სტატისტიკა"
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => router.push("/stats")}
-          >
-            <StatsIcon styles={styles} />
-          </Pressable>
+          {gameMode === "practice" || gameMode === "tutorial" ? (
+            <View style={styles.practiceBadge}>
+              <Text style={styles.practiceBadgeText}>{gameMode === "practice" ? "ვარჯიში" : "გაკვეთილი"}</Text>
+            </View>
+          ) : (
+            <Pressable
+              accessibilityLabel="სტატისტიკა"
+              style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+              onPress={() => router.push("/stats")}
+            >
+              <StatsIcon styles={styles} />
+            </Pressable>
+          )}
           <Pressable
             accessibilityLabel="ახალი სიტყვა"
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -659,7 +811,9 @@ export default function WordleScreen() {
 
       <View style={styles.boardArea}>
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>#{puzzleNumber}</Text>
+          <Text style={styles.metaText}>
+            {gameMode === "practice" ? "🔁" : gameMode === "tutorial" ? "🎓" : `#${puzzleNumber}`}
+          </Text>
           <Text style={styles.message}>{message}</Text>
         </View>
 
@@ -837,7 +991,9 @@ export default function WordleScreen() {
           <View style={styles.resultModal}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.resultKicker}>#{puzzleNumber}</Text>
+                <Text style={styles.resultKicker}>
+                  {gameMode === "practice" ? "ვარჯიში" : `#${puzzleNumber}`}
+                </Text>
                 <Text style={styles.resultTitle}>
                   {gameStatus === "won" ? "მოიგე" : "სცადე კიდევ"}
                 </Text>
@@ -857,30 +1013,37 @@ export default function WordleScreen() {
                 : `სიტყვა იყო ${answer}`}
             </Text>
 
-            <View style={styles.previewBox}>
-              {sharePreview.split("\n").map((line, index) => (
-                <Text key={`${line}-${index}`} style={styles.previewText}>
-                  {line}
-                </Text>
-              ))}
-            </View>
+            {/* Only show share preview in daily mode */}
+            {gameMode === "daily" && (
+              <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }}>
+                <View style={styles.previewBox}>
+                  {sharePreview.split("\n").map((line, index) => (
+                    <Text key={`${line}-${index}`} style={styles.previewText}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+              </ViewShot>
+            )}
 
             <View style={styles.resultActions}>
-              <Pressable
-                style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
-                onPress={shareResult}
-              >
-                <Text style={styles.resultButtonText}>გაზიარება</Text>
-              </Pressable>
+              {gameMode === "daily" && (
+                <Pressable
+                  style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
+                  onPress={shareResult}
+                >
+                  <Text style={styles.resultButtonText}>გაზიარება</Text>
+                </Pressable>
+              )}
               <Pressable
                 style={({ pressed }) => [
                   styles.resultButton,
-                  styles.secondaryResultButton,
+                  gameMode === "daily" && styles.secondaryResultButton,
                   pressed && styles.pressed
                 ]}
                 onPress={startRandomPuzzle}
               >
-                <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>
+                <Text style={[styles.resultButtonText, gameMode === "daily" && styles.secondaryResultButtonText]}>
                   ახალი სიტყვა
                 </Text>
               </Pressable>
@@ -1153,6 +1316,94 @@ function createStyles(colors: AppColors) {
     maxWidth: 420,
     padding: 18,
     width: "100%"
+  },
+  modePickerModal: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 420,
+    padding: 24,
+    width: "100%"
+  },
+  modePickerKicker: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginBottom: 4,
+    textAlign: "center",
+    textTransform: "uppercase"
+  },
+  modePickerTitle: {
+    color: colors.primaryText,
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 24,
+    textAlign: "center"
+  },
+  modePickerOption: {
+    alignItems: "center",
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    flexDirection: "row",
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16
+  },
+  modePickerOptionSecondary: {
+    backgroundColor: colors.button,
+    borderColor: colors.border,
+    borderWidth: 1
+  },
+  modePickerIconWrap: {
+    marginRight: 14
+  },
+  modePickerIcon: {
+    fontSize: 28
+  },
+  modePickerText: {
+    flex: 1
+  },
+  modePickerOptionTitle: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  modePickerOptionSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 2
+  },
+  modePickerArrow: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 24,
+    fontWeight: "700"
+  },
+  modePickerBack: {
+    alignItems: "center",
+    marginTop: 8,
+    paddingVertical: 10
+  },
+  modePickerBackText: {
+    color: colors.secondaryText,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  practiceBadge: {
+    backgroundColor: colors.accentMuted,
+    borderColor: colors.accent,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  practiceBadgeText: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900"
   },
   modalHeader: {
     alignItems: "center",

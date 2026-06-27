@@ -22,6 +22,7 @@ export function serializeUser(user) {
     profilePhotoUrl: source.profilePhotoUrl ?? null,
     role: source.role ?? "user",
     totalPoints: source.totalPoints ?? 0,
-    username: source.username
+    username: source.username,
+    dailyQuests: source.dailyQuests ?? null
   };
 }

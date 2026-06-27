@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { submitScore } from "./api";
+import { AuthUser, submitScore } from "./api";
 import { GameStatus } from "./wordle";
 
 export type WordleProgress = {
@@ -109,7 +109,8 @@ export async function recordWordleCompletion(
   puzzleNumber: number,
   won: boolean,
   guesses: number,
-  submittedGuesses: string[] = []
+  submittedGuesses: string[] = [],
+  onScoreResult?: (freshUser: AuthUser) => void
 ) {
   const stats = await loadWordleStats();
   const puzzleKey = String(puzzleNumber);
@@ -144,6 +145,8 @@ export async function recordWordleCompletion(
   };
 
   await AsyncStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
+
+  // Submit score and immediately propagate the fresh user back to the caller
   submitScore({
     attempts: guesses,
     gameId: "wordle",
@@ -152,7 +155,13 @@ export async function recordWordleCompletion(
     mode: "daily",
     puzzleKey,
     won
-  }).catch(() => {});
+  })
+    .then((result) => {
+      if (result?.user && onScoreResult) {
+        onScoreResult(result.user);
+      }
+    })
+    .catch(() => {});
 
   return nextStats;
 }

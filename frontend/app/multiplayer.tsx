@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Platform, Animated, Easing, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSocket } from "../src/socket";
@@ -303,7 +303,7 @@ export default function MultiplayerScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", padding: 12 },
     backBtn: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
     title: { color: colors.primaryText, fontSize: 18, fontWeight: "900" },

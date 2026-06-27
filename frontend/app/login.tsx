@@ -170,9 +170,6 @@ export default function LoginScreen() {
           <Text style={styles.title}>
             {mode === "login" ? "მოგესალმებით" : "შექმენი ანგარიში"}
           </Text>
-          <Text style={styles.subtitle}>
-            {mode === "login" ? "შედი და ითამაშე" : "დარეგისტრირდი და ითამაშე"}
-          </Text>
 
           {/* ── Pill tab switcher ─────────────────────────── */}
           <View style={styles.tabPill}>
@@ -298,7 +295,7 @@ function createStyles(colors: AppColors, isDark: boolean, mode: AuthMode) {
     safe: {
       backgroundColor: colors.background,
       flex: 1
-    },
+    , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     flex: { flex: 1 },
     scroll: {
       alignItems: "center",
@@ -340,7 +337,7 @@ function createStyles(colors: AppColors, isDark: boolean, mode: AuthMode) {
       fontSize: reg ? 28 : 36,
       fontWeight: "900",
       letterSpacing: -1,
-      marginBottom: reg ? 4 : 8,
+      marginBottom: reg ?  30 : 15,
       textAlign: "center"
     },
     subtitle: {

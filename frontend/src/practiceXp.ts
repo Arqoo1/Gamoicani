@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { submitScore } from "./api";
+import { AuthUser, submitScore } from "./api";
 
 const QUEUE_KEY = "practiceXp:queue:v1";
 
@@ -30,7 +30,7 @@ export async function recordPracticeSession(
 }
 
 
-export async function syncPracticeXp(): Promise<number> {
+export async function syncPracticeXp(onScoreResult?: (freshUser: AuthUser) => void): Promise<number> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
     if (!raw) return 0;
@@ -38,11 +38,12 @@ export async function syncPracticeXp(): Promise<number> {
     if (queue.length === 0) return 0;
 
     let synced = 0;
+    let lastFreshUser: AuthUser | undefined;
     const remaining: PracticeSession[] = [];
 
     for (const session of queue) {
       try {
-        await submitScore({
+        const result = await submitScore({
           gameId: session.gameId,
           won: session.won,
           attempts: session.attempts,
@@ -50,6 +51,9 @@ export async function syncPracticeXp(): Promise<number> {
           clientEventId: session.id,
           completionMethod: session.won ? "solved" : "lost",
         });
+        if (result?.user) {
+          lastFreshUser = result.user;
+        }
         synced++;
       } catch {
         remaining.push(session);
@@ -57,6 +61,12 @@ export async function syncPracticeXp(): Promise<number> {
     }
 
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+
+    // Update the auth context once with the latest user state after all syncs
+    if (lastFreshUser && onScoreResult) {
+      onScoreResult(lastFreshUser);
+    }
+
     return synced;
   } catch {
     return 0;

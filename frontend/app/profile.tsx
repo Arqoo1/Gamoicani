@@ -2,8 +2,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import {
-  Alert,
+import { Platform, Alert,
   Image,
   Modal,
   Pressable,
@@ -13,8 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
-} from "react-native";
+  View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -394,11 +392,8 @@ export default function ProfileScreen() {
   }, [totalWins]);
   const maxDist = Math.max(1, ...mockDistribution);
 
-  const quests = [
-    { title: "ითამაშე 3-ჯერ", progress: Math.min(totalPlays, 3), total: 3 },
-    { title: "მოიგე 1 თამაში", progress: Math.min(totalWins, 1), total: 1 },
-    { title: "დაამატე მეგობარი", progress: Math.min(friends.length, 1), total: 1 }
-  ];
+  const dailyQuestsData = user.dailyQuests?.quests || [];
+  const bonusClaimed = user.dailyQuests?.bonusClaimed || false;
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -615,18 +610,30 @@ export default function ProfileScreen() {
 
         {/* ── Daily Quests ── */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📅 დღიური კვესტები</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={styles.cardTitle}>📅 დღიური კვესტები</Text>
+            {bonusClaimed ? (
+              <Text style={{ color: colors.correct, fontWeight: "800", marginRight: 16 }}>✓ მიღებულია</Text>
+            ) : (
+              <Text style={{ color: colors.correct, fontWeight: "800", marginRight: 16 }}>+3 ქულა</Text>
+            )}
+          </View>
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
-            {quests.map((q, idx) => {
-              const isDone = q.progress >= q.total;
+            {dailyQuestsData.length === 0 && (
+              <Text style={{ color: colors.secondaryText, textAlign: "center", marginTop: 8 }}>
+                კვესტები არ მოიძებნა
+              </Text>
+            )}
+            {dailyQuestsData.map((q, idx) => {
+              const isDone = q.completed;
               return (
                 <View key={idx} style={styles.questRow}>
                   <View style={styles.questInfo}>
                     <Text style={[styles.questTitle, isDone && { color: colors.correct }]}>{q.title}</Text>
-                    <Text style={styles.questProgressText}>{q.progress} / {q.total}</Text>
+                    <Text style={styles.questProgressText}>{q.progress} / {q.target}</Text>
                   </View>
                   <View style={styles.questProgressBarBg}>
-                    <View style={[styles.questProgressBar, { width: `${(q.progress / q.total) * 100}%`, backgroundColor: isDone ? colors.correct : colors.accent }]} />
+                    <View style={[styles.questProgressBar, { width: `${(q.progress / q.target) * 100}%`, backgroundColor: isDone ? colors.correct : colors.accent }]} />
                   </View>
                 </View>
               );
@@ -954,7 +961,7 @@ export default function ProfileScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { backgroundColor: colors.card, flex: 1 },
+    safe: { backgroundColor: colors.card, flex: 1 , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     scroll: { backgroundColor: colors.background },
     scrollContent: { paddingBottom: 20 },
 

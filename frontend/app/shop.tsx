@@ -1,8 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
+import { Platform, ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -10,8 +9,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View,
-} from "react-native";
+  View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { buyItem, equipItem, fetchShopData, ShopData, ShopItem } from "../src/api";
@@ -300,7 +298,7 @@ export default function ShopScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     header: {
       alignItems: "center",
       flexDirection: "row",

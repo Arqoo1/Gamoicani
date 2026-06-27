@@ -1,6 +1,6 @@
 import { Href, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, View, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
@@ -8,6 +8,7 @@ import games from "../data/games.json";
 import { fetchGames, GameItem as ApiGameItem } from "../src/api";
 import { useAuth } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
+import { getDailyPuzzleNumber, WORDLE_EPOCH } from "../src/wordle";
 
 type GameItem = {
   href?: Href;
@@ -18,6 +19,39 @@ type GameItem = {
 };
 
 const fallbackGameList = games as GameItem[];
+
+/** Returns today's date as "YYYY-MM-DD" in local time — same logic as andazebi.tsx */
+function getLocalDateKey(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Returns true if the user has already completed today's daily for this gameId.
+ * Uses the same key format the backend uses:
+ *   wordle   → lastCompletedKey === String(todayPuzzleNumber)
+ *   andazebi → lastCompletedKey === "YYYY-MM-DD" (streakKey)
+ *   trivia   → lastCompletedKey === "YYYY-MM-DD"
+ */
+function isDoneToday(gameId: string, gameStats: Record<string, any> | undefined): boolean {
+  if (!gameStats) return false;
+  const stat = gameStats[gameId];
+  if (!stat?.lastCompletedKey) return false;
+
+  if (gameId === "wordle") {
+    const todayKey = String(getDailyPuzzleNumber(WORDLE_EPOCH));
+    return stat.lastCompletedKey === todayKey;
+  }
+
+  // andazebi and trivia both use date string as streakKey/lastCompletedKey
+  if (gameId === "andazebi" || gameId === "trivia") {
+    return stat.lastCompletedKey === getLocalDateKey();
+  }
+
+  return false;
+}
 const normalGuideRows = [
   ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
   ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
@@ -264,6 +298,7 @@ export default function HomeScreen() {
         <View style={styles.list}>
           {gameList.map((game) => {
             const ready = game.status === "ready";
+            const done = ready && isDoneToday(game.id, user?.gameStats as any);
 
             return (
               <Pressable
@@ -280,6 +315,11 @@ export default function HomeScreen() {
                   }
                 }}
               >
+                {done && (
+                  <View style={styles.doneCorner}>
+                    <Text style={styles.doneCornerText}>✓</Text>
+                  </View>
+                )}
                 <View style={styles.cardCopy}>
                   <Text style={[styles.cardTitle, !ready && styles.disabledText]}>
                     {game.title}
@@ -374,7 +414,8 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: colors.background
+      backgroundColor: colors.background,
+      paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0
     },
     content: {
       flexGrow: 1,
@@ -446,8 +487,10 @@ function createStyles(colors: AppColors) {
       flexDirection: "row",
       justifyContent: "space-between",
       minHeight: 84,
+      overflow: "hidden",
       paddingHorizontal: 18,
       paddingVertical: 15,
+      position: "relative",
       shadowColor: colors.shadow,
       shadowOffset: { height: 3, width: 0 },
       shadowOpacity: 0.08,
@@ -484,6 +527,21 @@ function createStyles(colors: AppColors) {
     cardStatus: {
       color: colors.disabled,
       fontSize: 13,
+      fontWeight: "900"
+    },
+    doneCorner: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      backgroundColor: colors.correct,
+      borderBottomLeftRadius: 7,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      zIndex: 1
+    },
+    doneCornerText: {
+      color: "#fff",
+      fontSize: 11,
       fontWeight: "900"
     },
     disabledText: {

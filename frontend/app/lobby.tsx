@@ -431,7 +431,7 @@ export default function LobbyScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     header: {
       alignItems: "center",
       flexDirection: "row",

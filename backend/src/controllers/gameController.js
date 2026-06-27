@@ -4,7 +4,8 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { createHttpError, sanitizeGameId } from "../utils/validators.js";
 
 export const listGames = asyncHandler(async (req, res) => {
-  const games = await Game.find({}).sort({ createdAt: 1 }).lean();
+  // Sort by status ascending ("ready" comes before "soon" alphabetically), then by createdAt
+  const games = await Game.find({}).sort({ status: 1, createdAt: 1 }).lean();
 
   res.json({ data: games });
 });

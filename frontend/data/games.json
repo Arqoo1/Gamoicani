@@ -8,19 +8,19 @@
     "content": "data/words.json"
   },
   {
-    "id": "geography",
-    "title": "გეოგრაფია",
-    "subtitle": "ქალაქები, რეგიონები, ღირსშესანიშნაობები",
-    "status": "soon",
-    "content": "data/content/geography.json"
-  },
-  {
     "id": "andazebi",
     "title": "ანდაზები",
     "subtitle": "ქართული ანდაზები გამოტოვებული სიტყვებით",
     "href": "/andazebi",
     "status": "ready",
     "content": "data/content/andazebi.json"
+  },
+  {
+    "id": "geography",
+    "title": "გეოგრაფია",
+    "subtitle": "ქალაქები, რეგიონები, ღირსშესანიშნაობები",
+    "status": "soon",
+    "content": "data/content/geography.json"
   },
   {
     "id": "people",

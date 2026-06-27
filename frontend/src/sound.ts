@@ -1,4 +1,4 @@
-import { Audio } from "expo-av";
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from "expo-audio";
 import { Platform } from "react-native";
 
 let _soundEnabled = true;
@@ -174,24 +174,22 @@ function makeLoss(): string {
   return buildWav(mixSamples(parts, SR), SR);
 }
 
-const _soundCache = new Map<string, Audio.Sound>();
+const _soundCache = new Map<string, AudioPlayer>();
 
 async function playNativeSound(dataUri: string): Promise<void> {
   if (!_soundEnabled) return;
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
+    await setAudioModeAsync({
+      playsInSilentMode: true,
     }).catch(() => {});
 
     let sound = _soundCache.get(dataUri);
     if (!sound) {
-      const { sound: newSound } = await Audio.Sound.createAsync({ uri: dataUri });
-      _soundCache.set(dataUri, newSound);
-      sound = newSound;
+      sound = createAudioPlayer(dataUri);
+      _soundCache.set(dataUri, sound);
     }
-    await sound.setPositionAsync(0).catch(() => {});
-    await sound.playAsync();
+    await sound.seekTo(0).catch(() => {});
+    sound.play();
   } catch {
   }
 }

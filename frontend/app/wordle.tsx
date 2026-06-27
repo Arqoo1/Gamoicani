@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import words from "../data/words.json";
 import { fetchGameContent } from "../src/api";
+import { useAuth } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
 import {
   GameStatus,
@@ -277,11 +278,19 @@ export default function WordleScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { updateUser, user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [isOffline, setIsOffline] = useState(false);
   const [gameMode, setGameMode] = useState<"daily" | "practice" | "tutorial" | null>(null);
   const [wordData, setWordData] = useState<WordsJson>(fallbackWordData);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
+
+  // Check if user already completed today's daily
+  const isDailyDone = useMemo(() => {
+    const stat = (user?.gameStats as any)?.["wordle"];
+    if (!stat?.lastCompletedKey) return false;
+    return stat.lastCompletedKey === String(dailyPuzzleNumber);
+  }, [user?.gameStats, dailyPuzzleNumber]);
   const answers = useMemo(
     () => wordData.answers.filter((word) => splitWord(word).length === WORD_LENGTH),
     [wordData.answers]
@@ -524,7 +533,7 @@ export default function WordleScreen() {
     }
 
     setRecordedCompletionKey(completionKey);
-    recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length, guesses).catch(() => {
+    recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length, guesses, updateUser).catch(() => {
       setRecordedCompletionKey(null);
     });
   }, [answer, gameMode, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
@@ -725,17 +734,32 @@ export default function WordleScreen() {
 
             {/* Daily */}
             <Pressable
-              style={({ pressed }) => [styles.modePickerOption, pressed && styles.pressed]}
+              disabled={isDailyDone}
+              style={({ pressed }) => [
+                styles.modePickerOption,
+                isDailyDone && styles.modePickerOptionDisabled,
+                !isDailyDone && pressed && styles.pressed
+              ]}
               onPress={() => setGameMode("daily")}
             >
               <View style={styles.modePickerIconWrap}>
                 <Text style={styles.modePickerIcon}>📅</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>დღის სიტყვა</Text>
-                <Text style={styles.modePickerOptionSub}>#{puzzleNumber} · ქულები ითვლება</Text>
+                <Text style={[styles.modePickerOptionTitle, isDailyDone && styles.modePickerDisabledText]}>
+                  დღის სიტყვა
+                </Text>
+                <Text style={[styles.modePickerOptionSub, isDailyDone && styles.modePickerDisabledText]}>
+                  {isDailyDone
+                    ? "✓ დღეს უკვე ითამაშე"
+                    : `#${puzzleNumber} · ქულები ითვლება`}
+                </Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              {isDailyDone ? (
+                <Text style={styles.modePickerDoneCheck}>✓</Text>
+              ) : (
+                <Text style={styles.modePickerArrow}>›</Text>
+              )}
             </Pressable>
 
             <Pressable
@@ -1041,10 +1065,16 @@ export default function WordleScreen() {
                   gameMode === "daily" && styles.secondaryResultButton,
                   pressed && styles.pressed
                 ]}
-                onPress={startRandomPuzzle}
+                onPress={() => {
+                  if (gameMode === "daily") {
+                    setGameMode("practice");
+                  }
+                  startRandomPuzzle();
+                  setIsResultModalVisible(false);
+                }}
               >
                 <Text style={[styles.resultButtonText, gameMode === "daily" && styles.secondaryResultButtonText]}>
-                  ახალი სიტყვა
+                  {gameMode === "daily" ? "ვარჯიში" : "ახალი სიტყვა"}
                 </Text>
               </Pressable>
             </View>
@@ -1087,7 +1117,7 @@ function createStyles(colors: AppColors) {
   safe: {
     flex: 1,
     backgroundColor: colors.card
-  },
+  , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
   header: {
     alignItems: "center",
     backgroundColor: colors.card,

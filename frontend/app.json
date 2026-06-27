@@ -7,9 +7,16 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/logoicon.png",
+    "splash": {
+      "image": "./assets/splashimg.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2f9e5d"
+    },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-audio"
     ],
     "ios": {
       "supportsTablet": true,
@@ -18,7 +25,8 @@
     "android": {
       "package": "com.georgiangames.wordle",
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/logoicon.png",
+        "backgroundColor": "#2f9e5d"
       }
     },
     "web": {

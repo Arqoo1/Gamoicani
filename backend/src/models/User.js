@@ -21,6 +21,18 @@ const achievementSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const dailyQuestSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    type: { type: String, required: true },
+    target: { type: Number, required: true },
+    progress: { type: Number, default: 0 },
+    completed: { type: Boolean, default: false },
+    title: { type: String, required: true }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     achievements: {
@@ -124,6 +136,15 @@ const userSchema = new mongoose.Schema(
         avatar: { type: String, default: null },
         banner: { type: String, default: null },
         nameTag: { type: String, default: null }
+      },
+      _id: false
+    },
+    dailyQuests: {
+      default: () => ({ dateKey: "", quests: [], bonusClaimed: false }),
+      type: {
+        dateKey: { type: String, default: "" },
+        quests: { type: [dailyQuestSchema], default: () => [] },
+        bonusClaimed: { type: Boolean, default: false }
       },
       _id: false
     }

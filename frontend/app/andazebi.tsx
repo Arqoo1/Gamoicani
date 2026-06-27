@@ -22,7 +22,8 @@ import ViewShot, { captureRef } from "react-native-view-shot";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import proverbs from "../data/content/andazebi.json";
-import { fetchGameContent, submitScore } from "../src/api";
+import { fetchGameContent, submitScore, AuthUser } from "../src/api";
+import { useAuth } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
 import { playPop, playBuzz, playWin, playLoss, playReveal } from "../src/sound";
 import { cacheGameContent, getCachedGameContent } from "../src/storage";
@@ -306,7 +307,8 @@ function reportProverbCompletion(
   item: ProverbItem,
   dateKey: string,
   attempts: number,
-  method: CompletionMethod
+  method: CompletionMethod,
+  onScoreResult?: (freshUser: AuthUser) => void
 ) {
   submitScore({
     attempts,
@@ -321,17 +323,31 @@ function reportProverbCompletion(
     puzzleKey: `${dateKey}:${item.id}`,
     streakKey: dateKey,
     won: method === "solved"
-  }).catch(() => {});
+  })
+    .then((result) => {
+      if (result?.user && onScoreResult) {
+        onScoreResult(result.user);
+      }
+    })
+    .catch(() => {});
 }
 
 export default function AndazebiScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
+  const { updateUser, user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const shake = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(1)).current;
   const dateKey = useMemo(() => getLocalDateKey(), []);
+
+  // Check if user already completed today's daily
+  const isDailyDone = useMemo(() => {
+    const stat = (user?.gameStats as any)?.["andazebi"];
+    if (!stat?.lastCompletedKey) return false;
+    return stat.lastCompletedKey === dateKey;
+  }, [user?.gameStats, dateKey]);
   const [proverbData, setProverbData] = useState<ProverbsJson>(fallbackProverbData);
   const items = proverbData.items;
   const dailyItems = useMemo(() => getDailyItems(items, dateKey), [dateKey, items]);
@@ -663,7 +679,7 @@ export default function AndazebiScreen() {
             ];
 
         if (!existingItem) {
-          reportProverbCompletion(currentItem, dateKey, attempts, method);
+          reportProverbCompletion(currentItem, dateKey, attempts, method, updateUser);
         }
 
         saveDailyProgress(itemIndex, nextCompletedItems);
@@ -782,7 +798,7 @@ export default function AndazebiScreen() {
             ];
 
         if (!existingItem) {
-          reportProverbCompletion(currentItem, dateKey, wrongAttempts + 1, "solved");
+          reportProverbCompletion(currentItem, dateKey, wrongAttempts + 1, "solved", updateUser);
         }
 
         saveDailyProgress(nextIndex, nextCompletedItems);
@@ -840,7 +856,7 @@ export default function AndazebiScreen() {
       const nextIndex = Math.min(itemIndex + 1, dailyItems.length);
 
       if (!existingItem) {
-        reportProverbCompletion(currentItem, dateKey, wrongAttempts, "skipped");
+        reportProverbCompletion(currentItem, dateKey, wrongAttempts, "skipped", updateUser);
       }
 
       saveDailyProgress(nextIndex, nextCompletedItems);
@@ -1050,17 +1066,32 @@ export default function AndazebiScreen() {
             <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
 
             <Pressable
-              style={({ pressed }) => [styles.modePickerOption, pressed && styles.pressed]}
+              disabled={isDailyDone}
+              style={({ pressed }) => [
+                styles.modePickerOption,
+                isDailyDone && styles.modePickerOptionDisabled,
+                !isDailyDone && pressed && styles.pressed
+              ]}
               onPress={() => setGameMode("daily")}
             >
               <View style={styles.modePickerIconWrap}>
                 <Text style={styles.modePickerIcon}>📅</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>დღის ანდაზები</Text>
-                <Text style={styles.modePickerOptionSub}>5 ახალი ანდაზა ყოველდღე</Text>
+                <Text style={[styles.modePickerOptionTitle, isDailyDone && styles.modePickerDisabledText]}>
+                  დღის ანდაზები
+                </Text>
+                <Text style={[styles.modePickerOptionSub, isDailyDone && styles.modePickerDisabledText]}>
+                  {isDailyDone
+                    ? "✓ დღეს უკვე ითამაშე"
+                    : "5 ახალი ანდაზა ყოველდღე"}
+                </Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              {isDailyDone ? (
+                <Text style={styles.modePickerDoneCheck}>✓</Text>
+              ) : (
+                <Text style={styles.modePickerArrow}>›</Text>
+              )}
             </Pressable>
 
             <Pressable
@@ -1178,6 +1209,12 @@ export default function AndazebiScreen() {
                     onPress={shareResult}
                   >
                     <Text style={styles.primaryButtonText}>გაზიარება</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+                    onPress={() => switchGameMode("practice")}
+                  >
+                    <Text style={styles.secondaryButtonText}>ვარჯიში</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
@@ -1430,7 +1467,7 @@ function createStyles(colors: AppColors) {
     safe: {
       flex: 1,
       backgroundColor: colors.card
-    },
+    , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     keyboardArea: {
       flex: 1,
       backgroundColor: colors.background
@@ -1965,6 +2002,12 @@ function createStyles(colors: AppColors) {
       borderColor: colors.border,
       borderWidth: 1
     },
+    modePickerOptionDisabled: {
+      backgroundColor: colors.button,
+      borderColor: colors.border,
+      borderWidth: 1,
+      opacity: 0.7
+    },
     modePickerIconWrap: {
       marginRight: 14
     },
@@ -1989,6 +2032,15 @@ function createStyles(colors: AppColors) {
       color: "rgba(255,255,255,0.7)",
       fontSize: 24,
       fontWeight: "700"
+    },
+    modePickerDisabledText: {
+      color: colors.disabled
+    },
+    modePickerDoneCheck: {
+      color: colors.correct,
+      fontSize: 24,
+      fontWeight: "900",
+      paddingLeft: 8
     },
     modePickerBack: {
       alignItems: "center",

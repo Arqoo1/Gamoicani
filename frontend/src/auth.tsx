@@ -28,6 +28,8 @@ type AuthContextValue = {
     username: string;
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** Instantly update the in-memory user from a fresh server response (e.g. after submitting a score). */
+  updateUser: (nextUser: AuthUser) => void;
   status: AuthStatus;
   updateProfile: (input: {
     avatarColor?: string;
@@ -129,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    setUser(nextUser);
+  }, []);
+
   const logout = useCallback(async () => {
     await clearAuthToken();
     setUser(null);
@@ -145,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       status,
       updateProfile,
+      updateUser,
       uploadCoverPhoto,
       uploadProfilePhoto,
       user
@@ -158,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       status,
       updateProfile,
+      updateUser,
       uploadCoverPhoto,
       uploadProfilePhoto,
       user

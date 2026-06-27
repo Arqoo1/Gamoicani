@@ -26,6 +26,18 @@ export type AuthUser = {
   role: "user" | "admin";
   totalPoints: number;
   username: string;
+  dailyQuests: {
+    dateKey: string;
+    quests: {
+      id: string;
+      type: string;
+      target: number;
+      progress: number;
+      completed: boolean;
+      title: string;
+    }[];
+    bonusClaimed: boolean;
+  } | null;
 };
 
 export type GameStat = {

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { User } from "../models/User.js";
+import { ensureDailyQuests } from "../services/questService.js";
 import { signAuthToken } from "../utils/tokens.js";
 import { serializeUser } from "../utils/userPresenter.js";
 import {
@@ -68,6 +69,13 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
+  const originalDateKey = req.user.dailyQuests?.dateKey;
+  ensureDailyQuests(req.user);
+  
+  if (req.user.dailyQuests.dateKey !== originalDateKey) {
+    await req.user.save();
+  }
+
   res.json({ data: { user: serializeUser(req.user) } });
 });
 

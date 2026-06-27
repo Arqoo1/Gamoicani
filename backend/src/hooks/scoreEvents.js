@@ -1,4 +1,5 @@
 import { isConsecutiveProgress } from "../utils/streaks.js";
+import { evaluateQuests, ensureDailyQuests } from "../services/questService.js";
 
 function emptyGameStat() {
   return {
@@ -121,8 +122,9 @@ export function applyScoreEventToUser(user, scoreEvent) {
     return user;
   }
 
+  const progressKey = scoreEvent.streakKey ?? scoreEvent.puzzleKey;
+
   if (scoreEvent.won) {
-    const progressKey = scoreEvent.streakKey ?? scoreEvent.puzzleKey;
     const continuesStreak = isConsecutiveProgress(
       scoreEvent.gameId,
       currentStat.lastCompletedKey,
@@ -133,11 +135,15 @@ export function applyScoreEventToUser(user, scoreEvent) {
     nextStat.maxStreak = Math.max(currentStat.maxStreak, nextStat.currentStreak);
   } else {
     nextStat.currentStreak = 0;
+    nextStat.lastCompletedKey = progressKey ?? currentStat.lastCompletedKey;
   }
 
   user.totalPoints += scoreEvent.points;
   user.gameStats.set(scoreEvent.gameId, nextStat);
+  
   awardAchievements(user, scoreEvent);
+  ensureDailyQuests(user, scoreEvent.occurredAt);
+  evaluateQuests(user, scoreEvent);
 
   return user;
 }

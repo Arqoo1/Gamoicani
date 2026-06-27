@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createEmptyStats, loadWordleStats, WordleStats } from "../src/storage";
@@ -157,7 +157,7 @@ function createStyles(colors: AppColors) {
     safe: {
       flex: 1,
       backgroundColor: colors.card
-    },
+    , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     scrollView: {
       backgroundColor: colors.background
     },

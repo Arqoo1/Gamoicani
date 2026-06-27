@@ -1,8 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
+import { Platform, ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
@@ -10,8 +9,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View,
-} from "react-native";
+  View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { API_BASE_URL, FeedEvent, fetchSocialFeed } from "../src/api";
@@ -78,7 +76,7 @@ export default function FeedScreen() {
         >
           <Feather color={colors.primaryText} name="chevron-left" size={28} />
         </Pressable>
-        <Text style={styles.title}>სოციალური ლენტი</Text>
+        <Text style={styles.title}>თამაშების ისტორია</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -142,7 +140,7 @@ export default function FeedScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     header: {
       alignItems: "center",
       flexDirection: "row",

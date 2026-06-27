@@ -1,16 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
+import { Platform, Alert,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Switch,
   Text,
-  View,
-} from "react-native";
+  View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth, useLogoutAndGoLogin } from "../src/auth";
@@ -22,7 +20,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colors, isDark, mode, setMode } = useAppTheme();
   const { hapticsEnabled, soundEnabled, setHapticsEnabled, setSoundEnabled } = useSettings();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const logoutAndGoLogin = useLogoutAndGoLogin();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -36,7 +34,7 @@ export default function SettingsScreen() {
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
-      const count = await syncPracticeXp();
+      const count = await syncPracticeXp(updateUser);
       setPendingXp(0);
       if (count > 0) {
         Alert.alert("✅ სინქრონიზაცია", `${count} სესია სინქრონიზებულია!`);
@@ -214,7 +212,7 @@ export default function SettingsScreen() {
           >
             <View style={styles.linkLeft}>
               <Feather name="activity" size={20} color={colors.accent} />
-              <Text style={styles.linkLabel}>სოციალური ლენტი</Text>
+              <Text style={styles.linkLabel}>თამაშების ისტორია</Text>
             </View>
             <Feather name="chevron-right" size={20} color={colors.secondaryText} />
           </Pressable>
@@ -248,7 +246,7 @@ export default function SettingsScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
     header: {
       alignItems: "center",
       flexDirection: "row",

@@ -101,6 +101,10 @@ npm install
 npm run dev
 ```
 
+## 📥 Download
+
+👉 [Download the latest APK](https://github.com/USERNAME/REPOSITORY/releases/latest)
+
 ---
 
 ## 📂 Project Structure

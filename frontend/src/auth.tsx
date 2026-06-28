@@ -8,6 +8,7 @@ import {
   fetchMe,
   getAuthToken,
   loginAccount,
+  loginWithGoogleAPI,
   registerAccount,
   updateMyProfile,
   uploadCoverPhoto as apiUploadCoverPhoto,
@@ -20,6 +21,7 @@ type AuthContextValue = {
   changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   error: string | null;
   login: (input: { email: string; password: string }) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (input: {
     displayName: string;
@@ -80,6 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (input: { email: string; password: string }) => {
     setError(null);
     const response = await loginAccount(input);
+    setUser(response.user);
+    setStatus("authenticated");
+  }, []);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    setError(null);
+    const response = await loginWithGoogleAPI(idToken);
     setUser(response.user);
     setStatus("authenticated");
   }, []);
@@ -146,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       error,
       login,
+      loginWithGoogle,
       logout,
       refreshUser,
       register,
@@ -160,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       error,
       login,
+      loginWithGoogle,
       logout,
       refreshUser,
       register,

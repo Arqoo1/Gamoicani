@@ -1,4 +1,7 @@
 import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com");
 
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { User } from "../models/User.js";
@@ -63,6 +66,39 @@ export const login = asyncHandler(async (req, res) => {
 
   if (!passwordMatches) {
     throw createHttpError(401, "Invalid email or password");
+  }
+
+  res.json({ data: authResponse(user) });
+});
+
+export const loginWithGoogle = asyncHandler(async (req, res) => {
+  const { idToken } = req.body;
+  if (!idToken) throw createHttpError(400, "idToken is required");
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken,
+    audience: process.env.GOOGLE_CLIENT_ID || "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
+  });
+  
+  const payload = ticket.getPayload();
+  const email = normalizeEmail(payload.email);
+  const displayName = payload.name ? String(payload.name).slice(0, 50) : "User";
+
+  let user = await User.findOne({ email });
+  if (!user) {
+    const baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    let username = baseUsername;
+    let attempt = 1;
+    while (await User.exists({ username })) {
+      username = `${baseUsername}${attempt}`;
+      attempt++;
+    }
+
+    user = await User.create({
+      displayName,
+      email,
+      username,
+    });
   }
 
   res.json({ data: authResponse(user) });
@@ -175,4 +211,21 @@ export const changePassword = asyncHandler(async (req, res) => {
   await userWithHash.save();
 
   res.json({ data: { message: "Password changed successfully" } });
+});
+
+export const savePushToken = asyncHandler(async (req, res) => {
+  const token = String(req.body.token ?? "").trim();
+
+  if (!token || !token.startsWith("ExponentPushToken[")) {
+    throw createHttpError(400, "Invalid Expo push token");
+  }
+
+  if (!req.user.expoPushTokens.includes(token)) {
+    req.user.expoPushTokens.push(token);
+  }
+
+  req.user.lastSeenAt = new Date();
+  await req.user.save();
+
+  res.json({ data: { message: "Push token saved" } });
 });

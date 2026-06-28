@@ -10,6 +10,14 @@ import { AuthProvider, useAuth } from "../src/auth";
 import { SettingsProvider } from "../src/settings";
 import { ThemeProvider, useAppTheme } from "../src/theme";
 import { SocketProvider } from "../src/socket";
+import { registerForPushNotificationsAsync, scheduleInactivityReminder } from "../src/services/notifications";
+import { savePushTokenAPI } from "../src/api";
+import * as Notifications from "expo-notifications";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+
+GoogleSignin.configure({
+  webClientId: "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
+});
 
 function ThemedStack() {
   const { colors, isDark } = useAppTheme();
@@ -18,20 +26,40 @@ function ThemedStack() {
   const router = useRouter();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
-  // Refresh user data whenever the app returns to foreground
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
+    if (status !== "authenticated") return;
+
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) savePushTokenAPI(token);
+    });
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen as string | undefined;
+      if (screen) router.replace(screen as any);
+    });
+
+    return () => {
+      Notifications.removeNotificationSubscription(responseSub);
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    scheduleInactivityReminder();
+
+    const foregroundSub = AppState.addEventListener("change", (nextState) => {
       if (
         appState.current.match(/inactive|background/) &&
-        nextState === "active" &&
-        status === "authenticated"
+        nextState === "active"
       ) {
-        refreshUser();
+        scheduleInactivityReminder();
+        if (status === "authenticated") refreshUser();
       }
       appState.current = nextState;
     });
 
-    return () => subscription.remove();
+    return () => foregroundSub.remove();
   }, [status, refreshUser]);
 
   useEffect(() => {

@@ -9,9 +9,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
+  Image
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { useAuth } from "../src/auth";
 import { AppColors, useAppTheme } from "../src/theme";
@@ -100,7 +102,7 @@ function MoonIcon({ color }: { color: string }) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const { colors, isDark, toggleTheme } = useAppTheme();
   const [mode, setMode] = useState<AuthMode>("login");
   const styles = useMemo(() => createStyles(colors, isDark, mode), [colors, isDark, mode]);
@@ -130,6 +132,30 @@ export default function LoginScreen() {
       router.replace("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "ვერ მოხერხდა");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setMessage("");
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      if (response.data?.idToken) {
+        await loginWithGoogle(response.data.idToken);
+        router.replace("/");
+      } else {
+        setMessage("Google Sign-In failed (no token)");
+      }
+    } catch (error: any) {
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        setMessage("");
+      } else {
+        setMessage(error.message || "Google Sign-In Error");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -267,6 +293,28 @@ export default function LoginScreen() {
           >
             <Text style={styles.submitText}>
               {isSubmitting ? "იტვირთება..." : mode === "login" ? "შესვლა" : "ანგარიშის შექმნა"}
+            </Text>
+          </Pressable>
+
+          {/* ── Divider ─────────────────────────────────────── */}
+          <View style={styles.dividerWrap}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ან</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* ── Google Submit ───────────────────────────────── */}
+          <Pressable
+            style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
+            onPress={handleGoogleSignIn}
+            disabled={isSubmitting}
+          >
+            <Image
+              source={{ uri: "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" }}
+              style={{ width: 20, height: 20, marginRight: 12 }}
+            />
+            <Text style={styles.googleText}>
+              Google-ით შესვლა
             </Text>
           </Pressable>
 
@@ -452,6 +500,47 @@ function createStyles(colors: AppColors, isDark: boolean, mode: AuthMode) {
       fontSize: 17,
       fontWeight: "900",
       letterSpacing: 0.3
+    },
+
+    dividerWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginVertical: 12,
+      width: "100%",
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    dividerText: {
+      color: colors.secondaryText,
+      marginHorizontal: 16,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+
+    googleBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark ? "#ffffff" : "#ffffff",
+      borderColor: isDark ? "transparent" : "#e0e0e0",
+      borderWidth: isDark ? 0 : 1,
+      borderRadius: 16,
+      height: reg ? 48 : 56,
+      justifyContent: "center",
+      marginBottom: reg ? 12 : 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 4,
+      width: "100%"
+    },
+    googleText: {
+      color: "#000000",
+      fontSize: 16,
+      fontWeight: "700",
     },
 
     switchRow: {

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "ქართული გამოცნობები",
-    "slug": "georgian-guessing-games",
-    "scheme": "georgian-games",
+    "name": "გამოიცანი",
+    "slug": "gamoicani",
+    "scheme": "gamoicani",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -16,18 +16,21 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-audio"
+      "expo-audio",
+      "expo-notifications",
+      "@react-native-google-signin/google-signin"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.georgiangames.wordle"
+      "bundleIdentifier": "com.gamoicani"
     },
     "android": {
-      "package": "com.georgiangames.wordle",
+      "package": "com.gamoicani",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logoicon.png",
         "backgroundColor": "#2f9e5d"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"

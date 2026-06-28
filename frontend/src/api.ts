@@ -248,6 +248,18 @@ export async function loginAccount(input: { email: string; password: string }) {
   return response.data;
 }
 
+export async function loginWithGoogleAPI(idToken: string) {
+  const response = await requestJson<AuthResponse>("/auth/google", {
+    auth: false,
+    body: JSON.stringify({ idToken }),
+    method: "POST"
+  });
+
+  await setAuthToken(response.data.token);
+
+  return response.data;
+}
+
 export async function fetchMe() {
   const response = await requestJson<{ user: AuthUser }>("/me");
 
@@ -499,4 +511,15 @@ export type FeedEvent = {
 export async function fetchSocialFeed(): Promise<FeedEvent[]> {
   const response = await requestJson<FeedEvent[]>("/social/feed");
   return response.data;
+}
+
+export async function savePushTokenAPI(token: string): Promise<void> {
+  try {
+    await requestJson<{ message: string }>("/auth/push-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  } catch (err) {
+    console.warn("[API] Failed to save push token to backend:", err);
+  }
 }

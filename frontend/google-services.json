@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952002684410",
+    "project_id": "gamoicani",
+    "storage_bucket": "gamoicani.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952002684410:android:bcdb94d514024594dd7043",
+        "android_client_info": {
+          "package_name": "com.gamoicani"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2DsRR9bi6Nza7c4-2tMgfI08qwvkokcU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

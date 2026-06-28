@@ -147,6 +147,14 @@ const userSchema = new mongoose.Schema(
         bonusClaimed: { type: Boolean, default: false }
       },
       _id: false
+    },
+    expoPushTokens: {
+      default: () => [],
+      type: [String]
+    },
+    lastSeenAt: {
+      default: Date.now,
+      type: Date
     }
   },
   {

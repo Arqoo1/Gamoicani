@@ -3,6 +3,7 @@ import { config } from "./config/env.js";
 import { connectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
 import { initSocket } from "./socket.js";
+import { startDailyResetJob } from "./jobs/dailyNotification.js";
 
 async function startServer() {
   await connectDatabase();
@@ -14,6 +15,7 @@ async function startServer() {
 
   httpServer.listen(config.port, () => {
     console.log(`API listening on http://localhost:${config.port}`);
+    startDailyResetJob();
   });
 }
 

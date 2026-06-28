@@ -26,7 +26,6 @@
     "expo-notifications": "^56.0.18",
     "expo-router": "~56.2.11",
     "expo-status-bar": "~56.0.4",
-    "firebase": "^12.15.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
@@ -40,6 +39,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "babel-plugin-module-resolver": "^5.0.3",
     "typescript": "~6.0.3"
   }
 }

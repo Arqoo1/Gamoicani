@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AuthUser, submitScore } from "./api";
+
+import { AuthUser } from "@/entities/user/types";
+import { submitScore } from "@/features/scores/api/scoresApi";
 
 const QUEUE_KEY = "practiceXp:queue:v1";
 

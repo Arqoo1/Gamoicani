@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { API_BASE_URL, getAuthToken, ShopData } from "./api";
-import { useAuth } from "./auth";
+import { ShopData } from "@/entities/shop/types";
+import { useAuth } from "@/application/providers/auth";
+import { API_BASE_URL, getAuthToken } from "@/shared/api/client";
 
 const SOCKET_URL = API_BASE_URL.replace("/api", "");
 

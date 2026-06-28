@@ -12,7 +12,20 @@
           "package_name": "com.gamoicani"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "952002684410-k2hptgrac95umjhrimqf1qkft4qchh8o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gamoicani",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA2DsRR9bi6Nza7c4-2tMgfI08qwvkokcU"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

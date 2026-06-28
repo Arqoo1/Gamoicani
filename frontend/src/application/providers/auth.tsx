@@ -1,19 +1,20 @@
 import { useRouter } from "expo-router";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import { AuthUser } from "@/entities/user/types";
 import {
-  AuthUser,
   changePassword as apiChangePassword,
-  clearAuthToken,
   fetchMe,
-  getAuthToken,
   loginAccount,
   loginWithGoogleAPI,
   registerAccount,
-  updateMyProfile,
+  updateMyProfile
+} from "@/features/auth/api/authApi";
+import {
   uploadCoverPhoto as apiUploadCoverPhoto,
   uploadProfilePhoto as apiUploadProfilePhoto
-} from "./api";
+} from "@/features/profile/api/profileApi";
+import { clearAuthToken, getAuthToken } from "@/shared/api/client";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 

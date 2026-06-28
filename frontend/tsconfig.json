@@ -14,7 +14,20 @@
     "noEmit": true,
     "esModuleInterop": true,
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true
+    "ignoreDeprecations": "6.0",
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@assets/*": [
+        "assets/*"
+      ],
+      "@data/*": [
+        "data/*"
+      ]
+    }
   },
   "include": [
     "**/*.ts",

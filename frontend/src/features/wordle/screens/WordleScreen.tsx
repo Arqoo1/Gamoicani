@@ -443,7 +443,7 @@ export default function WordleScreen() {
     recordWordleCompletion(puzzleNumber, gameStatus === "won", guesses.length, guesses, updateUser).catch(() => {
       setRecordedCompletionKey(null);
     });
-  }, [answer, gameMode, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey]);
+  }, [answer, gameMode, gameStatus, guesses, guesses.length, isHydrated, puzzleNumber, recordedCompletionKey, updateUser]);
 
   useEffect(() => {
     return () => {

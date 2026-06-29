@@ -45,7 +45,7 @@ function getRequestUser(request: FriendRequest & { user?: FriendUser }) {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { changePassword, updateProfile, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
+  const { changePassword, refreshUser, updateProfile, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
   const logout = useLogoutAndGoLogin();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -74,6 +74,11 @@ export default function ProfileScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Refresh user data from server on mount so gameStats/totalPoints are always current
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   useEffect(() => {
     if (user) {

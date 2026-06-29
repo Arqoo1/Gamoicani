@@ -8,13 +8,14 @@ async function uploadFile(path: string, uri: string) {
 
   const filename = uri.split("/").pop() || "photo.jpg";
   const match = /\.(\w+)$/.exec(filename);
-  const type = match ? `image/${match[1]}` : "image/jpeg";
+  const extension = match?.[1]?.toLowerCase();
+  const type = extension === "jpg" ? "image/jpeg" : extension ? `image/${extension}` : "image/jpeg";
 
-  formData.append("photo", JSON.parse(JSON.stringify({
+  formData.append("photo", {
     name: filename,
     type,
     uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri
-  })) as any);
+  } as any);
 
   const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     body: formData,

@@ -14,6 +14,7 @@ export type ApiEnvelope<T> = {
 
 const TOKEN_STORAGE_KEY = "auth:token:v1";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const PRODUCTION_API_URL = "https://gamoicani-production.up.railway.app/api";
 
 function getDefaultApiUrl() {
   return Platform.OS === "android" ? "http://10.0.2.2:4000/api" : "http://localhost:4000/api";
@@ -23,10 +24,11 @@ function resolveApiBaseUrl() {
   const env = process?.env ?? {};
   const configuredUrl = env.EXPO_PUBLIC_API_URL?.trim();
   const isDev = typeof __DEV__ === "boolean" ? __DEV__ : env.NODE_ENV !== "production";
-  const apiUrl = configuredUrl || getDefaultApiUrl();
+  const apiUrl = configuredUrl || (isDev ? getDefaultApiUrl() : PRODUCTION_API_URL);
 
-  if (!isDev && (!configuredUrl || apiUrl.startsWith("http://"))) {
-    throw new Error("EXPO_PUBLIC_API_URL must be set to an HTTPS URL for production builds");
+  if (!isDev && apiUrl.startsWith("http://")) {
+    console.warn("Production API URL should use HTTPS. Falling back to the hosted API URL.");
+    return PRODUCTION_API_URL;
   }
 
   return apiUrl.replace(/\/$/, "");

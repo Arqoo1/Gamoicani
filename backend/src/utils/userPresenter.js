@@ -1,9 +1,29 @@
 export function serializeUser(user) {
   const source = user?.toObject?.() ?? user;
-  const gameStats =
-    source.gameStats instanceof Map
-      ? Object.fromEntries(source.gameStats)
-      : source.gameStats ?? {};
+  const rawGameStats =
+    user?.gameStats instanceof Map
+      ? Object.fromEntries(user.gameStats)
+      : source.gameStats instanceof Map
+        ? Object.fromEntries(source.gameStats)
+        : source.gameStats ?? {};
+  const gameStats = Object.fromEntries(
+    Object.entries(rawGameStats).map(([gameId, stat]) => {
+      const value = stat?.toObject?.() ?? stat ?? {};
+
+      return [
+        gameId,
+        {
+          currentStreak: value.currentStreak ?? 0,
+          lastCompletedKey: value.lastCompletedKey ?? null,
+          lastPlayedAt: value.lastPlayedAt ?? null,
+          maxStreak: value.maxStreak ?? 0,
+          plays: value.plays ?? 0,
+          points: value.points ?? 0,
+          wins: value.wins ?? 0
+        }
+      ];
+    })
+  );
 
   return {
     achievements: (source.achievements ?? []).map((achievement) => ({

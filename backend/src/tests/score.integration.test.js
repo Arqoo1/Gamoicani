@@ -203,6 +203,15 @@ test("friend request lifecycle updates both users without duplicates", async () 
     .send({ userId: bob._id.toString() })
     .expect(400);
 
+  const requestsResponse = await request(app)
+    .get("/api/friends/requests")
+    .set("Authorization", `Bearer ${bobToken}`)
+    .expect(200);
+
+  assert.equal(requestsResponse.body.data.length, 1);
+  assert.equal(requestsResponse.body.data[0].from.id, alice._id.toString());
+  assert.equal(requestsResponse.body.data[0].user.id, alice._id.toString());
+
   await request(app)
     .post("/api/friends/accept")
     .set("Authorization", `Bearer ${bobToken}`)
@@ -285,4 +294,14 @@ test("Wordle content payload is cached between validations", async () => {
   const score = await validateScorePayload(payload);
 
   assert.equal(score.won, true);
+});
+
+test("game content endpoint falls back to bundled content when database pack is missing", async () => {
+  clearContentPayloadCache();
+  await ContentPack.deleteOne({ gameId: "wordle" });
+
+  const response = await request(app).get("/api/games/wordle/content").expect(200);
+
+  assert.ok(response.body.data.answers.length > 0);
+  assert.ok(response.body.data.validWords.length > 0);
 });

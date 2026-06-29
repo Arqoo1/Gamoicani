@@ -1,6 +1,11 @@
 import { FriendRequest, FriendUser } from "@/entities/user/types";
 import { requestJson } from "@/shared/api/client";
 
+type RawFriendRequest = FriendRequest | {
+  createdAt: string;
+  user?: FriendUser;
+};
+
 export async function searchUsers(query: string) {
   const response = await requestJson<FriendUser[]>(`/friends/search?q=${encodeURIComponent(query)}`);
   return response.data;
@@ -43,6 +48,12 @@ export async function listFriends() {
 }
 
 export async function listFriendRequests() {
-  const response = await requestJson<FriendRequest[]>("/friends/requests");
-  return response.data;
+  const response = await requestJson<RawFriendRequest[]>("/friends/requests");
+
+  return response.data
+    .map((request) => ({
+      createdAt: request.createdAt,
+      from: "from" in request ? request.from : request.user
+    }))
+    .filter((request): request is FriendRequest => Boolean(request.from));
 }

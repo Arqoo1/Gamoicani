@@ -23,7 +23,12 @@ import {
 
 const googleClient = new OAuth2Client(config.googleClientId || undefined);
 
-function authResponse(user) {
+async function getAuthResponse(user) {
+  const initialDateKey = user.dailyQuests?.dateKey;
+  ensureDailyQuests(user);
+  if (user.dailyQuests?.dateKey !== initialDateKey) {
+    await user.save();
+  }
   return {
     token: signAuthToken(user),
     user: serializeUser(user)
@@ -132,7 +137,7 @@ export const register = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  res.status(201).json({ data: authResponse(user) });
+  res.status(201).json({ data: await getAuthResponse(user) });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -150,7 +155,7 @@ export const login = asyncHandler(async (req, res) => {
     throw createHttpError(401, "Invalid email or password");
   }
 
-  res.json({ data: authResponse(user) });
+  res.json({ data: await getAuthResponse(user) });
 });
 
 export const loginWithGoogle = asyncHandler(async (req, res) => {
@@ -174,12 +179,18 @@ export const loginWithGoogle = asyncHandler(async (req, res) => {
     user = await createGoogleUser({ displayName, email });
   }
 
-  res.json({ data: authResponse(user) });
+  res.json({ data: await getAuthResponse(user) });
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  const user = req.user.toObject();
+  const user = req.user;
+  const initialDateKey = user.dailyQuests?.dateKey;
+  
   ensureDailyQuests(user);
+  
+  if (user.dailyQuests?.dateKey !== initialDateKey) {
+    await user.save();
+  }
 
   res.json({ data: { user: serializeUser(user) } });
 });
@@ -268,7 +279,7 @@ export const updateMe = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  res.json({ data: authResponse(req.user) });
+  res.json({ data: await getAuthResponse(req.user) });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {

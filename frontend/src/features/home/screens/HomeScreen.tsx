@@ -83,17 +83,23 @@ export default function HomeScreen() {
           return;
         }
 
-        setGameList(
-          nextGames.map((game) => ({
-            href: (game.href ?? undefined) as Href | undefined,
-            id: game.id ?? game.gameId ?? game.title,
-            status: game.status,
-            subtitle: game.subtitle,
-            title: game.title
-          }))
-        );
+        if (nextGames && nextGames.length > 0) {
+          setGameList(
+            nextGames.map((game) => ({
+              href: (game.href ?? undefined) as Href | undefined,
+              id: game.id ?? game.gameId ?? game.title,
+              status: game.status,
+              subtitle: game.subtitle,
+              title: game.title
+            }))
+          );
+        } else {
+          setGameList(fallbackGameList);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) setGameList(fallbackGameList);
+      });
 
     return () => {
       active = false;

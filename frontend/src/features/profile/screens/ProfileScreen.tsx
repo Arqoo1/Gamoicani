@@ -39,6 +39,10 @@ import {
   getRankInfo
 } from "@/features/profile/model/profileMeta";
 
+function getRequestUser(request: FriendRequest & { user?: FriendUser }) {
+  return request.from ?? request.user ?? null;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { changePassword, updateProfile, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
@@ -108,7 +112,7 @@ export default function ProfileScreen() {
     try {
       await sendFriendRequest(id);
       Alert.alert("გაგზავნილია", "მეგობრობის მოთხოვნა გაგზავნილია!");
-      setSearchResults(searchResults.filter(u => u.id !== id));
+      setSearchResults((current) => current.filter((u) => u.id !== id));
     } catch (e) {
       Alert.alert("შეცდომა", e instanceof Error ? e.message : "ვერ გაიგზავნა");
     }
@@ -235,12 +239,6 @@ export default function ProfileScreen() {
     [gameEntries]
   );
 
-  if (!user) return null;
-
-  const initials = getInitials(user.displayName);
-  const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
-  const rank = getRankInfo(user.totalPoints);
-
   const mockDistribution = useMemo(() => {
     let remaining = totalWins;
     const dist = [0, 0, 0, 0, 0, 0];
@@ -252,10 +250,22 @@ export default function ProfileScreen() {
     }
     return dist;
   }, [totalWins]);
+
+  if (!user) return null;
+
+  const initials = getInitials(user.displayName);
+  const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
+  const rank = getRankInfo(user.totalPoints);
   const maxDist = Math.max(1, ...mockDistribution);
 
   const dailyQuestsData = user.dailyQuests?.quests || [];
   const bonusClaimed = user.dailyQuests?.bonusClaimed || false;
+  const safeRequests = requests
+    .map((request) => ({
+      createdAt: request.createdAt,
+      from: getRequestUser(request)
+    }))
+    .filter((request): request is FriendRequest => Boolean(request.from));
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -408,10 +418,12 @@ export default function ProfileScreen() {
           <View style={styles.divider} />
           <EditRow
             colors={colors}
-            label="Username"
+            icon="at-sign"
+            label="მომხმარებლის სახელი"
+            limit={15}
             styles={styles}
             value={user.username}
-            placeholder="username"
+            placeholder="მომხმარებლის სახელი"
             onSave={(v) => updateProfile({ username: v })}
           />
           <View style={styles.divider} />
@@ -473,7 +485,7 @@ export default function ProfileScreen() {
         {/* ── Daily Quests ── */}
         <View style={styles.card}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={styles.cardTitle}>📅 დღიური კვესტები</Text>
+            <Text style={styles.cardTitle}>📅 დღიური ქუესთები</Text>
             {bonusClaimed ? (
               <Text style={{ color: colors.correct, fontWeight: "800", marginRight: 16 }}>✓ მიღებულია</Text>
             ) : (
@@ -483,7 +495,7 @@ export default function ProfileScreen() {
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             {dailyQuestsData.length === 0 && (
               <Text style={{ color: colors.secondaryText, textAlign: "center", marginTop: 8 }}>
-                კვესტები არ მოიძებნა
+                ქუესთები არ მოიძებნა
               </Text>
             )}
             {dailyQuestsData.map((q, idx) => {
@@ -569,16 +581,22 @@ export default function ProfileScreen() {
             )}
 
             {/* Pending Requests */}
-            {requests.length > 0 && (
+            {safeRequests.length === 0 && (
               <>
-                <Text style={styles.friendSectionTitle}>მოთხოვნები ({requests.length})</Text>
-                {requests.map(req => (
+                <Text style={styles.friendSectionTitle}>მოთხოვნები (0)</Text>
+                <Text style={styles.friendListEmpty}>ახალი მოთხოვნები არ არის</Text>
+              </>
+            )}
+            {safeRequests.length > 0 && (
+              <>
+                <Text style={styles.friendSectionTitle}>მოთხოვნები ({safeRequests.length})</Text>
+                {safeRequests.map(req => (
                   <View key={req.from.id} style={styles.friendRow}>
-                    <View style={[styles.friendAvatar, { backgroundColor: req.from.avatarColor }]}>
-                      <Text style={styles.friendAvatarInitials}>{getInitials(req.from.displayName)}</Text>
+                    <View style={[styles.friendAvatar, { backgroundColor: req.from.avatarColor ?? "#2f9e5d" }]}>
+                      <Text style={styles.friendAvatarInitials}>{getInitials(req.from.displayName || req.from.username)}</Text>
                     </View>
                     <View style={styles.friendInfo}>
-                      <Text style={styles.friendName}>{req.from.displayName}</Text>
+                      <Text style={styles.friendName}>{req.from.displayName || req.from.username}</Text>
                       <Text style={styles.friendUsername}>@{req.from.username}</Text>
                     </View>
                     <View style={{ flexDirection: "row", gap: 8 }}>

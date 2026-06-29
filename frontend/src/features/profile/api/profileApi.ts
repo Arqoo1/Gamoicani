@@ -10,11 +10,11 @@ async function uploadFile(path: string, uri: string) {
   const match = /\.(\w+)$/.exec(filename);
   const type = match ? `image/${match[1]}` : "image/jpeg";
 
-  formData.append("photo", {
+  formData.append("photo", JSON.parse(JSON.stringify({
     name: filename,
     type,
     uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri
-  } as any);
+  })) as any);
 
   const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     body: formData,

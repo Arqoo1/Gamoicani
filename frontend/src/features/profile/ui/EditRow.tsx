@@ -5,7 +5,9 @@ import { AppColors } from "@/application/providers/theme";
 
 interface EditRowProps {
   colors: AppColors;
+  icon?: string;
   label: string;
+  limit?: number;
   multiline?: boolean;
   onSave: (val: string) => Promise<void>;
   placeholder?: string;
@@ -13,7 +15,7 @@ interface EditRowProps {
   value: string;
 }
 
-export function EditRow({ colors, label, multiline, onSave, placeholder, styles, value }: EditRowProps) {
+export function EditRow({ colors, label, limit, multiline, onSave, placeholder, styles, value }: EditRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
@@ -50,6 +52,7 @@ export function EditRow({ colors, label, multiline, onSave, placeholder, styles,
         <Text style={styles.fieldLabel}>{label}</Text>
         <TextInput
           autoFocus
+          maxLength={limit}
           multiline={multiline}
           numberOfLines={multiline ? 3 : 1}
           placeholder={placeholder ?? label}

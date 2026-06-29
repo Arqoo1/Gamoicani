@@ -20,8 +20,9 @@ function getDefaultApiUrl() {
 }
 
 function resolveApiBaseUrl() {
-  const configuredUrl = process?.env?.EXPO_PUBLIC_API_URL?.trim();
-  const isDev = typeof __DEV__ === "boolean" ? __DEV__ : process?.env?.NODE_ENV !== "production";
+  const env = process?.env ?? {};
+  const configuredUrl = env.EXPO_PUBLIC_API_URL?.trim();
+  const isDev = typeof __DEV__ === "boolean" ? __DEV__ : env.NODE_ENV !== "production";
   const apiUrl = configuredUrl || getDefaultApiUrl();
 
   if (!isDev && (!configuredUrl || apiUrl.startsWith("http://"))) {

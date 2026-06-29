@@ -189,14 +189,21 @@ export const listFriendRequests = asyncHandler(async (req, res) => {
     .lean();
 
   res.json({
-    data: (user.friendRequests ?? []).map((r) => ({
-      createdAt: r.createdAt,
-      user: {
-        avatarColor: r.from.avatarColor,
-        displayName: r.from.displayName,
-        id: String(r.from._id),
-        username: r.from.username
-      }
-    }))
+    data: (user.friendRequests ?? [])
+      .filter((r) => r.from)
+      .map((r) => {
+        const from = {
+          avatarColor: r.from.avatarColor,
+          displayName: r.from.displayName,
+          id: String(r.from._id),
+          username: r.from.username
+        };
+
+        return {
+          createdAt: r.createdAt,
+          from,
+          user: from
+        };
+      })
   });
 });

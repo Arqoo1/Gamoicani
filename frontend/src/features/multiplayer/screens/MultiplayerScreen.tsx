@@ -7,18 +7,56 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSocket } from "@/application/providers/socket";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 
+type RouteParam = string | string[] | undefined;
+type MultiplayerPuzzle = {
+  gameType?: string;
+  hint?: string | null;
+  prompt?: string | null;
+  validWords?: string[];
+  wordLength?: number;
+};
+
+function firstParam(value: RouteParam) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parsePuzzleParam(value: RouteParam): MultiplayerPuzzle | null {
+  const rawValue = firstParam(value);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue) as MultiplayerPuzzle;
+  } catch {
+    return null;
+  }
+}
+
+function getTiles(data: any): string[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  return Array.isArray(data?.tiles) ? data.tiles : [];
+}
+
 export default function MultiplayerScreen() {
   const router = useRouter();
-  const { roomId, gameType, puzzle: puzzleStr } = useLocalSearchParams<{ roomId: string, gameType: string, puzzle: string }>();
-  const puzzle = useMemo(() => puzzleStr ? JSON.parse(puzzleStr) : null, [puzzleStr]);
+  const params = useLocalSearchParams<{ roomId?: RouteParam, gameType?: RouteParam, puzzle?: RouteParam }>();
+  const roomId = firstParam(params.roomId) ?? "";
+  const gameType = firstParam(params.gameType) ?? "wordle";
+  const puzzle = useMemo(() => parsePuzzleParam(params.puzzle), [params.puzzle]);
+  const wordLength = Math.max(1, Math.min(12, Number(puzzle?.wordLength) || 5));
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { socket, opponentProfile } = useSocket();
 
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
-  const [guessResults, setGuessResults] = useState<any[]>([]); 
-  const [opponentProgress, setOpponentProgress] = useState<any[]>([]);
+  const [guessResults, setGuessResults] = useState<string[][]>([]); 
+  const [opponentProgress, setOpponentProgress] = useState<string[][]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [results, setResults] = useState<any>(null);
 
@@ -30,11 +68,11 @@ export default function MultiplayerScreen() {
     if (!socket) return;
 
     function onGuessResult(data: any) {
-      setGuessResults(prev => [...prev, data]);
+      setGuessResults(prev => [...prev, getTiles(data)]);
     }
 
     function onOpponentGuess(data: any) {
-      setOpponentProgress(prev => [...prev, data]);
+      setOpponentProgress(prev => [...prev, getTiles(data)]);
     }
 
     function onGameOver(data: any) {
@@ -99,7 +137,7 @@ export default function MultiplayerScreen() {
   };
 
   const submitGuess = () => {
-    if (currentGuess.length !== 5) return;
+    if (Array.from(currentGuess).length !== wordLength) return;
     socket?.emit("submit-guess", { roomId, guess: currentGuess });
     setGuesses(prev => [...prev, currentGuess]);
     setCurrentGuess("");
@@ -108,10 +146,10 @@ export default function MultiplayerScreen() {
   const handleKeyPress = (key: string) => {
     if (gameOver) return;
     if (key === "⌫") {
-      setCurrentGuess(prev => prev.slice(0, -1));
+      setCurrentGuess(prev => Array.from(prev).slice(0, -1).join(""));
     } else if (key === "ENTER") {
       submitGuess();
-    } else if (currentGuess.length < 5) {
+    } else if (Array.from(currentGuess).length < wordLength) {
       setCurrentGuess(prev => prev + key);
     }
   };
@@ -119,6 +157,9 @@ export default function MultiplayerScreen() {
   const playAgain = () => {
     router.replace("/lobby");
   };
+
+  const didWin = results?.result === "won" || results?.winner === socket?.id;
+  const didDraw = results?.result === "draw" || results?.winner === "draw";
 
   const kbRows = [
     ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
@@ -182,7 +223,7 @@ export default function MultiplayerScreen() {
               const rowResult = opponentProgress[rIdx];
               return (
                 <View key={`opp-row-${rIdx}`} style={styles.miniRow}>
-                  {Array.from({ length: 5 }).map((_, cIdx) => (
+                  {Array.from({ length: wordLength }).map((_, cIdx) => (
                     <View
                       key={`opp-cell-${rIdx}-${cIdx}`}
                       style={[
@@ -216,11 +257,12 @@ export default function MultiplayerScreen() {
             const isCurrentRow = rIdx === guesses.length;
             const guess = isCurrentRow ? currentGuess : guesses[rIdx] || "";
             const result = guessResults[rIdx];
+            const letters = Array.from(guess);
 
             return (
               <View key={`my-row-${rIdx}`} style={styles.gridRow}>
-                {Array.from({ length: 5 }).map((_, cIdx) => {
-                  const letter = guess[cIdx] || "";
+                {Array.from({ length: wordLength }).map((_, cIdx) => {
+                  const letter = letters[cIdx] || "";
                   let bgColor = colors.card;
                   let borderColor = colors.border;
                   
@@ -281,7 +323,7 @@ export default function MultiplayerScreen() {
         <View style={styles.overlay}>
           <View style={styles.resultCard}>
             <Text style={styles.resultTitle}>
-              {results.winner === socket?.id ? "🏆 მოიგე!" : results.winner === "draw" ? "ფრე!" : "წააგე 😢"}
+              {didWin ? "🏆 მოიგე!" : didDraw ? "ფრე!" : "წააგე 😢"}
             </Text>
             {gameType === "wordle" && results.answer && (
               <Text style={styles.resultAnswer}>სიტყვა იყო: {results.answer}</Text>

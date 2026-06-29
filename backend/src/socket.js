@@ -3,14 +3,42 @@ import jwt from "jsonwebtoken";
 
 import { config } from "./config/env.js";
 import { User } from "./models/User.js";
-import { ContentPack } from "./models/ContentPack.js";
+import { getContentPayload } from "./services/contentPackCache.js";
+import {
+  clearSocketRoom,
+  createPlayer,
+  deletePrivateRoom,
+  deleteRoom,
+  dequeuePublicPlayer,
+  enqueuePublicPlayer,
+  findRoomBySocketId,
+  getPrivateRoomId,
+  getRoom,
+  removePlayerFromQueues,
+  saveRoom,
+  setPrivateRoom
+} from "./services/multiplayerStore.js";
+import { acquireRedisLock, getRedisClient, releaseRedisLock } from "./services/redisClient.js";
 
-const rooms = new Map(); 
-const publicQueue = new Map(); 
-const privateRooms = new Map(); 
-
+const GAME_TYPES = ["wordle", "andazebi", "mix"];
 const MAX_WORDLE_ATTEMPTS = 6;
 const MAX_ANDAZEBI_ATTEMPTS = 8;
+const MAX_RAW_GUESS_LENGTH = 120;
+const MAX_ANDAZEBI_GUESS_LENGTH = 80;
+
+async function configureSocketAdapter(io) {
+  const pubClient = await getRedisClient();
+
+  if (!pubClient) {
+    return;
+  }
+
+  const { createAdapter } = await import("@socket.io/redis-adapter");
+  const subClient = pubClient.duplicate();
+  await subClient.connect();
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log("[Socket] Redis adapter enabled");
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -20,34 +48,63 @@ function generatePasscode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-function removeFromQueue(socket) {
-  for (const [gameType, queue] of publicQueue.entries()) {
-    const idx = queue.indexOf(socket);
+async function generateUniquePasscode() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const passcode = generatePasscode();
 
-    if (idx !== -1) {
-      queue.splice(idx, 1);
-
-      if (queue.length === 0) {
-        publicQueue.delete(gameType);
-      }
-
-      return;
+    if (!(await getPrivateRoomId(passcode))) {
+      return passcode;
     }
   }
+
+  throw new Error("Could not allocate private room passcode");
 }
 
-function findRoomBySocket(socket) {
-  for (const [roomId, room] of rooms.entries()) {
-    if (room.players.includes(socket)) {
-      return { roomId, room };
-    }
-  }
-
-  return null;
+function createRoom({ gameType, passcode = null, players, roomId = generateId() }) {
+  return {
+    actualType: null,
+    answer: null,
+    finished: [],
+    gameType,
+    guesses: {},
+    passcode,
+    players,
+    puzzle: null,
+    roomId,
+    roundIndex: 0,
+    roundResults: [],
+    scores: {},
+    totalRounds: gameType === "mix" ? 3 : 1
+  };
 }
 
 function getOpponent(room, socket) {
-  return room.players.find((s) => s !== socket) ?? null;
+  return room.players.find((player) => player.socketId !== socket.id) ?? null;
+}
+
+function getPlayer(room, socket) {
+  return room.players.find((player) => player.socketId === socket.id) ?? null;
+}
+
+function publicPlayer(player) {
+  return {
+    displayName: player.displayName,
+    id: player.userId,
+    username: player.username
+  };
+}
+
+async function socketExists(io, socketId) {
+  const sockets = await io.in(socketId).fetchSockets();
+  return sockets.length > 0;
+}
+
+async function joinSocketToRoom(io, socketId, roomId) {
+  await io.in(socketId).socketsJoin(roomId);
+}
+
+async function acquireRoomLock(roomId) {
+  return acquireRedisLock(`multiplayer:room-lock:${roomId}`, 5000);
 }
 
 function scoreWordleGuess(guess, answer) {
@@ -79,6 +136,34 @@ function scoreWordleGuess(guess, answer) {
   return result;
 }
 
+export function normalizeGuessInput(guess, room) {
+  if (!guess || typeof guess !== "string") {
+    return { error: "Invalid guess" };
+  }
+
+  if (guess.length > MAX_RAW_GUESS_LENGTH) {
+    return { error: "Guess is too long" };
+  }
+
+  const normalizedGuess = guess.trim().toLocaleLowerCase("ka-GE");
+
+  if (!normalizedGuess) {
+    return { error: "Invalid guess" };
+  }
+
+  if (room.actualType === "wordle") {
+    const expectedLength = Array.from(String(room.answer ?? "")).length;
+
+    if (Array.from(normalizedGuess).length !== expectedLength) {
+      return { error: `Guess must be ${expectedLength} letters` };
+    }
+  } else if (normalizedGuess.length > MAX_ANDAZEBI_GUESS_LENGTH) {
+    return { error: "Guess is too long" };
+  }
+
+  return { normalizedGuess };
+}
+
 async function pickPuzzle(gameType, roundIndex = 0) {
   let actualType = gameType;
 
@@ -86,21 +171,21 @@ async function pickPuzzle(gameType, roundIndex = 0) {
     actualType = roundIndex % 2 === 0 ? "wordle" : "andazebi";
   }
 
-  const pack = await ContentPack.findOne({ gameId: actualType }).lean();
+  const payload = await getContentPayload(actualType).catch(() => null);
 
-  if (!pack || !pack.payload) {
+  if (!payload) {
     return null;
   }
 
   if (actualType === "wordle") {
-    const answers = pack.payload.answers ?? pack.payload.words ?? [];
+    const answers = payload.answers ?? payload.words ?? [];
 
     if (answers.length === 0) {
       return null;
     }
 
     const answer = answers[Math.floor(Math.random() * answers.length)];
-    const validWords = pack.payload.validWords ?? pack.payload.valid ?? answers;
+    const validWords = payload.validWords ?? payload.valid ?? answers;
 
     return {
       actualType: "wordle",
@@ -109,7 +194,7 @@ async function pickPuzzle(gameType, roundIndex = 0) {
     };
   }
 
-  const items = pack.payload.items ?? pack.payload.proverbs ?? [];
+  const items = payload.items ?? payload.proverbs ?? [];
 
   if (items.length === 0) {
     return null;
@@ -131,7 +216,7 @@ async function pickPuzzle(gameType, roundIndex = 0) {
 }
 
 async function startGame(io, roomId) {
-  const room = rooms.get(roomId);
+  const room = await getRoom(roomId);
 
   if (!room || room.players.length < 2) {
     return;
@@ -140,12 +225,8 @@ async function startGame(io, roomId) {
   const puzzleData = await pickPuzzle(room.gameType, room.roundIndex);
 
   if (!puzzleData) {
-    room.players.forEach((s) =>
-      s.emit("error-message", { message: "Failed to load puzzle data" })
-    );
-
-    rooms.delete(roomId);
-
+    io.to(roomId).emit("error-message", { message: "Failed to load puzzle data" });
+    await deleteRoom(roomId);
     return;
   }
 
@@ -153,14 +234,17 @@ async function startGame(io, roomId) {
   room.actualType = puzzleData.actualType;
   room.puzzle = puzzleData.puzzle;
   room.guesses = {};
-  room.finished = new Set();
+  room.finished = [];
+
   if (room.gameType === "mix") {
     room.roundResults[room.roundIndex] = [];
   }
 
-  room.players.forEach((s) => {
-    room.guesses[s.user._id.toString()] = [];
+  room.players.forEach((player) => {
+    room.guesses[player.userId] = [];
   });
+
+  await saveRoom(room);
 
   io.to(roomId).emit("game-start", {
     gameType: puzzleData.actualType,
@@ -172,19 +256,42 @@ async function startGame(io, roomId) {
 }
 
 async function startNextMixRound(io, roomId) {
-  const room = rooms.get(roomId);
-  if (!room) return;
+  const room = await getRoom(roomId);
+
+  if (!room) {
+    return;
+  }
+
   room.roundIndex += 1;
+  await saveRoom(room);
   await startGame(io, roomId);
 }
 
-export function initSocket(httpServer) {
+async function findLiveOpponent(io, gameType, currentSocketId) {
+  while (true) {
+    const opponent = await dequeuePublicPlayer(gameType, currentSocketId);
+
+    if (!opponent) {
+      return null;
+    }
+
+    if (await socketExists(io, opponent.socketId)) {
+      return opponent;
+    }
+
+    await clearSocketRoom(opponent.socketId);
+  }
+}
+
+export async function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: config.corsOrigin === "*" ? true : config.corsOrigin.split(",").map((o) => o.trim()).filter(Boolean),
       methods: ["GET", "POST"]
     }
   });
+
+  await configureSocketAdapter(io);
 
   io.use(async (socket, next) => {
     try {
@@ -203,7 +310,7 @@ export function initSocket(httpServer) {
 
       socket.user = user;
       next();
-    } catch (error) {
+    } catch {
       next(new Error("Authentication required"));
     }
   });
@@ -225,198 +332,200 @@ export function initSocket(httpServer) {
       socket.lastChatAt = now;
 
       io.to("global-chat").emit("chat-message", {
-        id: generateId(),
-        userId: socket.user._id.toString(),
-        username: socket.user.username,
         displayName: socket.user.displayName,
+        id: generateId(),
         text: msg,
         timestamp: now,
+        userId: socket.user._id.toString(),
+        username: socket.user.username
       });
     });
 
     socket.on("profile-update", async ({ equippedItems }) => {
-      const result = findRoomBySocket(socket);
-      if (!result) return;
-      const { roomId } = result;
-      const opponent = getOpponent(result.room, socket);
+      const found = await findRoomBySocketId(socket.id);
+      if (!found) return;
+      const opponent = getOpponent(found.room, socket);
       if (!opponent) return;
 
       try {
         const freshUser = await User.findById(socket.user._id).lean();
-        const items = (freshUser && freshUser.equippedItems) ? freshUser.equippedItems : equippedItems;
-        opponent.emit("opponent-profile", {
-          equippedItems: items,
+        io.to(opponent.socketId).emit("opponent-profile", {
           displayName: socket.user.displayName,
-          username: socket.user.username,
+          equippedItems: freshUser?.equippedItems ?? equippedItems,
+          username: socket.user.username
         });
       } catch {
-        opponent.emit("opponent-profile", {
-          equippedItems,
+        io.to(opponent.socketId).emit("opponent-profile", {
           displayName: socket.user.displayName,
-          username: socket.user.username,
+          equippedItems,
+          username: socket.user.username
         });
       }
     });
 
     socket.on("join-public-queue", async ({ gameType }) => {
-      if (!["wordle", "andazebi", "mix"].includes(gameType)) {
+      if (!GAME_TYPES.includes(gameType)) {
         return socket.emit("error-message", { message: "Invalid game type" });
       }
 
-      removeFromQueue(socket);
+      await removePlayerFromQueues(socket.id);
 
-      if (!publicQueue.has(gameType)) {
-        publicQueue.set(gameType, []);
-      }
+      const currentPlayer = createPlayer(socket);
+      const opponent = await findLiveOpponent(io, gameType, socket.id);
 
-      const queue = publicQueue.get(gameType);
-
-      if (queue.length > 0) {
-        const opponent = queue.shift();
-
-        if (queue.length === 0) {
-          publicQueue.delete(gameType);
-        }
-
-        const roomId = generateId();
-        rooms.set(roomId, {
-          gameType,
-          players: [opponent, socket],
-          answer: null,
-          passcode: null,
-          puzzle: null,
-          guesses: {},
-          finished: new Set(),
-          roundIndex: 0,
-          totalRounds: gameType === "mix" ? 3 : 1,
-          roundResults: [],
-          scores: {}
-        });
-
-        opponent.join(roomId);
-        socket.join(roomId);
-
-        io.to(roomId).emit("match-found", {
-          roomId,
-          players: [
-            { id: opponent.user._id.toString(), username: opponent.user.username, displayName: opponent.user.displayName },
-            { id: socket.user._id.toString(), username: socket.user.username, displayName: socket.user.displayName }
-          ]
-        });
-
-        await startGame(io, roomId);
-      } else {
-        queue.push(socket);
+      if (!opponent) {
+        await enqueuePublicPlayer(gameType, currentPlayer);
         socket.emit("queue-joined", { gameType });
+        return;
       }
+
+      const room = createRoom({
+        gameType,
+        players: [opponent, currentPlayer]
+      });
+
+      await saveRoom(room);
+      await Promise.all(room.players.map((player) => joinSocketToRoom(io, player.socketId, room.roomId)));
+
+      io.to(room.roomId).emit("match-found", {
+        players: room.players.map(publicPlayer),
+        roomId: room.roomId
+      });
+
+      await startGame(io, room.roomId);
     });
 
-    socket.on("leave-queue", () => {
-      removeFromQueue(socket);
+    socket.on("leave-queue", async () => {
+      await removePlayerFromQueues(socket.id);
       socket.emit("queue-left");
     });
 
-    socket.on("create-private-room", ({ gameType }) => {
-      if (!["wordle", "andazebi", "mix"].includes(gameType)) {
+    socket.on("create-private-room", async ({ gameType }) => {
+      if (!GAME_TYPES.includes(gameType)) {
         return socket.emit("error-message", { message: "Invalid game type" });
       }
 
-      const roomId = generateId();
-      const passcode = generatePasscode();
-
-      rooms.set(roomId, {
+      const room = createRoom({
         gameType,
-        players: [socket],
-        answer: null,
-        passcode,
-        puzzle: null,
-        guesses: {},
-        finished: new Set(),
-        roundIndex: 0,
-        totalRounds: gameType === "mix" ? 3 : 1,
-        roundResults: [],
-        scores: {}
+        passcode: await generateUniquePasscode(),
+        players: [createPlayer(socket)]
       });
 
-      privateRooms.set(passcode, roomId);
-      socket.join(roomId);
+      await saveRoom(room);
+      await setPrivateRoom(room.passcode, room.roomId);
+      await joinSocketToRoom(io, socket.id, room.roomId);
 
-      socket.emit("room-created", { roomId, passcode });
+      socket.emit("room-created", { passcode: room.passcode, roomId: room.roomId });
     });
 
     socket.on("join-private-room", async ({ passcode }) => {
-      const roomId = privateRooms.get(passcode);
+      const safePasscode = String(passcode ?? "").trim();
+
+      if (!/^\d{4}$/.test(safePasscode)) {
+        return socket.emit("error-message", { message: "Room not found" });
+      }
+
+      const roomId = await getPrivateRoomId(safePasscode);
 
       if (!roomId) {
         return socket.emit("error-message", { message: "Room not found" });
       }
 
-      const room = rooms.get(roomId);
+      const lock = await acquireRoomLock(roomId);
 
-      if (!room) {
-        privateRooms.delete(passcode);
-
-        return socket.emit("error-message", { message: "Room not found" });
+      if (!lock.acquired) {
+        return socket.emit("error-message", { message: "Room is busy. Try again." });
       }
 
-      if (room.players.length >= 2) {
-        return socket.emit("error-message", { message: "Room is full" });
+      try {
+        const room = await getRoom(roomId);
+
+        if (!room) {
+          await deletePrivateRoom(safePasscode);
+          return socket.emit("error-message", { message: "Room not found" });
+        }
+
+        if (room.players.length >= 2) {
+          return socket.emit("error-message", { message: "Room is full" });
+        }
+
+        const currentPlayer = createPlayer(socket);
+
+        if (room.players.some((player) => player.userId === currentPlayer.userId)) {
+          return socket.emit("error-message", { message: "Already in this room" });
+        }
+
+        room.players.push(currentPlayer);
+        await saveRoom(room);
+        await deletePrivateRoom(safePasscode);
+        await joinSocketToRoom(io, socket.id, roomId);
+
+        io.to(roomId).emit("room-joined", {
+          players: room.players.map(publicPlayer),
+          roomId
+        });
+
+        await startGame(io, roomId);
+      } finally {
+        await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
       }
-
-      if (room.players.some((s) => s.user._id.toString() === socket.user._id.toString())) {
-        return socket.emit("error-message", { message: "Already in this room" });
-      }
-
-      room.players.push(socket);
-      socket.join(roomId);
-
-      privateRooms.delete(passcode);
-
-      io.to(roomId).emit("room-joined", {
-        roomId,
-        players: room.players.map((s) => ({
-          id: s.user._id.toString(),
-          username: s.user.username,
-          displayName: s.user.displayName
-        }))
-      });
-
-      await startGame(io, roomId);
     });
 
-    socket.on("submit-guess", ({ guess }) => {
-      const found = findRoomBySocket(socket);
+    socket.on("submit-guess", async ({ guess }) => {
+      const found = await findRoomBySocketId(socket.id);
 
       if (!found) {
         return socket.emit("error-message", { message: "Not in a game room" });
       }
 
-      const { roomId, room } = found;
-      const playerId = socket.user._id.toString();
+      const { roomId } = found;
+      const lock = await acquireRoomLock(roomId);
 
-      if (room.finished.has(playerId)) {
+      if (!lock.acquired) {
+        return socket.emit("error-message", { message: "Room is busy. Try again." });
+      }
+
+      try {
+        const room = await getRoom(roomId);
+
+        if (!room) {
+          return socket.emit("error-message", { message: "Not in a game room" });
+        }
+
+        const player = getPlayer(room, socket);
+
+        if (!player) {
+          return socket.emit("error-message", { message: "Not in a game room" });
+        }
+
+      if (room.finished.includes(player.userId)) {
         return socket.emit("error-message", { message: "Game already finished for you" });
       }
 
-      if (!guess || typeof guess !== "string") {
-        return socket.emit("error-message", { message: "Invalid guess" });
+      const normalized = normalizeGuessInput(guess, room);
+
+      if (normalized.error) {
+        return socket.emit("error-message", { message: normalized.error });
       }
 
-      const normalizedGuess = guess.trim().toLowerCase();
+      const { normalizedGuess } = normalized;
+      const playerGuesses = room.guesses[player.userId] ?? [];
       let isCorrect = false;
-      let playerGuesses = room.guesses[playerId] ?? [];
 
       if (room.actualType === "wordle") {
-        const validWords = room.puzzle?.validWords ?? [];
-        if (validWords.length > 0 && !validWords.includes(normalizedGuess)) {
+        const validWords = new Set(
+          (room.puzzle?.validWords ?? []).map((word) => String(word).trim().toLocaleLowerCase("ka-GE"))
+        );
+
+        if (validWords.size > 0 && !validWords.has(normalizedGuess)) {
           return socket.emit("error-message", { message: "Not a valid word" });
         }
 
-        const tiles = scoreWordleGuess(normalizedGuess, room.answer);
-        isCorrect = tiles.every((t) => t === "correct");
+        const tiles = scoreWordleGuess(normalizedGuess, String(room.answer).toLocaleLowerCase("ka-GE"));
+        isCorrect = tiles.every((tile) => tile === "correct");
 
         playerGuesses.push({ guess: normalizedGuess, tiles });
-        room.guesses[playerId] = playerGuesses;
+        room.guesses[player.userId] = playerGuesses;
 
         socket.emit("guess-result", {
           attempt: playerGuesses.length,
@@ -427,16 +536,16 @@ export function initSocket(httpServer) {
 
         const opponent = getOpponent(room, socket);
         if (opponent) {
-          opponent.emit("opponent-guess", {
+          io.to(opponent.socketId).emit("opponent-guess", {
             attempt: playerGuesses.length,
             tiles
           });
         }
       } else {
-        isCorrect = normalizedGuess === room.answer.toLowerCase();
+        isCorrect = normalizedGuess === String(room.answer).toLocaleLowerCase("ka-GE");
 
-        playerGuesses.push({ guess: normalizedGuess, correct: isCorrect });
-        room.guesses[playerId] = playerGuesses;
+        playerGuesses.push({ correct: isCorrect, guess: normalizedGuess });
+        room.guesses[player.userId] = playerGuesses;
 
         socket.emit("guess-result", {
           attempt: playerGuesses.length,
@@ -446,7 +555,7 @@ export function initSocket(httpServer) {
 
         const opponent = getOpponent(room, socket);
         if (opponent) {
-          opponent.emit("opponent-guess", {
+          io.to(opponent.socketId).emit("opponent-guess", {
             attempt: playerGuesses.length,
             isCorrect
           });
@@ -456,18 +565,19 @@ export function initSocket(httpServer) {
       const maxAttempts = room.actualType === "wordle" ? MAX_WORDLE_ATTEMPTS : MAX_ANDAZEBI_ATTEMPTS;
 
       if (isCorrect || playerGuesses.length >= maxAttempts) {
-        room.finished.add(playerId);
+        room.finished.push(player.userId);
         const result = isCorrect ? "won" : "lost";
-        
+
         if (room.gameType === "mix") {
-            room.roundResults[room.roundIndex].push({
-                playerId,
-                result,
-                attempts: playerGuesses.length
-            });
-            if (result === "won") {
-                room.scores[playerId] = (room.scores[playerId] ?? 0) + 1;
-            }
+          room.roundResults[room.roundIndex].push({
+            attempts: playerGuesses.length,
+            playerId: player.userId,
+            result
+          });
+
+          if (result === "won") {
+            room.scores[player.userId] = (room.scores[player.userId] ?? 0) + 1;
+          }
         }
 
         socket.emit("game-over", {
@@ -478,81 +588,75 @@ export function initSocket(httpServer) {
         });
 
         const opponent = getOpponent(room, socket);
-        if (opponent) {
-          const opponentId = opponent.user._id.toString();
 
-          if (room.finished.has(opponentId)) {
-            if (room.gameType === "mix") {
-                const roundResults = room.roundResults[room.roundIndex];
-                if (room.roundIndex + 1 < room.totalRounds) {
-                    io.to(roomId).emit("mix-round-over", {
-                        roundIndex: room.roundIndex,
-                        roundResults,
-                        scores: room.scores
-                    });
-                    setTimeout(() => {
-                        startNextMixRound(io, roomId);
-                    }, 3000);
-                } else {
-                    io.to(roomId).emit("mix-game-over", {
-                        scores: room.scores,
-                        roundResults: room.roundResults
-                    });
-                }
+        if (opponent && room.finished.includes(opponent.userId)) {
+          if (room.gameType === "mix") {
+            const roundResults = room.roundResults[room.roundIndex];
+
+            if (room.roundIndex + 1 < room.totalRounds) {
+              io.to(roomId).emit("mix-round-over", {
+                roundIndex: room.roundIndex,
+                roundResults,
+                scores: room.scores
+              });
+              setTimeout(() => {
+                startNextMixRound(io, roomId);
+              }, 3000);
+            } else {
+              io.to(roomId).emit("mix-game-over", {
+                roundResults: room.roundResults,
+                scores: room.scores
+              });
             }
-          } else {
-            opponent.emit("opponent-finished", {
-              attempts: playerGuesses.length,
-              result
-            });
           }
-        } else if (room.gameType === "mix" && room.roundIndex + 1 >= room.totalRounds) {
-             io.to(roomId).emit("mix-game-over", {
-                scores: room.scores,
-                roundResults: room.roundResults
-            });
+        } else if (opponent) {
+          io.to(opponent.socketId).emit("opponent-finished", {
+            attempts: playerGuesses.length,
+            result
+          });
         }
+      }
+
+      await saveRoom(room);
+      } finally {
+        await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
       }
     });
 
-    socket.on("disconnect", () => {
-      removeFromQueue(socket);
+    socket.on("disconnect", async () => {
+      await removePlayerFromQueues(socket.id);
 
-      const found = findRoomBySocket(socket);
+      const found = await findRoomBySocketId(socket.id);
 
-      if (found) {
-        const { roomId, room } = found;
-        const opponent = getOpponent(room, socket);
+      if (!found) {
+        return;
+      }
 
-        if (opponent) {
-          opponent.emit("opponent-disconnected", {
-            message: "Your opponent has disconnected"
+      const { roomId, room } = found;
+      const opponent = getOpponent(room, socket);
+
+      if (opponent) {
+        io.to(opponent.socketId).emit("opponent-disconnected", {
+          message: "Your opponent has disconnected"
+        });
+
+        if (!room.finished.includes(opponent.userId) && room.answer) {
+          io.to(opponent.socketId).emit("game-over", {
+            answer: room.answer,
+            attempts: 0,
+            result: "won"
           });
 
-          const opponentId = opponent.user._id.toString();
-
-          if (!room.finished.has(opponentId) && room.answer) {
-            opponent.emit("game-over", {
-              answer: room.answer,
-              attempts: 0,
-              result: "won"
+          if (room.gameType === "mix") {
+            io.to(roomId).emit("mix-game-over", {
+              roundResults: room.roundResults,
+              scores: { [opponent.userId]: (room.scores[opponent.userId] ?? 0) + 1 }
             });
-            
-            if (room.gameType === "mix") {
-                io.to(roomId).emit("mix-game-over", {
-                    scores: { [opponentId]: (room.scores[opponentId] ?? 0) + 1 },
-                    roundResults: room.roundResults
-                });
-            }
           }
         }
-
-        if (room.passcode) {
-          privateRooms.delete(room.passcode);
-        }
-
-        rooms.delete(roomId);
       }
+
+      await deleteRoom(roomId);
     });
   });
 

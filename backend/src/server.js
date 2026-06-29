@@ -1,21 +1,24 @@
 import { createServer } from "http";
-import { config } from "./config/env.js";
+import { config, validateProductionConfig } from "./config/env.js";
 import { connectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
 import { initSocket } from "./socket.js";
 import { startDailyResetJob } from "./jobs/dailyNotification.js";
 
 async function startServer() {
+  validateProductionConfig();
   await connectDatabase();
 
   const app = createApp();
   const httpServer = createServer(app);
 
-  initSocket(httpServer);
+  await initSocket(httpServer);
 
   httpServer.listen(config.port, () => {
     console.log(`API listening on http://localhost:${config.port}`);
-    startDailyResetJob();
+    if (config.enableJobs) {
+      startDailyResetJob();
+    }
   });
 }
 

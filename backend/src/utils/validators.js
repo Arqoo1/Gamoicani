@@ -47,6 +47,30 @@ export function assertDisplayName(value) {
   return displayName;
 }
 
+export function assertBio(value) {
+  return String(value ?? "").trim().slice(0, 200);
+}
+
+export function assertAvatarColor(value) {
+  const color = String(value ?? "").trim();
+
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+    throw createHttpError(400, "Avatar color must be a valid hex color");
+  }
+
+  return color;
+}
+
+export function assertCoverGradient(value) {
+  const gradient = Number(value);
+
+  if (!Number.isFinite(gradient) || gradient < 0 || gradient > 7) {
+    throw createHttpError(400, "Cover gradient must be between 0 and 7");
+  }
+
+  return Math.floor(gradient);
+}
+
 export function assertUsername(value) {
   const username = normalizeUsername(value);
 

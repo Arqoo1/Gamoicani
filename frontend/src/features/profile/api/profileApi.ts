@@ -1,5 +1,5 @@
 import { AuthResponse } from "@/features/auth/api/authApi";
-import { API_BASE_URL, ApiEnvelope, getAuthToken, setAuthToken } from "@/shared/api/client";
+import { API_BASE_URL, ApiEnvelope, fetchWithTimeout, getAuthToken, setAuthToken } from "@/shared/api/client";
 import { Platform } from "react-native";
 
 async function uploadFile(path: string, uri: string) {
@@ -16,7 +16,7 @@ async function uploadFile(path: string, uri: string) {
     uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri
   } as any);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     body: formData,
     headers: {
       Accept: "application/json",

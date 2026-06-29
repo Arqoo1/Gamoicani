@@ -1,4 +1,4 @@
-import { ContentPack } from "../models/ContentPack.js";
+import { getContentPayload } from "./contentPackCache.js";
 import { calculatePoints } from "../utils/points.js";
 import { createHttpError } from "../utils/validators.js";
 
@@ -6,6 +6,7 @@ const WORDLE_WORD_LENGTH = 5;
 const WORDLE_MAX_GUESSES = 6;
 export const WORDLE_EPOCH = new Date(Date.UTC(2026, 0, 1));
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const WORDLE_SUBMISSION_GRACE_MS = 60 * 60 * 1000;
 
 function splitWord(word) {
   return Array.from(String(word ?? "").trim());
@@ -46,16 +47,6 @@ export function getWordlePuzzleNumber(date = new Date()) {
   return Math.max(1, Math.floor((currentDay - epochDay) / DAY_IN_MS) + 1);
 }
 
-async function getContentPayload(gameId) {
-  const contentPack = await ContentPack.findOne({ gameId }).lean();
-
-  if (!contentPack?.payload) {
-    throw createHttpError(503, `Content is not seeded for ${gameId}`);
-  }
-
-  return contentPack.payload;
-}
-
 function getWordleData(payload) {
   const answers = (payload.answers ?? [])
     .map((word) => String(word).trim())
@@ -82,8 +73,14 @@ async function validateWordleScore(payload, now = new Date()) {
 
   const puzzleNumber = getWordlePuzzleNumber(now);
   const puzzleKey = String(payload.puzzleKey ?? puzzleNumber);
+  const submittedPuzzleNumber = assertInteger(puzzleKey, "Wordle puzzleKey must be a valid puzzle number", {
+    min: 1
+  });
 
-  if (puzzleKey !== String(puzzleNumber)) {
+  const previousPuzzleNumber = getWordlePuzzleNumber(new Date(now.getTime() - WORDLE_SUBMISSION_GRACE_MS));
+  const acceptedPuzzleNumbers = new Set([puzzleNumber, previousPuzzleNumber]);
+
+  if (!acceptedPuzzleNumbers.has(submittedPuzzleNumber)) {
     throw createHttpError(400, "Only today's Wordle puzzle can be scored");
   }
 
@@ -100,7 +97,7 @@ async function validateWordleScore(payload, now = new Date()) {
   }
 
   const { answers, validWords } = getWordleData(await getContentPayload("wordle"));
-  const answer = answers[(puzzleNumber - 1) % answers.length];
+  const answer = answers[(submittedPuzzleNumber - 1) % answers.length];
 
   guesses.forEach((guess) => {
     if (!validWords.has(guess)) {

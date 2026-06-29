@@ -2,15 +2,20 @@ import assert from "node:assert/strict";
 import test, { after, before, beforeEach } from "node:test";
 
 import mongoose from "mongoose";
+import request from "supertest";
 
+import { createApp } from "../app.js";
 import { config } from "../config/env.js";
 import { ContentPack } from "../models/ContentPack.js";
 import { ScoreEvent } from "../models/ScoreEvent.js";
 import { User } from "../models/User.js";
+import { clearContentPayloadCache } from "../services/contentPackCache.js";
 import { recordScore } from "../services/scoreService.js";
-import { getWordlePuzzleNumber } from "../services/scoreValidationService.js";
+import { getWordlePuzzleNumber, validateScorePayload } from "../services/scoreValidationService.js";
+import { signAuthToken } from "../utils/tokens.js";
 
 const testMongoUri = config.testMongoUri;
+const app = createApp();
 
 before(async () => {
   if (!testMongoUri.includes("_test")) {
@@ -21,6 +26,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
+  clearContentPayloadCache();
   await mongoose.connection.db.dropDatabase();
   await ContentPack.create([
     {
@@ -144,4 +150,139 @@ test("leaderboard sorting uses total points descending", async () => {
 
   assert.equal(users[0].username, "high");
   assert.equal(users[1].username, "low");
+});
+
+test("global leaderboard uses shared ranks for tied scores", async () => {
+  await User.create([
+    {
+      displayName: "Tie A",
+      email: "tie-a@example.com",
+      passwordHash: "hash",
+      totalPoints: 9,
+      username: "tie-a"
+    },
+    {
+      displayName: "Tie B",
+      email: "tie-b@example.com",
+      passwordHash: "hash",
+      totalPoints: 9,
+      username: "tie-b"
+    },
+    {
+      displayName: "Third",
+      email: "third@example.com",
+      passwordHash: "hash",
+      totalPoints: 1,
+      username: "third"
+    }
+  ]);
+
+  const response = await request(app).get("/api/leaderboards/global?limit=3").expect(200);
+
+  assert.deepEqual(
+    response.body.data.map((row) => row.rank),
+    [1, 1, 3]
+  );
+});
+
+test("friend request lifecycle updates both users without duplicates", async () => {
+  const alice = await createUser("alice");
+  const bob = await createUser("bob");
+  const aliceToken = signAuthToken(alice);
+  const bobToken = signAuthToken(bob);
+
+  await request(app)
+    .post("/api/friends/request")
+    .set("Authorization", `Bearer ${aliceToken}`)
+    .send({ userId: bob._id.toString() })
+    .expect(200);
+
+  await request(app)
+    .post("/api/friends/request")
+    .set("Authorization", `Bearer ${aliceToken}`)
+    .send({ userId: bob._id.toString() })
+    .expect(400);
+
+  await request(app)
+    .post("/api/friends/accept")
+    .set("Authorization", `Bearer ${bobToken}`)
+    .send({ userId: alice._id.toString() })
+    .expect(200);
+
+  let savedAlice = await User.findById(alice._id).lean();
+  let savedBob = await User.findById(bob._id).lean();
+
+  assert.deepEqual(savedAlice.friends.map(String), [bob._id.toString()]);
+  assert.deepEqual(savedBob.friends.map(String), [alice._id.toString()]);
+  assert.equal(savedBob.friendRequests.length, 0);
+
+  await request(app)
+    .delete(`/api/friends/${alice._id}`)
+    .set("Authorization", `Bearer ${bobToken}`)
+    .expect(200);
+
+  savedAlice = await User.findById(alice._id).lean();
+  savedBob = await User.findById(bob._id).lean();
+
+  assert.deepEqual(savedAlice.friends, []);
+  assert.deepEqual(savedBob.friends, []);
+});
+
+test("upload endpoint rejects fake image bytes", async () => {
+  const user = await createUser("upload-user");
+  const token = signAuthToken(user);
+
+  await request(app)
+    .post("/api/uploads/avatar")
+    .set("Authorization", `Bearer ${token}`)
+    .attach("photo", Buffer.from("not actually a png"), {
+      contentType: "image/png",
+      filename: "avatar.png"
+    })
+    .expect(400);
+
+  const savedUser = await User.findById(user._id).lean();
+  assert.equal(savedUser.profilePhotoUrl, null);
+});
+
+test("Wordle validation allows previous puzzle shortly after midnight", async () => {
+  const now = new Date(Date.UTC(2026, 0, 2, 0, 30));
+  const contentPack = await ContentPack.findOne({ gameId: "wordle" }).lean();
+  const previousPuzzleKey = String(getWordlePuzzleNumber(new Date(Date.UTC(2026, 0, 1, 12))));
+  const answer = contentPack.payload.answers[(Number(previousPuzzleKey) - 1) % contentPack.payload.answers.length];
+
+  const score = await validateScorePayload(
+    {
+      attempts: 1,
+      gameId: "wordle",
+      guesses: [answer],
+      mode: "daily",
+      puzzleKey: previousPuzzleKey,
+      won: true
+    },
+    { now }
+  );
+
+  assert.equal(score.puzzleKey, previousPuzzleKey);
+  assert.equal(score.won, true);
+});
+
+test("Wordle content payload is cached between validations", async () => {
+  const puzzleKey = String(getWordlePuzzleNumber());
+  const contentPack = await ContentPack.findOne({ gameId: "wordle" }).lean();
+  const answer = contentPack.payload.answers[(Number(puzzleKey) - 1) % contentPack.payload.answers.length];
+  const payload = {
+    attempts: 1,
+    gameId: "wordle",
+    guesses: [answer],
+    mode: "daily",
+    puzzleKey,
+    won: true
+  };
+
+  await validateScorePayload(payload);
+  await ContentPack.deleteOne({ gameId: "wordle" });
+  const score = await validateScorePayload(payload);
+
+  assert.equal(score.won, true);
 });

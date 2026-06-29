@@ -8,6 +8,14 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function assertObjectId(value) {
+  if (!value || !mongoose.Types.ObjectId.isValid(value)) {
+    throw createHttpError(400, "Valid userId is required");
+  }
+
+  return new mongoose.Types.ObjectId(value);
+}
+
 export const searchUsers = asyncHandler(async (req, res) => {
   const q = String(req.query.q ?? "").trim();
 
@@ -33,128 +41,126 @@ export const searchUsers = asyncHandler(async (req, res) => {
 });
 
 export const sendFriendRequest = asyncHandler(async (req, res) => {
-  const { userId } = req.body;
-
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw createHttpError(400, "Valid userId is required");
-  }
+  const userId = assertObjectId(req.body.userId);
 
   if (String(req.user._id) === String(userId)) {
     throw createHttpError(400, "Cannot send friend request to yourself");
   }
 
-  const targetUser = await User.findById(userId);
+  const requesterIsAlreadyFriend = await User.exists({
+    _id: req.user._id,
+    friends: userId
+  });
 
-  if (!targetUser) {
-    throw createHttpError(404, "User not found");
-  }
-
-  const alreadyFriends = req.user.friends.some(
-    (fId) => String(fId) === String(userId)
-  );
-
-  if (alreadyFriends) {
+  if (requesterIsAlreadyFriend) {
     throw createHttpError(400, "Already friends with this user");
   }
 
-  const duplicateRequest = targetUser.friendRequests.some(
-    (r) => String(r.from) === String(req.user._id)
+  const targetUser = await User.findOneAndUpdate(
+    {
+      _id: userId,
+      friends: { $ne: req.user._id },
+      "friendRequests.from": { $ne: req.user._id }
+    },
+    {
+      $push: { friendRequests: { from: req.user._id } }
+    },
+    { returnDocument: "after" }
   );
 
-  if (duplicateRequest) {
-    throw createHttpError(400, "Friend request already sent");
+  if (targetUser) {
+    res.json({ data: { message: "Friend request sent" } });
+    return;
   }
 
-  targetUser.friendRequests.push({ from: req.user._id });
-  await targetUser.save();
+  const targetExists = await User.exists({ _id: userId });
 
-  res.json({ data: { message: "Friend request sent" } });
-});
-
-export const acceptFriendRequest = asyncHandler(async (req, res) => {
-  const { userId } = req.body;
-
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw createHttpError(400, "Valid userId is required");
-  }
-
-  const requestExists = req.user.friendRequests.some(
-    (r) => String(r.from) === String(userId)
-  );
-
-  if (!requestExists) {
-    throw createHttpError(404, "Friend request not found");
-  }
-
-  const fromUser = await User.findById(userId);
-
-  if (!fromUser) {
+  if (!targetExists) {
     throw createHttpError(404, "User not found");
   }
 
-  req.user.friendRequests = req.user.friendRequests.filter(
-    (r) => String(r.from) !== String(userId)
+  const targetIsAlreadyFriend = await User.exists({
+    _id: userId,
+    friends: req.user._id
+  });
+
+  if (targetIsAlreadyFriend) {
+    throw createHttpError(400, "Already friends with this user");
+  }
+
+  throw createHttpError(400, "Friend request already sent");
+});
+
+export const acceptFriendRequest = asyncHandler(async (req, res) => {
+  const userId = assertObjectId(req.body.userId);
+
+  const fromUserExists = await User.exists({ _id: userId });
+
+  if (!fromUserExists) {
+    throw createHttpError(404, "User not found");
+  }
+
+  const currentUserUpdate = await User.updateOne(
+    {
+      _id: req.user._id,
+      "friendRequests.from": userId
+    },
+    {
+      $addToSet: { friends: userId },
+      $pull: { friendRequests: { from: userId } }
+    }
   );
 
-  if (!req.user.friends.some((fId) => String(fId) === String(userId))) {
-    req.user.friends.push(userId);
+  if (currentUserUpdate.matchedCount === 0) {
+    throw createHttpError(404, "Friend request not found");
   }
 
-  if (!fromUser.friends.some((fId) => String(fId) === String(req.user._id))) {
-    fromUser.friends.push(req.user._id);
-  }
-
-  await Promise.all([req.user.save(), fromUser.save()]);
+  await User.updateOne(
+    { _id: userId },
+    { $addToSet: { friends: req.user._id } }
+  );
 
   res.json({ data: { message: "Friend request accepted" } });
 });
 
 export const rejectFriendRequest = asyncHandler(async (req, res) => {
-  const { userId } = req.body;
+  const userId = assertObjectId(req.body.userId);
 
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw createHttpError(400, "Valid userId is required");
-  }
-
-  const requestExists = req.user.friendRequests.some(
-    (r) => String(r.from) === String(userId)
+  const result = await User.updateOne(
+    {
+      _id: req.user._id,
+      "friendRequests.from": userId
+    },
+    {
+      $pull: { friendRequests: { from: userId } }
+    }
   );
 
-  if (!requestExists) {
+  if (result.matchedCount === 0) {
     throw createHttpError(404, "Friend request not found");
   }
-
-  req.user.friendRequests = req.user.friendRequests.filter(
-    (r) => String(r.from) !== String(userId)
-  );
-
-  await req.user.save();
 
   res.json({ data: { message: "Friend request rejected" } });
 });
 
 export const removeFriend = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+  const userId = assertObjectId(req.params.userId);
 
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw createHttpError(400, "Valid userId is required");
-  }
-
-  const isFriend = req.user.friends.some(
-    (fId) => String(fId) === String(userId)
+  const result = await User.updateOne(
+    {
+      _id: req.user._id,
+      friends: userId
+    },
+    {
+      $pull: { friends: userId }
+    }
   );
 
-  if (!isFriend) {
+  if (result.matchedCount === 0) {
     throw createHttpError(404, "User is not in your friends list");
   }
 
-  req.user.friends = req.user.friends.filter(
-    (fId) => String(fId) !== String(userId)
-  );
-
-  await req.user.save();
-
-  await User.findByIdAndUpdate(userId, {
+  await User.updateOne({ _id: userId }, {
     $pull: { friends: req.user._id }
   });
 

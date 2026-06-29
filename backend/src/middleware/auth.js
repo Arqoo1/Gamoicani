@@ -31,7 +31,7 @@ export async function requireAuth(req, res, next) {
     req.user = user;
     next();
   } catch (error) {
-    if (!error.statusCode) {
+    if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
       error.statusCode = 401;
       error.message = "Authentication required";
     }

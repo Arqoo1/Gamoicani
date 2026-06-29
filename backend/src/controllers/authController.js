@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
+import { randomInt } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com");
-
+import { config } from "../config/env.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { User } from "../models/User.js";
 import { ensureDailyQuests } from "../services/questService.js";
@@ -11,17 +11,79 @@ import { serializeUser } from "../utils/userPresenter.js";
 import {
   assertDisplayName,
   assertEmail,
+  assertAvatarColor,
+  assertBio,
+  assertCoverGradient,
   assertPassword,
   assertUsername,
   createHttpError,
-  normalizeEmail
+  normalizeEmail,
+  normalizeUsername
 } from "../utils/validators.js";
+
+const googleClient = new OAuth2Client(config.googleClientId || undefined);
 
 function authResponse(user) {
   return {
     token: signAuthToken(user),
     user: serializeUser(user)
   };
+}
+
+function isDuplicateKeyError(error) {
+  return error?.code === 11000;
+}
+
+function getDuplicateFields(error) {
+  return Object.keys(error?.keyPattern ?? error?.keyValue ?? {});
+}
+
+function createUsernameCandidate(baseUsername, attempt) {
+  if (attempt === 0) {
+    return baseUsername;
+  }
+
+  const suffix = String(randomInt(1000, 10000));
+  const prefix = baseUsername.slice(0, Math.max(2, 40 - suffix.length - 1));
+
+  return `${prefix}-${suffix}`;
+}
+
+async function createGoogleUser({ displayName, email }) {
+  const normalizedBase = normalizeUsername(email.split("@")[0]);
+  const baseUsername = normalizedBase.length >= 2 ? normalizedBase : "user";
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const username = createUsernameCandidate(baseUsername, attempt);
+
+    try {
+      return await User.create({
+        displayName,
+        email,
+        username
+      });
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) {
+        throw error;
+      }
+
+      const duplicateFields = getDuplicateFields(error);
+
+      if (duplicateFields.includes("email")) {
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+          return existingUser;
+        }
+      }
+
+      if (!duplicateFields.includes("username")) {
+        throw error;
+      }
+    }
+  }
+
+  throw createHttpError(409, "Could not generate a unique username");
 }
 
 export const register = asyncHandler(async (req, res) => {
@@ -43,12 +105,32 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await User.create({
-    displayName,
-    email,
-    passwordHash,
-    username
-  });
+  let user;
+
+  try {
+    user = await User.create({
+      displayName,
+      email,
+      passwordHash,
+      username
+    });
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) {
+      throw error;
+    }
+
+    const duplicateFields = getDuplicateFields(error);
+
+    if (duplicateFields.includes("email")) {
+      throw createHttpError(409, "Email is already registered");
+    }
+
+    if (duplicateFields.includes("username")) {
+      throw createHttpError(409, "Username is already taken");
+    }
+
+    throw error;
+  }
 
   res.status(201).json({ data: authResponse(user) });
 });
@@ -74,10 +156,13 @@ export const login = asyncHandler(async (req, res) => {
 export const loginWithGoogle = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
   if (!idToken) throw createHttpError(400, "idToken is required");
+  if (!config.googleClientId) {
+    throw createHttpError(503, "Google sign-in is not configured");
+  }
 
   const ticket = await googleClient.verifyIdToken({
     idToken,
-    audience: process.env.GOOGLE_CLIENT_ID || "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
+    audience: config.googleClientId,
   });
   
   const payload = ticket.getPayload();
@@ -86,33 +171,17 @@ export const loginWithGoogle = asyncHandler(async (req, res) => {
 
   let user = await User.findOne({ email });
   if (!user) {
-    const baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-    let username = baseUsername;
-    let attempt = 1;
-    while (await User.exists({ username })) {
-      username = `${baseUsername}${attempt}`;
-      attempt++;
-    }
-
-    user = await User.create({
-      displayName,
-      email,
-      username,
-    });
+    user = await createGoogleUser({ displayName, email });
   }
 
   res.json({ data: authResponse(user) });
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  const originalDateKey = req.user.dailyQuests?.dateKey;
-  ensureDailyQuests(req.user);
-  
-  if (req.user.dailyQuests.dateKey !== originalDateKey) {
-    await req.user.save();
-  }
+  const user = req.user.toObject();
+  ensureDailyQuests(user);
 
-  res.json({ data: { user: serializeUser(req.user) } });
+  res.json({ data: { user: serializeUser(user) } });
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
@@ -127,26 +196,15 @@ export const updateMe = asyncHandler(async (req, res) => {
   }
 
   if (req.body.bio !== undefined) {
-    const bio = String(req.body.bio ?? "").trim().slice(0, 200);
-    updates.bio = bio;
+    updates.bio = assertBio(req.body.bio);
   }
 
   if (req.body.avatarColor !== undefined) {
-    const color = String(req.body.avatarColor ?? "").trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(color)) {
-      req.user.avatarColor = color;
-      req.user.markModified('avatarColor');
-      updates.avatarColor = color;
-    }
+    updates.avatarColor = assertAvatarColor(req.body.avatarColor);
   }
 
   if (req.body.coverGradient !== undefined) {
-    const gradient = Number(req.body.coverGradient);
-    if (Number.isFinite(gradient) && gradient >= 0 && gradient <= 7) {
-      req.user.coverGradient = Math.floor(gradient);
-      req.user.markModified('coverGradient');
-      updates.coverGradient = Math.floor(gradient);
-    }
+    updates.coverGradient = assertCoverGradient(req.body.coverGradient);
   }
 
   if (req.body.profilePhotoUrl === null || req.body.profilePhotoUrl === "") {
@@ -186,7 +244,29 @@ export const updateMe = asyncHandler(async (req, res) => {
     req.user.markModified('bio');
   }
 
-  await req.user.save();
+  if (updates.avatarColor !== undefined) {
+    req.user.avatarColor = updates.avatarColor;
+    req.user.markModified('avatarColor');
+  }
+
+  if (updates.coverGradient !== undefined) {
+    req.user.coverGradient = updates.coverGradient;
+    req.user.markModified('coverGradient');
+  }
+
+  try {
+    await req.user.save();
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) {
+      throw error;
+    }
+
+    if (getDuplicateFields(error).includes("username")) {
+      throw createHttpError(409, "Username is already taken");
+    }
+
+    throw error;
+  }
 
   res.json({ data: authResponse(req.user) });
 });

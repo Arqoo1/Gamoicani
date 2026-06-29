@@ -7,6 +7,31 @@ function getGameStat(user, gameId) {
   return user.gameStats?.[gameId] ?? {};
 }
 
+function getPathValue(source, path) {
+  return path.split(".").reduce((value, key) => {
+    if (value instanceof Map) {
+      return value.get(key);
+    }
+
+    return value?.[key];
+  }, source);
+}
+
+function getCompetitionRankedRows(users, valuePath) {
+  let previousValue;
+  let previousRank = 0;
+
+  return users.map((user, index) => {
+    const value = getPathValue(user, valuePath) ?? 0;
+    const rank = value === previousValue ? previousRank : index + 1;
+
+    previousValue = value;
+    previousRank = rank;
+
+    return { rank, user };
+  });
+}
+
 async function getRankByField(fieldPath, value) {
   if (!value || value <= 0) {
     return null;
@@ -54,9 +79,9 @@ export const getGlobalLeaderboard = asyncHandler(async (req, res) => {
     .lean();
 
   res.json({
-    data: users.map((user, index) => ({
+    data: getCompetitionRankedRows(users, "totalPoints").map(({ user, rank }) => ({
       displayName: user.displayName,
-      rank: index + 1,
+      rank,
       totalPoints: user.totalPoints,
       username: user.username
     }))
@@ -73,13 +98,13 @@ export const getGamePointsLeaderboard = asyncHandler(async (req, res) => {
     .lean();
 
   res.json({
-    data: users.map((user, index) => {
+    data: getCompetitionRankedRows(users, pointsPath).map(({ user, rank }) => {
       const stats = getGameStat(user, gameId);
 
       return {
         displayName: user.displayName,
         points: stats.points ?? 0,
-        rank: index + 1,
+        rank,
         username: user.username,
         wins: stats.wins ?? 0
       };
@@ -98,7 +123,7 @@ export const getStreakLeaderboard = asyncHandler(async (req, res) => {
     .lean();
 
   res.json({
-    data: users.map((user, index) => {
+    data: getCompetitionRankedRows(users, streakPath).map(({ user, rank }) => {
       const stats = getGameStat(user, gameId);
 
       return {
@@ -106,7 +131,7 @@ export const getStreakLeaderboard = asyncHandler(async (req, res) => {
         gameId,
         metric,
         points: stats.points ?? 0,
-        rank: index + 1,
+        rank,
         streak: stats[metric] ?? 0,
         username: user.username
       };

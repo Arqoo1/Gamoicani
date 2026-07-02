@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthUser } from "@/entities/user/types";
-import { submitScore } from "@/features/scores/api/scoresApi";
+import { submitScore, RepairCompletion } from "@/features/scores/api/scoresApi";
 import { GameStatus } from "@/features/wordle/model/wordle";
 
 export type WordleProgress = {
@@ -153,5 +153,30 @@ async function syncWordleScore(
 
   if (result.user && onScoreResult) {
     onScoreResult(result.user);
+  }
+}
+
+export async function getRepairCompletions(): Promise<RepairCompletion[]> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const progressKeys = keys.filter(k => k.startsWith("wordle:progress:v1:"));
+    const completions: RepairCompletion[] = [];
+    
+    for (const key of progressKeys) {
+      const progress = await loadWordleProgress(key);
+      if (progress && (progress.gameStatus === "won" || progress.gameStatus === "lost")) {
+        completions.push({
+          attempts: progress.guesses.length,
+          completedAt: progress.savedAt,
+          guesses: progress.guesses,
+          puzzleKey: String(progress.puzzleNumber),
+          won: progress.gameStatus === "won"
+        });
+      }
+    }
+    
+    return completions.sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
+  } catch {
+    return [];
   }
 }

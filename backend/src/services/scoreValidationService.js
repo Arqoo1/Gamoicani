@@ -99,12 +99,6 @@ async function validateWordleScore(payload, now = new Date()) {
   const { answers, validWords } = getWordleData(await getContentPayload("wordle"));
   const answer = answers[(submittedPuzzleNumber - 1) % answers.length];
 
-  guesses.forEach((guess) => {
-    if (!validWords.has(guess)) {
-      throw createHttpError(400, "Wordle guess is not in the valid word list");
-    }
-  });
-
   const winningIndex = guesses.findIndex((guess) => guess === answer);
   const won = Boolean(payload.won);
 

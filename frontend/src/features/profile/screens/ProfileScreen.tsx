@@ -75,10 +75,32 @@ export default function ProfileScreen() {
   const [searchResults, setSearchResults] = useState<FriendUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const [hasAttemptedRepair, setHasAttemptedRepair] = useState(false);
+
   // Refresh user data from server on mount so gameStats/totalPoints are always current
   useEffect(() => {
     refreshUser();
   }, []);
+
+  useEffect(() => {
+    if (user && !hasAttemptedRepair) {
+      setHasAttemptedRepair(true);
+      const userPlays = Object.values(user.gameStats || {}).reduce((sum: number, g: any) => sum + (g.plays || 0), 0);
+      if (userPlays === 0) {
+        import("@/features/wordle/model/storage").then(({ getRepairCompletions }) => {
+          return getRepairCompletions().then(completions => {
+            if (completions.length > 0) {
+              return import("@/features/scores/api/scoresApi").then(({ repairStats }) => {
+                return repairStats(completions).then(res => {
+                  if (res?.user) updateUser(res.user);
+                });
+              });
+            }
+          });
+        }).catch(e => console.warn("Auto-repair failed", e));
+      }
+    }
+  }, [user, hasAttemptedRepair, updateUser]);
 
   useEffect(() => {
     if (user) {

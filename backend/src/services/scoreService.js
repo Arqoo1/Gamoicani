@@ -16,6 +16,40 @@ function createEventKey({ clientEventId, gameId, mode, puzzleKey, userId }) {
   return `${userId}:${gameId}:${mode}:${puzzleKey ?? crypto.randomUUID()}`;
 }
 
+function getPlainGameStat(user, gameId) {
+  const value = user.gameStats?.get?.(gameId) ?? user.gameStats?.[gameId] ?? {};
+  const source = value?.toObject?.() ?? value ?? {};
+
+  return {
+    lastCompletedKey: source.lastCompletedKey ?? null,
+    plays: source.plays ?? 0
+  };
+}
+
+function needsDuplicateDailyRepair(user, scoreEvent) {
+  if (!scoreEvent || scoreEvent.mode !== "daily" || !scoreEvent.affectsStreak) {
+    return false;
+  }
+
+  const progressKey = scoreEvent.streakKey ?? scoreEvent.puzzleKey;
+  if (!progressKey) {
+    return false;
+  }
+
+  const currentStat = getPlainGameStat(user, scoreEvent.gameId);
+  return currentStat.plays === 0 || currentStat.lastCompletedKey !== progressKey;
+}
+
+async function handleDuplicateScore(user, score, eventKey) {
+  const existingEvent = await ScoreEvent.findOne({ eventKey });
+  if (needsDuplicateDailyRepair(user, existingEvent)) {
+    applyScoreEventToUser(user, existingEvent);
+    await user.save();
+  }
+
+  return { duplicate: true, points: existingEvent?.points ?? score.points, scoreEvent: existingEvent, user };
+}
+
 export async function recordScore(user, payload) {
   const score = await validateScorePayload(payload);
   const eventKey = createEventKey({
@@ -25,6 +59,10 @@ export async function recordScore(user, payload) {
     puzzleKey: score.puzzleKey,
     userId: user._id
   });
+  const existingEvent = await ScoreEvent.findOne({ eventKey });
+  if (existingEvent) {
+    return handleDuplicateScore(user, score, eventKey);
+  }
 
   try {
     const scoreEvent = await ScoreEvent.create({
@@ -55,7 +93,6 @@ export async function recordScore(user, payload) {
       throw error;
     }
 
-    const existingEvent = await ScoreEvent.findOne({ eventKey });
-    return { duplicate: true, points: existingEvent?.points ?? score.points, scoreEvent: existingEvent, user };
+    return handleDuplicateScore(user, score, eventKey);
   }
 }

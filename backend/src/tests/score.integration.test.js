@@ -98,6 +98,49 @@ test("duplicate daily score is ignored", async () => {
   assert.equal(await ScoreEvent.countDocuments({ user: user._id }), 1);
 });
 
+test("duplicate daily score repairs missing user aggregates", async () => {
+  const user = await createUser("repair-user");
+  const puzzleKey = String(getWordlePuzzleNumber());
+  const contentPack = await ContentPack.findOne({ gameId: "wordle" }).lean();
+  const answer = contentPack.payload.answers[(Number(puzzleKey) - 1) % contentPack.payload.answers.length];
+
+  await recordScore(user, {
+    attempts: 1,
+    gameId: "wordle",
+    guesses: [answer],
+    mode: "daily",
+    puzzleKey,
+    won: true
+  });
+  await User.updateOne({ _id: user._id }, {
+    $set: {
+      achievements: [],
+      dailyQuests: { bonusClaimed: false, dateKey: "", quests: [] },
+      gameStats: {},
+      totalPoints: 0
+    }
+  });
+
+  const result = await recordScore(await User.findById(user._id), {
+    attempts: 1,
+    gameId: "wordle",
+    guesses: [answer],
+    mode: "daily",
+    puzzleKey,
+    won: true
+  });
+  const savedUser = await User.findById(user._id);
+  const wordleStats = savedUser.gameStats.get("wordle");
+
+  assert.equal(result.duplicate, true);
+  assert.equal(savedUser.totalPoints, 3);
+  assert.equal(wordleStats.plays, 1);
+  assert.equal(wordleStats.wins, 1);
+  assert.equal(wordleStats.points, 3);
+  assert.equal(wordleStats.lastCompletedKey, puzzleKey);
+  assert.equal(await ScoreEvent.countDocuments({ user: user._id }), 1);
+});
+
 test("streak updates across consecutive daily scores", async () => {
   const user = await createUser("streak-user");
 

@@ -1,21 +1,52 @@
 import { AuthResponse } from "@/features/auth/api/authApi";
+import { File as ExpoFile, UploadType } from "expo-file-system";
 import { API_BASE_URL, ApiEnvelope, fetchWithTimeout, getAuthToken, setAuthToken } from "@/shared/api/client";
 import { Platform } from "react-native";
 
-async function uploadFile(path: string, uri: string) {
-  const token = await getAuthToken();
-  const formData = new FormData();
-
+function getUploadFileInfo(uri: string) {
   const filename = uri.split("/").pop() || "photo.jpg";
   const match = /\.(\w+)$/.exec(filename);
   const extension = match?.[1]?.toLowerCase();
   const type = extension === "jpg" ? "image/jpeg" : extension ? `image/${extension}` : "image/jpeg";
 
-  formData.append("photo", {
-    name: filename,
-    type,
-    uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri
-  } as any);
+  return { filename, type };
+}
+
+async function parseUploadResponse(status: number, body: string) {
+  const payload = JSON.parse(body || "{}") as ApiEnvelope<AuthResponse> & {
+    error?: { message?: string };
+  };
+
+  if (status < 200 || status >= 300) {
+    throw new Error(payload.error?.message ?? `Upload failed with ${status}`);
+  }
+
+  return payload;
+}
+
+async function uploadFile(path: string, uri: string) {
+  const token = await getAuthToken();
+  const { filename, type } = getUploadFileInfo(uri);
+
+  if (Platform.OS !== "web") {
+    const file = new ExpoFile(uri);
+    const result = await file.upload(`${API_BASE_URL}${path}`, {
+      fieldName: "photo",
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      httpMethod: "POST",
+      mimeType: type,
+      uploadType: UploadType.MULTIPART
+    });
+
+    return parseUploadResponse(result.status, result.body);
+  }
+
+  const blob = await fetch(uri).then((response) => response.blob());
+  const formData = new FormData();
+  formData.append("photo", blob, filename);
 
   const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     body: formData,
@@ -26,13 +57,7 @@ async function uploadFile(path: string, uri: string) {
     method: "POST"
   });
 
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error?.message ?? `Upload failed with ${response.status}`);
-  }
-
-  return payload as ApiEnvelope<AuthResponse>;
+  return parseUploadResponse(response.status, await response.text());
 }
 
 export async function uploadProfilePhoto(uri: string) {

@@ -90,6 +90,7 @@ export async function recordWordleCompletion(
   const puzzleKey = String(puzzleNumber);
 
   if (stats.completedPuzzles[puzzleKey]) {
+    await syncWordleScore(puzzleKey, won, guesses, submittedGuesses, onScoreResult);
     return stats;
   }
 
@@ -120,8 +121,23 @@ export async function recordWordleCompletion(
 
   await AsyncStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
 
-  // Submit score and immediately propagate the fresh user back to the caller
-  submitScore({
+  await syncWordleScore(puzzleKey, won, guesses, submittedGuesses, onScoreResult);
+
+  return nextStats;
+}
+
+async function syncWordleScore(
+  puzzleKey: string,
+  won: boolean,
+  guesses: number,
+  submittedGuesses: string[],
+  onScoreResult?: (freshUser: AuthUser) => void
+) {
+  if (submittedGuesses.length !== guesses) {
+    return;
+  }
+
+  const result = await submitScore({
     attempts: guesses,
     gameId: "wordle",
     guesses: submittedGuesses,
@@ -129,13 +145,13 @@ export async function recordWordleCompletion(
     mode: "daily",
     puzzleKey,
     won
-  })
-    .then((result) => {
-      if (result?.user && onScoreResult) {
-        onScoreResult(result.user);
-      }
-    })
-    .catch(() => {});
+  });
 
-  return nextStats;
+  if (!result) {
+    return;
+  }
+
+  if (result.user && onScoreResult) {
+    onScoreResult(result.user);
+  }
 }

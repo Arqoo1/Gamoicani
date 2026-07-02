@@ -383,9 +383,9 @@ export default function WordleScreen() {
           return;
         }
 
-        if (progress?.answer === answer && progress.gameStatus === "playing") {
+        if (progress?.answer === answer) {
           setGuesses(progress.guesses);
-          setCurrentLetters(progress.currentLetters);
+          setCurrentLetters(progress.gameStatus === "playing" ? progress.currentLetters : []);
           setGameStatus(progress.gameStatus);
           setMessage(
             getStatusMessage(progress.gameStatus, answer, progress.guesses.length)

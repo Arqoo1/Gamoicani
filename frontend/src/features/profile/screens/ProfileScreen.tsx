@@ -45,7 +45,7 @@ function getRequestUser(request: FriendRequest & { user?: FriendUser }) {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { changePassword, refreshUser, updateProfile, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
+  const { changePassword, refreshUser, updateProfile, updateUser, uploadCoverPhoto, uploadProfilePhoto, user } = useAuth();
   const logout = useLogoutAndGoLogin();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);

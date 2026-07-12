@@ -185,12 +185,13 @@ async function pickPuzzle(gameType, roundIndex = 0) {
     }
 
     const answer = answers[Math.floor(Math.random() * answers.length)];
-    const validWords = payload.validWords ?? payload.valid ?? answers;
 
+    // Pass empty validWords so any correctly-lengthed Georgian word is accepted
+    // in multiplayer (the curated list is too restrictive for live play).
     return {
       actualType: "wordle",
       answer,
-      puzzle: { gameType: "wordle", validWords, wordLength: answer.length }
+      puzzle: { gameType: "wordle", validWords: [], wordLength: answer.length }
     };
   }
 
@@ -398,6 +399,16 @@ export async function initSocket(httpServer) {
     socket.on("leave-queue", async () => {
       await removePlayerFromQueues(socket.id);
       socket.emit("queue-left");
+    });
+
+    socket.on("send-emote", async ({ emote }) => {
+      const found = await findRoomBySocketId(socket.id);
+      if (!found) return;
+      const opponent = getOpponent(found.room, socket);
+      if (!opponent) return;
+      const safeEmote = String(emote ?? "").trim().slice(0, 8);
+      if (!safeEmote) return;
+      io.to(opponent.socketId).emit("receive-emote", { emote: safeEmote });
     });
 
     socket.on("create-private-room", async ({ gameType }) => {

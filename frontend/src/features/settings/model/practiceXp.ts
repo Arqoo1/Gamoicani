@@ -17,7 +17,6 @@ function generateId() {
   return `pxp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-
 export async function recordPracticeSession(
   gameId: string,
   won: boolean,
@@ -30,7 +29,6 @@ export async function recordPracticeSession(
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch {}
 }
-
 
 export async function syncPracticeXp(onScoreResult?: (freshUser: AuthUser) => void): Promise<number> {
   try {
@@ -64,7 +62,6 @@ export async function syncPracticeXp(onScoreResult?: (freshUser: AuthUser) => vo
 
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
 
-    // Update the auth context once with the latest user state after all syncs
     if (lastFreshUser && onScoreResult) {
       onScoreResult(lastFreshUser);
     }
@@ -74,7 +71,6 @@ export async function syncPracticeXp(onScoreResult?: (freshUser: AuthUser) => vo
     return 0;
   }
 }
-
 
 export async function getPendingCount(): Promise<number> {
   try {
@@ -86,7 +82,6 @@ export async function getPendingCount(): Promise<number> {
     return 0;
   }
 }
-
 
 export async function clearPracticeQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_KEY).catch(() => {});

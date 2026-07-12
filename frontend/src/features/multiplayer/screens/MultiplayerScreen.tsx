@@ -1,4 +1,4 @@
-﻿import { Feather } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -17,7 +17,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSocket } from "@/application/providers/socket";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 type RouteParam = string | string[] | undefined;
 type MultiplayerPuzzle = {
   gameType?: string;
@@ -27,7 +26,6 @@ type MultiplayerPuzzle = {
   wordLength?: number;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function firstParam(value: RouteParam) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -48,7 +46,6 @@ function getTiles(data: unknown): string[] {
   return Array.isArray(d?.tiles) ? (d.tiles as string[]) : [];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const EMOTES = ["🔥", "🧠", "🎯", "😂", "😤", "👏", "🤬", "🙏"];
 
 const QWERTY_TO_GEORGIAN: Record<string, string> = {
@@ -82,7 +79,6 @@ const MINI_GAP   = 3;
 const GRID_ROWS  = 6;
 const ANDAZEBI_ATTEMPTS = 5;
 
-// ─── Floating emote helper ────────────────────────────────────────────────────
 function triggerFloat(
   animY: Animated.Value,
   animOp: Animated.Value,
@@ -96,7 +92,6 @@ function triggerFloat(
   ]).start(onDone);
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function MultiplayerScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -110,7 +105,6 @@ export default function MultiplayerScreen() {
   const { colors, isDark } = useAppTheme();
   const { socket, opponentProfile } = useSocket();
 
-  // ── Game state ──────────────────────────────────────────────────────────────
   const [guesses,          setGuesses]          = useState<string[]>([]);
   const [currentGuess,     setCurrentGuess]     = useState("");
   const [guessResults,     setGuessResults]     = useState<any[]>([]);
@@ -135,7 +129,7 @@ export default function MultiplayerScreen() {
   const STATUS_H  = Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 0;
   const HEADER_H  = 48;
   const OPP_H     = 74;
-  const KB_H      = 4 * KB_KEY_H + 3 * KB_GAP + 10;
+  const KB_H      = 3 * KB_KEY_H + 2 * KB_GAP + 10;
   const MARGINS   = 16;
 
   const availH    = height - STATUS_H - HEADER_H - OPP_H - KB_H - MARGINS;
@@ -145,7 +139,6 @@ export default function MultiplayerScreen() {
 
   const styles = useMemo(() => createStyles(colors, cellSize), [colors, cellSize]);
 
-  // ── Socket wiring ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
 
@@ -188,7 +181,6 @@ export default function MultiplayerScreen() {
     };
   }, [socket, oppY, oppOp, gameType]);
 
-  // Hardware keyboard support
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -218,7 +210,6 @@ export default function MultiplayerScreen() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [gameOver, currentGuess, gameType]);
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
   const sendEmote = (emote: string) => {
     socket?.emit("send-emote", { roomId, emote });
     setEmotePickerOpen(false);
@@ -260,7 +251,6 @@ export default function MultiplayerScreen() {
     }
   };
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
   const didWin  = results?.result === "won";
   const didDraw = results?.result === "draw";
 
@@ -273,19 +263,26 @@ export default function MultiplayerScreen() {
     gameType === "wordle"   ? "სიტყვობანა" :
     gameType === "andazebi" ? "ანდაზები"    : "მატჩი";
 
-  // Build current keyboard rows
   const kbRows = useMemo(() => {
-    return BASE_KB_ROWS.map(row => 
-      row.map(k => isShifted && SHIFTED_GEORGIAN_KEYS[k] ? SHIFTED_GEORGIAN_KEYS[k] : k)
-    );
-  }, [isShifted]);
+    return BASE_KB_ROWS.map((row, ri) => {
+      if (ri === 2) {
+        if (gameType === "wordle") {
+          
+          return ["ENTER", ...row.slice(1)];
+        } else {
+          
+          return [...row.slice(0, row.length - 1), "SPACE", row[row.length - 1]];
+        }
+      }
+      return row.map(k => isShifted && SHIFTED_GEORGIAN_KEYS[k] ? SHIFTED_GEORGIAN_KEYS[k] : k);
+    });
+  }, [isShifted, gameType]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-      {/* ══ HEADER ════════════════════════════════════════════════ */}
+      {}
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="უკან"
@@ -306,7 +303,7 @@ export default function MultiplayerScreen() {
         </Pressable>
       </View>
 
-      {/* ══ EMOJI DROPDOWN ════════════════════════════════════════ */}
+      {}
       {emotePickerOpen && !gameOver && (
         <>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setEmotePickerOpen(false)} />
@@ -324,9 +321,9 @@ export default function MultiplayerScreen() {
         </>
       )}
 
-      {/* ══ OPPONENT STRIP ════════════════════════════════════════ */}
+      {}
       <View style={styles.oppStrip}>
-        {/* Avatar + name */}
+        {}
         <View style={styles.oppInfo}>
           <View style={[styles.oppAvatar, { backgroundColor: colors.button }]}>
             <Text style={styles.oppAvatarIcon}>{avatarIcon}</Text>
@@ -336,7 +333,7 @@ export default function MultiplayerScreen() {
           </Text>
         </View>
 
-        {/* Mini progress indicator */}
+        {}
         <View style={styles.miniGrid}>
           {gameType === "wordle" ? (
             Array.from({ length: GRID_ROWS }).map((_, rIdx) => {
@@ -355,7 +352,7 @@ export default function MultiplayerScreen() {
               );
             })
           ) : (
-            // Andazebi opponent progress: circles
+            
             <View style={styles.miniRow}>
               {Array.from({ length: ANDAZEBI_ATTEMPTS }).map((_, rIdx) => {
                 const s = opponentProgress[rIdx];
@@ -370,7 +367,7 @@ export default function MultiplayerScreen() {
 
         <Text style={styles.vsLabel}>VS</Text>
 
-        {/* Floating emotes */}
+        {}
         {oppEmote && (
           <Animated.Text style={[styles.floatEmote, styles.floatLeft,  { opacity: oppOp, transform: [{ translateY: oppY }] }]}>
             {oppEmote}
@@ -383,10 +380,10 @@ export default function MultiplayerScreen() {
         )}
       </View>
 
-      {/* ══ GAME BOARD ════════════════════════════════════════════ */}
+      {}
       <View style={styles.myGrid}>
         {gameType === "wordle" ? (
-          // ── Wordle Grid ──
+          
           Array.from({ length: GRID_ROWS }).map((_, rIdx) => {
             const isCurrent = rIdx === guesses.length && !gameOver;
             const word      = isCurrent ? currentGuess : (guesses[rIdx] ?? "");
@@ -416,7 +413,7 @@ export default function MultiplayerScreen() {
             );
           })
         ) : (
-          // ── Andazebi Board ──
+          
           <View style={styles.andazebiContainer}>
             <View style={styles.promptCard}>
               <Text style={styles.promptText}>{puzzle?.prompt}</Text>
@@ -425,7 +422,7 @@ export default function MultiplayerScreen() {
               )}
             </View>
 
-            {/* Guesses history */}
+            {}
             <View style={styles.historyContainer}>
               {guesses.map((g, i) => (
                 <View key={i} style={[styles.historyBadge, guessResults[i] === "correct" ? styles.historyCorrect : styles.historyWrong]}>
@@ -436,74 +433,61 @@ export default function MultiplayerScreen() {
               ))}
             </View>
 
-            {/* Current Input */}
+            {}
             {!gameOver && (
-              <View style={styles.andazebiInput}>
-                <Text style={styles.andazebiInputText}>
-                  {currentGuess.length > 0 ? currentGuess : "აკრიფე სიტყვა..."}
-                </Text>
-              </View>
+              <>
+                <View style={styles.andazebiInput}>
+                  <Text style={styles.andazebiInputText}>
+                    {currentGuess.length > 0 ? currentGuess : "აკრიფე სიტყვა..."}
+                  </Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+                  onPress={submitGuess}
+                >
+                  <Text style={styles.primaryBtnText}>შემოწმება</Text>
+                </Pressable>
+              </>
             )}
           </View>
         )}
       </View>
 
-      {/* ══ KEYBOARD ══════════════════════════════════════════════ */}
+      {}
       <View style={styles.keyboard}>
         {kbRows.map((row, ri) => (
           <View key={ri} style={styles.kbRow}>
-            {row.map(key => (
-              <Pressable
-                key={key}
-                style={({ pressed }) => [
-                  styles.kbKey,
-                  key === "ENTER" && styles.kbEnter,
-                  key === "⌫"    && styles.kbDel,
-                  key === "SHIFT" && styles.kbShift,
-                  key === "SHIFT" && isShifted && styles.kbShiftActive,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => handleKey(key)}
-              >
-                <Text style={[
-                  styles.kbKeyText, 
-                  (key === "ENTER" || key === "⌫" || key === "SHIFT") && styles.kbSpecialText,
-                  key === "SHIFT" && isShifted && styles.kbShiftActiveText
-                ]}>
-                  {key === "SHIFT" ? "⇧" : key}
-                </Text>
-              </Pressable>
-            ))}
+            {row.map(key => {
+              const displayKey = key === "ENTER" ? "შეყვანა" : (key === "SHIFT" ? "⇧" : key === "SPACE" ? "ჰარი" : key);
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [
+                    styles.kbKey,
+                    key === "ENTER" && styles.kbEnter,
+                    key === "⌫"    && styles.kbDel,
+                    key === "SHIFT" && styles.kbShift,
+                    key === "SPACE" && styles.kbSpaceInline,
+                    key === "SHIFT" && isShifted && styles.kbShiftActive,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleKey(key)}
+                >
+                  <Text style={[
+                    styles.kbKeyText, 
+                    (key === "ENTER" || key === "⌫" || key === "SHIFT" || key === "SPACE") && styles.kbSpecialText,
+                    key === "SHIFT" && isShifted && styles.kbShiftActiveText
+                  ]}>
+                    {displayKey}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         ))}
-        {/* Spacebar row for Andazebi */}
-        {gameType === "andazebi" && (
-          <View style={styles.kbRow}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.kbKey,
-                styles.kbSpace,
-                pressed && styles.pressed
-              ]}
-              onPress={() => handleKey("SPACE")}
-            >
-              <Text style={[styles.kbKeyText, styles.kbSpecialText]}>SPACE</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.kbKey,
-                styles.kbEnter,
-                pressed && styles.pressed
-              ]}
-              onPress={() => handleKey("ENTER")}
-            >
-              <Text style={[styles.kbKeyText, styles.kbSpecialText]}>ENTER</Text>
-            </Pressable>
-          </View>
-        )}
       </View>
 
-      {/* ══ GAME OVER OVERLAY ═════════════════════════════════════ */}
+      {}
       {gameOver && results && (
         <View style={styles.overlay}>
           <View style={styles.resultCard}>
@@ -527,12 +511,10 @@ export default function MultiplayerScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 function createStyles(colors: AppColors, cellSize: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
 
-    // Header
     header:      { alignItems: "center", flexDirection: "row", height: 48, justifyContent: "space-between", paddingHorizontal: 8 },
     hBtn:        { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
     title:       { color: colors.primaryText, fontSize: 17, fontWeight: "900" },
@@ -540,7 +522,6 @@ function createStyles(colors: AppColors, cellSize: number) {
     emoteToggle: { backgroundColor: colors.button, borderRadius: 20 },
     emoteToggleIcon: { fontSize: 20 },
 
-    // Emoji picker dropdown
     emotePicker: {
       backgroundColor: colors.card,
       borderColor: colors.border,
@@ -564,7 +545,6 @@ function createStyles(colors: AppColors, cellSize: number) {
     emoteBtn:     { alignItems: "center", backgroundColor: colors.button, borderRadius: 22, height: 44, justifyContent: "center", width: 44 },
     emoteBtnIcon: { fontSize: 24 },
 
-    // Opponent strip
     oppStrip: {
       alignItems: "center",
       backgroundColor: colors.card,
@@ -585,25 +565,21 @@ function createStyles(colors: AppColors, cellSize: number) {
     oppName:     { color: colors.secondaryText, fontSize: 10, fontWeight: "700", textAlign: "center" },
     vsLabel:     { color: colors.secondaryText, fontSize: 11, fontWeight: "900", letterSpacing: 1 },
 
-    // Mini grid / circles
     miniGrid: { flex: 1, gap: MINI_GAP, justifyContent: "center", alignItems: "center" },
     miniRow:  { flexDirection: "row", gap: MINI_GAP },
     miniCell: { borderRadius: 2, height: MINI_SIZE, width: MINI_SIZE },
     miniCircle: { borderRadius: 6, height: 12, width: 12 },
 
-    // Floating emotes
     floatEmote:  { elevation: 30, fontSize: 36, position: "absolute", top: 4, zIndex: 30 },
     floatLeft:   { left: 10 },
     floatRight:  { right: 10 },
 
-    // Wordle grid
     myGrid:    { alignItems: "center", flex: 1, gap: CELL_GAP, justifyContent: "center", paddingHorizontal: 16 },
     gridRow:   { flexDirection: "row", gap: CELL_GAP },
     gridCell:  { alignItems: "center", borderRadius: 5, borderWidth: 2, height: cellSize, justifyContent: "center", width: cellSize },
     cellLetter:      { color: colors.primaryText, fontSize: Math.round(cellSize * 0.5), fontWeight: "900" },
     cellLetterWhite: { color: "#ffffff" },
 
-    // Andazebi Board
     andazebiContainer: { flex: 1, width: "100%", justifyContent: "center", gap: 20 },
     promptCard: { backgroundColor: colors.card, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: colors.border, elevation: 4, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
     promptText: { fontSize: 20, color: colors.primaryText, fontWeight: "800", textAlign: "center", lineHeight: 28 },
@@ -616,20 +592,19 @@ function createStyles(colors: AppColors, cellSize: number) {
     andazebiInput:  { backgroundColor: colors.background, borderWidth: 2, borderColor: colors.accent, borderRadius: 12, padding: 16, alignItems: "center" },
     andazebiInputText: { fontSize: 20, color: colors.primaryText, fontWeight: "900", letterSpacing: 1 },
 
-    // Keyboard
     keyboard:     { gap: KB_GAP, paddingBottom: 10, paddingHorizontal: 4 },
     kbRow:        { flexDirection: "row", gap: 4, justifyContent: "center" },
     kbKey:        { alignItems: "center", backgroundColor: colors.key, borderRadius: 5, flex: 1, height: KB_KEY_H, justifyContent: "center", maxWidth: 36 },
     kbEnter:      { flex: 1.7, maxWidth: 58 },
     kbDel:        { flex: 1.3, maxWidth: 46 },
     kbShift:      { flex: 1.2, maxWidth: 42 },
+    kbSpaceInline:{ flex: 1.5, maxWidth: 52 },
     kbShiftActive: { backgroundColor: colors.accent },
     kbShiftActiveText: { color: "#fff" },
     kbSpace:      { flex: 4, maxWidth: 200 },
     kbKeyText:    { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
     kbSpecialText:{ fontSize: 11 },
 
-    // Overlay
     overlay:       { ...StyleSheet.absoluteFill, alignItems: "center", backgroundColor: colors.overlay, justifyContent: "center", padding: 24, zIndex: 200 },
     resultCard:    { alignItems: "center", backgroundColor: colors.card, borderRadius: 20, elevation: 12, maxWidth: 320, padding: 28, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, width: "100%" },
     resultEmoji:   { fontSize: 52, marginBottom: 4 },

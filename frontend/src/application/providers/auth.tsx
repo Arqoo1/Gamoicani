@@ -31,8 +31,7 @@ type AuthContextValue = {
     username: string;
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
-  /** Instantly update the in-memory user from a fresh server response (e.g. after submitting a score). */
-  updateUser: (nextUser: AuthUser) => void;
+    updateUser: (nextUser: AuthUser) => void;
   status: AuthStatus;
   updateProfile: (input: {
     avatarColor?: string;

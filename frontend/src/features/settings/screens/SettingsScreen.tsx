@@ -78,7 +78,7 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Appearance */}
+        {}
         <Text style={styles.sectionTitle}>გარეგნობა</Text>
         <View style={styles.card}>
           <View style={styles.themeRow}>
@@ -104,7 +104,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Sound & Haptics */}
+        {}
         <Text style={styles.sectionTitle}>ხმა და ვიბრაცია</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
@@ -134,7 +134,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Practice XP */}
+        {}
         <Text style={styles.sectionTitle}>პრაქტიკის XP</Text>
         <View style={styles.card}>
           <View style={styles.xpRow}>
@@ -158,7 +158,7 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
-        {/* Account */}
+        {}
         {user && (
           <>
             <Text style={styles.sectionTitle}>ანგარიში</Text>
@@ -192,7 +192,7 @@ export default function SettingsScreen() {
           </>
         )}
 
-        {/* Quick Links */}
+        {}
         <Text style={styles.sectionTitle}>სწრაფი ბმულები</Text>
         <View style={styles.card}>
           <Pressable
@@ -229,7 +229,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* Logout */}
+        {}
         <Pressable
           onPress={handleLogout}
           style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}

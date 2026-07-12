@@ -60,7 +60,6 @@ function playSequenceWeb(notes: Array<{ freq: number; dur: number; delay: number
   } catch {}
 }
 
-
 function f32ToS16(x: number) {
   const v = Math.max(-1, Math.min(1, x));
   return Math.round(v < 0 ? v * 32768 : v * 32767);
@@ -201,8 +200,6 @@ let _winUri: string | null = null;
 let _revealUri: string | null = null;
 let _lossUri: string | null = null;
 
-
-
 export function playPop() {
   if (Platform.OS === "web") {
     playTone(800, 0.06, "sine", 0.15);
@@ -211,7 +208,6 @@ export function playPop() {
     playNativeSound(_popUri);
   }
 }
-
 
 export function playChime() {
   if (Platform.OS === "web") {
@@ -226,7 +222,6 @@ export function playChime() {
   }
 }
 
-
 export function playBuzz() {
   if (Platform.OS === "web") {
     playTone(120, 0.18, "sawtooth", 0.2);
@@ -235,7 +230,6 @@ export function playBuzz() {
     playNativeSound(_buzzUri);
   }
 }
-
 
 export function playWin() {
   if (Platform.OS === "web") {
@@ -251,7 +245,6 @@ export function playWin() {
   }
 }
 
-
 export function playReveal() {
   if (Platform.OS === "web") {
     playTone(440, 0.08, "sine", 0.12);
@@ -260,7 +253,6 @@ export function playReveal() {
     playNativeSound(_revealUri);
   }
 }
-
 
 export function playLoss() {
   if (Platform.OS === "web") {

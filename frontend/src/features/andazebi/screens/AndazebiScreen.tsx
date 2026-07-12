@@ -344,7 +344,6 @@ export default function AndazebiScreen() {
   const successScale = useRef(new Animated.Value(1)).current;
   const dateKey = useMemo(() => getLocalDateKey(), []);
 
-  // Check if user already completed today's daily
   const isDailyDone = useMemo(() => {
     const stat = (user?.gameStats as any)?.["andazebi"];
     if (!stat?.lastCompletedKey) return false;

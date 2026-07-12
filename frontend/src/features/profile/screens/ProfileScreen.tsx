@@ -298,7 +298,7 @@ export default function ProfileScreen() {
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={coverColors[0]} />
 
-      {/* ── Header bar ── */}
+      {}
       <View style={[styles.header, { backgroundColor: colors.card }]}>
         <Pressable
           style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
@@ -315,7 +315,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Cover + Avatar hero ── */}
+        {}
         <TouchableOpacity activeOpacity={0.85} onPress={handleCoverTap} style={styles.cover}>
           {user.coverPhotoUrl ? (
             <Image source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
@@ -331,7 +331,7 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* ── Avatar row ── */}
+        {}
         <View style={styles.avatarRow}>
           <TouchableOpacity
             style={[styles.avatar, !user.profilePhotoUrl && { backgroundColor: avatarColor }]}
@@ -365,7 +365,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Cover color picker ── */}
+        {}
         {showCoverPicker && (
           <View style={styles.colorPicker}>
             <Text style={styles.colorPickerLabel}>ქავერის ფერი</Text>
@@ -388,7 +388,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── Avatar color picker ── */}
+        {}
         {showColorPicker && (
           <View style={styles.colorPicker}>
             <Text style={styles.colorPickerLabel}>პროფილის ფერი</Text>
@@ -408,7 +408,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── Summary stats bar ── */}
+        {}
         <View style={styles.statsBar}>
           <View style={styles.statBarItem}>
             <Text style={styles.statBarNum}>{totalPlays}</Text>
@@ -431,7 +431,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Profile info card ── */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>პროფილის ინფო</Text>
 
@@ -491,7 +491,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Badges / Achievements ── */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🏆 მიღწევები</Text>
           <View style={styles.achievementsGrid}>
@@ -509,7 +509,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Daily Quests ── */}
+        {}
         <View style={styles.card}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={styles.cardTitle}>📅 დღიური ქუესთები</Text>
@@ -542,7 +542,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Detailed Stats ── */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📊 სტატისტიკა</Text>
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
@@ -565,11 +565,11 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Friends ── */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>👥 მეგობრები</Text>
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
-            {/* Search */}
+            {}
             <View style={styles.searchBox}>
               <Feather name="search" size={18} color={colors.secondaryText} />
               <TextInput
@@ -581,7 +581,7 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* Search Results */}
+            {}
             {searchQuery.length > 0 && (
               <View style={styles.searchResults}>
                 {isSearching ? (
@@ -607,7 +607,7 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* Pending Requests */}
+            {}
             {safeRequests.length === 0 && (
               <>
                 <Text style={styles.friendSectionTitle}>მოთხოვნები (0)</Text>
@@ -639,7 +639,7 @@ export default function ProfileScreen() {
               </>
             )}
 
-            {/* Friends List */}
+            {}
             <Text style={styles.friendSectionTitle}>ჩემი მეგობრები ({friends.length})</Text>
             {friends.length === 0 ? (
               <Text style={styles.friendListEmpty}>ჯერ არ გყავთ მეგობრები</Text>
@@ -668,7 +668,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Game records ── */}
+        {}
         {gameEntries.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>🎮 თამაშის ჩანაწერები</Text>
@@ -714,7 +714,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── Password change ── */}
+        {}
         <View style={styles.card}>
           <Pressable
             style={({ pressed }) => [styles.sectionToggle, pressed && styles.pressed]}
@@ -830,7 +830,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Logout Confirm Modal ── */}
+      {}
       <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
         <View style={styles.modalBackdropDialog}>
           <View style={styles.dialog}>
@@ -848,7 +848,7 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* ── Error Modal ── */}
+      {}
       <Modal visible={!!errorMsg} transparent animationType="fade" onRequestClose={() => setErrorMsg("")}>
         <View style={styles.modalBackdropDialog}>
           <View style={styles.dialog}>

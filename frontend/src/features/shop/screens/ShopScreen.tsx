@@ -120,7 +120,7 @@ export default function ShopScreen() {
         </View>
       </View>
 
-      {/* Category Tabs */}
+      {}
       <View style={styles.tabRow}>
         {(["avatar", "nameTag", "banner"] as Category[]).map((cat) => (
           <Pressable
@@ -162,7 +162,7 @@ export default function ShopScreen() {
         </ScrollView>
       )}
 
-      {/* ── Shop Item Preview Modal ───────────────────────────────────────── */}
+      {}
       <Modal
         visible={!!previewItem}
         transparent
@@ -171,8 +171,8 @@ export default function ShopScreen() {
       >
         <Pressable style={styles.previewModalBackdrop} onPress={() => setPreviewItem(null)}>
           <Pressable style={styles.previewModalCard} onPress={() => {}}>
-            {/* Mock profile card */}
-            {/* Banner */}
+            {}
+            {}
             <View style={[
               styles.previewMockBanner,
               previewItem?.category === "banner" && previewItem.colors
@@ -195,7 +195,7 @@ export default function ShopScreen() {
               </View>
             </View>
 
-            {/* Name + tag */}
+            {}
             <View style={styles.previewMockInfo}>
               <Text style={styles.previewMockName}>მომხმარებელი</Text>
               {previewItem?.category === "nameTag" && (

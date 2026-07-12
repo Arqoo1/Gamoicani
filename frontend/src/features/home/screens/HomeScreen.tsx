@@ -22,7 +22,6 @@ type GameItem = {
 
 const fallbackGameList = games as GameItem[];
 
-/** Returns today's date as "YYYY-MM-DD" in local time — same logic as andazebi.tsx */
 function getLocalDateKey(date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -30,13 +29,6 @@ function getLocalDateKey(date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * Returns true if the user has already completed today's daily for this gameId.
- * Uses the same key format the backend uses:
- *   wordle   → lastCompletedKey === String(todayPuzzleNumber)
- *   andazebi → lastCompletedKey === "YYYY-MM-DD" (streakKey)
- *   trivia   → lastCompletedKey === "YYYY-MM-DD"
- */
 function isDoneToday(gameId: string, gameStats: Record<string, any> | undefined): boolean {
   if (!gameStats) return false;
   const stat = gameStats[gameId];
@@ -47,7 +39,6 @@ function isDoneToday(gameId: string, gameStats: Record<string, any> | undefined)
     return stat.lastCompletedKey === todayKey;
   }
 
-  // andazebi and trivia both use date string as streakKey/lastCompletedKey
   if (gameId === "andazebi" || gameId === "trivia") {
     return stat.lastCompletedKey === getLocalDateKey();
   }
@@ -64,7 +55,6 @@ const shiftedGuideRows = [
   ["ა", "შ", "დ", "ფ", "გ", "ჰ", "ჟ", "კ", "ლ"],
   ["⇧", "ძ", "ხ", "ჩ", "ვ", "ბ", "ნ", "მ", "⌫"]
 ];
-
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -110,17 +100,17 @@ export default function HomeScreen() {
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* ── HEADER ─────────────────────────────────────────── */}
+        {}
         <View style={styles.header}>
-          {/* titles — centered */}
+          {}
           <View style={styles.headerCopy}>
             <Text style={styles.kicker}>ქართული თამაშები</Text>
             <Text style={styles.title}>გამოიცანი</Text>
           </View>
 
-          {/* icon buttons row — centered */}
+          {}
           <View style={styles.toolRow}>
-            {/* settings */}
+            {}
             <Pressable
               accessibilityLabel="პარამეტრები"
               style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
@@ -129,7 +119,7 @@ export default function HomeScreen() {
               <Feather name="settings" size={18} color={colors.primaryText} />
             </Pressable>
 
-            {/* keyboard guide */}
+            {}
             <Pressable
               accessibilityLabel="კლავიატურის გზამკვლევის გახსნა"
               style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}

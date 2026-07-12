@@ -4,7 +4,7 @@ import { getContentPayload } from "../services/contentPackCache.js";
 import { sanitizeGameId } from "../utils/validators.js";
 
 export const listGames = asyncHandler(async (req, res) => {
-  // Sort by status ascending ("ready" comes before "soon" alphabetically), then by createdAt
+  
   const games = await Game.find({}).sort({ status: 1, createdAt: 1 }).lean();
 
   res.json({ data: games });

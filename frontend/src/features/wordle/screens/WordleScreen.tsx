@@ -119,7 +119,6 @@ type WordsJson = {
   validWords: string[];
 };
 
-
 const fallbackWordData = words as WordsJson;
 const georgianLetters = new Set([
   ...BASE_KEYBOARD_ROWS.flat().filter((key) => key.length === 1),
@@ -179,7 +178,6 @@ function triggerCompletionHaptic(won: boolean) {
   ).catch(() => {});
 }
 
-
 export default function WordleScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -192,7 +190,6 @@ export default function WordleScreen() {
   const [wordData, setWordData] = useState<WordsJson>(fallbackWordData);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
 
-  // Check if user already completed today's daily
   const isDailyDone = useMemo(() => {
     const stat = (user?.gameStats as any)?.["wordle"];
     if (!stat?.lastCompletedKey) return false;
@@ -627,7 +624,7 @@ export default function WordleScreen() {
       />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
 
-      {/* ── Mode-picker modal (shown before game starts) ─────── */}
+      {}
       <Modal
         animationType="fade"
         transparent
@@ -639,7 +636,7 @@ export default function WordleScreen() {
             <Text style={styles.modePickerKicker}>სიტყვობანა</Text>
             <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
 
-            {/* Daily */}
+            {}
             <Pressable
               disabled={isDailyDone}
               style={({ pressed }) => [
@@ -683,7 +680,7 @@ export default function WordleScreen() {
               <Text style={styles.modePickerArrow}>›</Text>
             </Pressable>
 
-            {/* Tutorial */}
+            {}
             <Pressable
               style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
               onPress={() => { resetBoard(0); setGameMode("tutorial"); setMessage("აკრიფეთ 'ხეობა'"); }}
@@ -944,7 +941,7 @@ export default function WordleScreen() {
                 : `სიტყვა იყო ${answer}`}
             </Text>
 
-            {/* Only show share preview in daily mode */}
+            {}
             {gameMode === "daily" && (
               <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }}>
                 <View style={styles.previewBox}>
@@ -991,7 +988,6 @@ export default function WordleScreen() {
     </SafeAreaView>
   );
 }
-
 
 const keyScoreStyles = StyleSheet.create({
   correct: {

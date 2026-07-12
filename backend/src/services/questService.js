@@ -1,5 +1,5 @@
 export function getGeorgianDateKey(date = new Date()) {
-  // Georgian time is UTC+4
+  
   const georgianTime = new Date(date.getTime() + 4 * 60 * 60 * 1000);
   return georgianTime.toISOString().split("T")[0];
 }
@@ -14,7 +14,6 @@ function getRandomQuests() {
     { type: "play_trivia", title: "ითამაშე ვიქტორინა", targets: [1] }
   ];
 
-  // Shuffle and pick 3
   const shuffled = [...questPool].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, 3);
 
@@ -58,8 +57,7 @@ export function evaluateQuests(user, scoreEvent) {
     }
 
     let increment = 0;
-    
-    // Evaluate if the current scoreEvent contributes to this quest
+
     switch (quest.type) {
       case "play_any":
         increment = 1;

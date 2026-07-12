@@ -3,7 +3,7 @@ import { View } from "react-native";
 export function MoonIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
-      {/* outer circle */}
+      {}
       <View
         style={{
           width: 16,
@@ -15,7 +15,7 @@ export function MoonIcon({ color }: { color: string }) {
           position: "relative"
         }}
       >
-        {/* "bite" that makes the crescent */}
+        {}
         <View
           style={{
             position: "absolute",
@@ -34,11 +34,10 @@ export function MoonIcon({ color }: { color: string }) {
   );
 }
 
-
 export function SunIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
-      {/* center circle */}
+      {}
       <View
         style={{
           width: 8,
@@ -48,7 +47,7 @@ export function SunIcon({ color }: { color: string }) {
           position: "absolute"
         }}
       />
-      {/* rays — 8 tiny bars rotated */}
+      {}
       {[0, 45, 90, 135].map((deg) => (
         <View
           key={deg}
@@ -67,11 +66,10 @@ export function SunIcon({ color }: { color: string }) {
   );
 }
 
-
 export function BookIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 20, height: 18, alignItems: "center", justifyContent: "center" }}>
-      {/* left page */}
+      {}
       <View
         style={{
           position: "absolute",
@@ -86,7 +84,7 @@ export function BookIcon({ color }: { color: string }) {
           borderColor: color
         }}
       />
-      {/* right page */}
+      {}
       <View
         style={{
           position: "absolute",
@@ -101,7 +99,7 @@ export function BookIcon({ color }: { color: string }) {
           borderColor: color
         }}
       />
-      {/* spine */}
+      {}
       <View
         style={{
           position: "absolute",
@@ -111,7 +109,7 @@ export function BookIcon({ color }: { color: string }) {
           backgroundColor: color
         }}
       />
-      {/* top arc */}
+      {}
       <View
         style={{
           position: "absolute",

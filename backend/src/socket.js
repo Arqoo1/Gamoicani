@@ -185,13 +185,12 @@ async function pickPuzzle(gameType, roundIndex = 0) {
     }
 
     const answer = answers[Math.floor(Math.random() * answers.length)];
+    const combinedValidWords = [...answers, ...(payload.validWords ?? payload.valid ?? [])];
 
-    // Pass empty validWords so any correctly-lengthed Georgian word is accepted
-    // in multiplayer (the curated list is too restrictive for live play).
     return {
       actualType: "wordle",
       answer,
-      puzzle: { gameType: "wordle", validWords: [], wordLength: answer.length }
+      puzzle: { gameType: "wordle", validWords: combinedValidWords, wordLength: answer.length }
     };
   }
 

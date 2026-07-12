@@ -184,7 +184,7 @@ export default function LobbyScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      {/* Tab Bar */}
+      {}
       <View style={styles.tabBar}>
         <Pressable
           style={[styles.tabBtn, activeTab === "match" && styles.tabBtnActive]}
@@ -377,7 +377,7 @@ export default function LobbyScreen() {
         </KeyboardAvoidingView>
       )}
 
-      {/* Profile Modal */}
+      {}
       <Modal
         visible={!!selectedUser}
         transparent

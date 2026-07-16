@@ -303,7 +303,6 @@ function createStyles(colors: AppColors, isDark: boolean, mode: AuthMode) {
     safe: {
       backgroundColor: colors.background,
       flex: 1,
-      paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 24 : 0,
     },
     flex: { flex: 1 },
     scroll: {

@@ -868,7 +868,7 @@ export default function ProfileScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    safe: { backgroundColor: colors.card, flex: 1 , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
+    safe: { backgroundColor: colors.card, flex: 1  },
     scroll: { backgroundColor: colors.background },
     scrollContent: { paddingBottom: 20 },
 

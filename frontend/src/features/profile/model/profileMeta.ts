@@ -42,9 +42,10 @@ export function getInitials(name: string): string {
 }
 
 export function getRankInfo(points: number) {
-  if (points >= 5000) return { label: "Gold", color: "#FFD700", icon: "🏆", next: null };
-  if (points >= 1000) return { label: "Silver", color: "#C0C0C0", icon: "🥈", next: 5000 };
-  return { label: "Bronze", color: "#cd7f32", icon: "🥉", next: 1000 };
+  if (points >= 500) return { label: "Diamond", color: "#00bfff", icon: "💎", next: null };
+  if (points >= 100) return { label: "Gold", color: "#FFD700", icon: "🏆", next: 500 };
+  if (points >= 50) return { label: "Silver", color: "#C0C0C0", icon: "🥈", next: 100 };
+  return { label: "Bronze", color: "#cd7f32", icon: "🥉", next: 50 };
 }
 
 export function getMediaUrl(path: string | null | undefined): string | undefined {

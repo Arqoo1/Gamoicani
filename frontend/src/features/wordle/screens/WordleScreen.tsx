@@ -987,7 +987,7 @@ function createStyles(colors: AppColors) {
   safe: {
     flex: 1,
     backgroundColor: colors.card
-  , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
+   },
   header: {
     alignItems: "center",
     backgroundColor: colors.card,

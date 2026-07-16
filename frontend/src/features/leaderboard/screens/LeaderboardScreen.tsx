@@ -184,7 +184,7 @@ function createStyles(colors: AppColors) {
     safe: {
       backgroundColor: colors.card,
       flex: 1
-    , paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0 },
+     },
     scrollView: {
       backgroundColor: colors.background
     },

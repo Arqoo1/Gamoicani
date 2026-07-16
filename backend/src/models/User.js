@@ -155,6 +155,20 @@ const userSchema = new mongoose.Schema(
     lastSeenAt: {
       default: Date.now,
       type: Date
+    },
+    multiplayerPoints: {
+      default: 0,
+      type: Number
+    },
+    multiplayerWins: {
+      default: 0,
+      min: 0,
+      type: Number
+    },
+    multiplayerLosses: {
+      default: 0,
+      min: 0,
+      type: Number
     }
   },
   {

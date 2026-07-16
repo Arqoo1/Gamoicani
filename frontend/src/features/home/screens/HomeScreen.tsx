@@ -273,8 +273,7 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: colors.background,
-      paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0
+      backgroundColor: colors.background
     },
     content: {
       flexGrow: 1,

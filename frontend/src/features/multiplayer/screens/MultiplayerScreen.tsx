@@ -115,8 +115,28 @@ export default function MultiplayerScreen() {
   const [gameOver,         setGameOver]         = useState(false);
   const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
   const [leaveModalOpen,   setLeaveModalOpen]   = useState(false);
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTimer = () => {
+    setTimeLeft(30);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const stopTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
   
-  // ── UI state ────────────────────────────────────────────────────────────────
   const [emotePickerOpen,  setEmotePickerOpen]  = useState(false);
   const [isShifted,        setIsShifted]        = useState(false);
 
@@ -167,12 +187,39 @@ export default function MultiplayerScreen() {
       setResults(data); 
     };
     
+    const onWaitForOpponent = () => {
+      setWaitingForOpponent(true);
+      stopTimer();
+    };
+
+    const onYourTurn = () => {
+      setWaitingForOpponent(false);
+      startTimer();
+    };
+
+    const onTurnTimeout = () => {
+      setWaitingForOpponent(true);
+      stopTimer();
+      if (gameType === "wordle") {
+        setGuesses(prev => [...prev, ""]);
+        setGuessResults(prev => [...prev, Array(wordLength).fill("absent")]);
+      } else {
+        setGuesses(prev => [...prev, ""]);
+        setGuessResults(prev => [...prev, "wrong"]);
+      }
+    };
+
+    startTimer();
+
     const onReceiveEmote = (data: { emote: string }) => {
       setOppEmote(data.emote);
       triggerFloat(oppY, oppOp, () => setOppEmote(null));
     };
 
     socket.on("guess-result",   onGuessResult);
+    socket.on("wait-for-opponent", onWaitForOpponent);
+    socket.on("your-turn", onYourTurn);
+    socket.on("turn-timeout", onTurnTimeout);
     socket.on("opponent-guess", onOpponentGuess);
     socket.on("game-over",      onGameOver);
     socket.on("receive-emote",  onReceiveEmote);
@@ -182,8 +229,12 @@ export default function MultiplayerScreen() {
       socket.off("opponent-guess", onOpponentGuess);
       socket.off("game-over",      onGameOver);
       socket.off("receive-emote",  onReceiveEmote);
+      socket.off("wait-for-opponent", onWaitForOpponent);
+      socket.off("your-turn", onYourTurn);
+      socket.off("turn-timeout", onTurnTimeout);
+      stopTimer();
     };
-  }, [socket, oppY, oppOp, gameType]);
+  }, [socket, oppY, oppOp, gameType, wordLength]);
 
   const handleBackPress = () => {
     if (gameOver) {
@@ -201,7 +252,7 @@ export default function MultiplayerScreen() {
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (gameOver) return;
+      if (gameOver || waitingForOpponent) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleKey("ENTER");
@@ -235,7 +286,7 @@ export default function MultiplayerScreen() {
   };
 
   const submitGuess = () => {
-    if (gameOver) return;
+    if (gameOver || waitingForOpponent) return;
     
     if (gameType === "wordle") {
       if (Array.from(currentGuess).length !== wordLength) return;
@@ -411,6 +462,16 @@ export default function MultiplayerScreen() {
           </Animated.Text>
         )}
       </View>
+
+      {!gameOver && (
+        <View style={styles.turnBanner}>
+          {waitingForOpponent ? (
+            <Text style={styles.waitingText}>⏳ მოწინააღმდეგეს ველოდებით...</Text>
+          ) : (
+            <Text style={styles.timerText}>⏱ {timeLeft} წამი</Text>
+          )}
+        </View>
+      )}
 
       {}
       <View style={styles.myGrid}>
@@ -633,6 +694,9 @@ function createStyles(colors: AppColors, cellSize: number) {
     miniRow:  { flexDirection: "row", gap: MINI_GAP },
     miniCell: { borderRadius: 2, height: MINI_SIZE, width: MINI_SIZE },
     miniCircle: { borderRadius: 6, height: 12, width: 12 },
+    turnBanner: { paddingVertical: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderBottomWidth: 1, borderColor: colors.border },
+    waitingText: { color: colors.secondaryText, fontSize: 13, fontWeight: "700" },
+    timerText: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
 
     floatEmote:  { elevation: 30, fontSize: 36, position: "absolute", top: 4, zIndex: 30 },
     floatLeft:   { left: 10 },
@@ -674,7 +738,7 @@ function createStyles(colors: AppColors, cellSize: number) {
     overlay:       { ...StyleSheet.absoluteFill, alignItems: "center", backgroundColor: colors.overlay, justifyContent: "center", padding: 24, zIndex: 200 },
     resultCard:    { alignItems: "center", backgroundColor: colors.card, borderRadius: 20, elevation: 12, maxWidth: 320, padding: 28, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, width: "100%" },
     resultEmoji:   { fontSize: 52, marginBottom: 4 },
-    resultTitle:   { color: colors.primaryText, fontSize: 28, fontWeight: "900", marginBottom: 8 },
+    resultTitle:   { color: colors.primaryText, fontSize: 28, fontWeight: "900", marginBottom: 8, textAlign: "center" },
     resultAnswer:  { color: colors.secondaryText, fontSize: 16, fontWeight: "700", marginBottom: 20, textAlign: "center" },
     resultActions: { gap: 10, width: "100%" },
     primaryBtn:    { alignItems: "center", backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14 },

@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 
 let _soundEnabled = true;
 
-export function setSoundEnabled(val: boolean) {
+export function setSoundEnabledService(val: boolean) {
   _soundEnabled = val;
 }
 

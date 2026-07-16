@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import { triggerSelectionHaptic, triggerInvalidHaptic, triggerSuccessHaptic, triggerWarningHaptic } from "@/shared/services/haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -274,32 +274,7 @@ function getHintButtonText(hintLevel: number) {
   return "მინიშნების დამალვა";
 }
 
-function triggerSelectionHaptic() {
-  playPop();
-  if (Platform.OS === "web") {
-    return;
-  }
 
-  Haptics.selectionAsync().catch(() => {});
-}
-
-function triggerInvalidHaptic() {
-  playBuzz();
-  if (Platform.OS === "web") {
-    return;
-  }
-
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-}
-
-function triggerSuccessHaptic() {
-  playWin();
-  if (Platform.OS === "web") {
-    return;
-  }
-
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-}
 
 function BackIcon({ styles }: { styles: AndazebiStyles }) {
   return <Text style={styles.headerIcon}>‹</Text>;

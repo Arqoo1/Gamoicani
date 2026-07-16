@@ -210,6 +210,7 @@ async function pickPuzzle(gameType, roundIndex = 0) {
       gameType: "andazebi",
       hint: item.hint ?? item.category ?? null,
       prompt: item.prompt ?? item.display ?? item.masked ?? null,
+      missingWordsCount: Array.isArray(item.missingWords) ? item.missingWords.length : typeof answer === "string" ? answer.split(" ").length : 1,
       wordLength: typeof answer === "string" ? answer.length : undefined
     }
   };
@@ -628,6 +629,54 @@ export async function initSocket(httpServer) {
       }
 
       await saveRoom(room);
+      } finally {
+        await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
+      }
+    });
+
+    socket.on("forfeit", async () => {
+      const found = await findRoomBySocketId(socket.id);
+      if (!found) return;
+
+      const { roomId, room } = found;
+      const lock = await acquireRoomLock(roomId);
+      if (!lock.acquired) return;
+
+      try {
+        const freshRoom = await getRoom(roomId);
+        if (!freshRoom) return;
+
+        const player = getPlayer(freshRoom, socket);
+        const opponent = getOpponent(freshRoom, socket);
+        
+        if (!player || freshRoom.finished.includes(player.userId)) return;
+
+        freshRoom.finished.push(player.userId);
+        socket.emit("game-over", {
+          answer: freshRoom.answer,
+          attempts: 0,
+          result: "lost",
+          roundIndex: freshRoom.roundIndex
+        });
+
+        if (opponent && !freshRoom.finished.includes(opponent.userId)) {
+          freshRoom.finished.push(opponent.userId);
+          io.to(opponent.socketId).emit("game-over", {
+            answer: freshRoom.answer,
+            attempts: 0,
+            result: "won",
+            roundIndex: freshRoom.roundIndex
+          });
+          
+          if (freshRoom.gameType === "mix") {
+            io.to(roomId).emit("mix-game-over", {
+              roundResults: freshRoom.roundResults,
+              scores: { [opponent.userId]: (freshRoom.scores[opponent.userId] ?? 0) + 1 }
+            });
+          }
+        }
+
+        await saveRoom(freshRoom);
       } finally {
         await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
       }

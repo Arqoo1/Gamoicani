@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { setHapticsEnabledService } from "../../shared/services/haptics";
+import { setSoundEnabledService } from "../../shared/services/sound";
 
 const HAPTICS_KEY = "settings:haptics:v1";
 const SOUND_KEY = "settings:sound:v1";
@@ -27,18 +29,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       AsyncStorage.getItem(HAPTICS_KEY),
       AsyncStorage.getItem(SOUND_KEY),
     ]).then(([h, s]) => {
-      if (h !== null) setHapticsEnabledState(h === "true");
-      if (s !== null) setSoundEnabledState(s === "true");
+      if (h !== null) {
+        setHapticsEnabledState(h === "true");
+        setHapticsEnabledService(h === "true");
+      }
+      if (s !== null) {
+        setSoundEnabledState(s === "true");
+        setSoundEnabledService(s === "true");
+      }
     }).catch(() => {});
   }, []);
 
   const setHapticsEnabled = useCallback((val: boolean) => {
     setHapticsEnabledState(val);
+    setHapticsEnabledService(val);
     AsyncStorage.setItem(HAPTICS_KEY, String(val)).catch(() => {});
   }, []);
 
   const setSoundEnabled = useCallback((val: boolean) => {
     setSoundEnabledState(val);
+    setSoundEnabledService(val);
     AsyncStorage.setItem(SOUND_KEY, String(val)).catch(() => {});
   }, []);
 

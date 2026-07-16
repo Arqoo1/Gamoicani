@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import { triggerSelectionHaptic, triggerInvalidHaptic, triggerSuccessHaptic, triggerWarningHaptic } from "@/shared/services/haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -149,33 +149,14 @@ function scoreToEmoji(score: LetterScore) {
   return "⬛";
 }
 
-function triggerSelectionHaptic() {
-  playPop();
-  if (Platform.OS === "web") {
-    return;
-  }
-
-  Haptics.selectionAsync().catch(() => {});
-}
-
-function triggerInvalidHaptic() {
-  playBuzz();
-  if (Platform.OS === "web") {
-    return;
-  }
-
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-}
-
 function triggerCompletionHaptic(won: boolean) {
-  if (won) playWin(); else playLoss();
-  if (Platform.OS === "web") {
-    return;
+  if (won) {
+    playWin();
+    triggerSuccessHaptic();
+  } else {
+    playLoss();
+    triggerWarningHaptic();
   }
-
-  Haptics.notificationAsync(
-    won ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
-  ).catch(() => {});
 }
 
 export default function WordleScreen() {

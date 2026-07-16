@@ -22,6 +22,7 @@ type MultiplayerPuzzle = {
   gameType?: string;
   hint?: string | null;
   prompt?: string | null;
+  missingWordsCount?: number;
   validWords?: string[];
   wordLength?: number;
 };
@@ -107,10 +108,13 @@ export default function MultiplayerScreen() {
 
   const [guesses,          setGuesses]          = useState<string[]>([]);
   const [currentGuess,     setCurrentGuess]     = useState("");
+  const [andazebiAnswers,  setAndazebiAnswers]  = useState<string[]>(() => Array(puzzle?.missingWordsCount || 1).fill(""));
+  const [activeInputIndex, setActiveInputIndex] = useState(0);
   const [guessResults,     setGuessResults]     = useState<any[]>([]);
   const [opponentProgress, setOpponentProgress] = useState<any[]>([]);
   const [gameOver,         setGameOver]         = useState(false);
   const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
+  const [leaveModalOpen,   setLeaveModalOpen]   = useState(false);
   
   // ── UI state ────────────────────────────────────────────────────────────────
   const [emotePickerOpen,  setEmotePickerOpen]  = useState(false);
@@ -181,6 +185,19 @@ export default function MultiplayerScreen() {
     };
   }, [socket, oppY, oppOp, gameType]);
 
+  const handleBackPress = () => {
+    if (gameOver) {
+      router.replace("/lobby");
+    } else {
+      setLeaveModalOpen(true);
+    }
+  };
+
+  const confirmLeave = () => {
+    socket?.emit("forfeit");
+    router.replace("/lobby");
+  };
+
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -222,13 +239,18 @@ export default function MultiplayerScreen() {
     
     if (gameType === "wordle") {
       if (Array.from(currentGuess).length !== wordLength) return;
+      socket?.emit("submit-guess", { roomId, guess: currentGuess.trim() });
+      setGuesses(prev => [...prev, currentGuess.trim()]);
+      setCurrentGuess("");
     } else {
-      if (currentGuess.trim().length === 0) return;
+      if (andazebiAnswers.some(ans => ans.trim().length === 0)) return;
+      const combinedGuess = andazebiAnswers.join(" ");
+      socket?.emit("submit-guess", { roomId, guess: combinedGuess });
+      setGuesses(prev => [...prev, combinedGuess]);
+      setAndazebiAnswers(Array(puzzle?.missingWordsCount || 1).fill(""));
+      setActiveInputIndex(0);
     }
     
-    socket?.emit("submit-guess", { roomId, guess: currentGuess.trim() });
-    setGuesses(prev => [...prev, currentGuess.trim()]);
-    setCurrentGuess("");
     setIsShifted(false);
   };
 
@@ -236,17 +258,31 @@ export default function MultiplayerScreen() {
     if (gameOver) return;
     
     if (key === "⌫") {
-      setCurrentGuess(prev => Array.from(prev).slice(0, -1).join(""));
+      if (gameType === "wordle") {
+        setCurrentGuess(prev => Array.from(prev).slice(0, -1).join(""));
+      } else {
+        setAndazebiAnswers(prev => {
+          const next = [...prev];
+          next[activeInputIndex] = Array.from(next[activeInputIndex]).slice(0, -1).join("");
+          return next;
+        });
+      }
     } else if (key === "ENTER") {
       submitGuess();
     } else if (key === "SHIFT") {
       setIsShifted(v => !v);
-    } else if (key === "SPACE") {
-      setCurrentGuess(prev => prev + " ");
     } else {
       const actualKey = isShifted ? (SHIFTED_GEORGIAN_KEYS[key] ?? key) : key;
-      if (gameType === "wordle" && Array.from(currentGuess).length >= wordLength) return;
-      setCurrentGuess(prev => prev + actualKey);
+      if (gameType === "wordle") {
+        if (Array.from(currentGuess).length >= wordLength) return;
+        setCurrentGuess(prev => prev + actualKey);
+      } else {
+        setAndazebiAnswers(prev => {
+          const next = [...prev];
+          next[activeInputIndex] = next[activeInputIndex] + actualKey;
+          return next;
+        });
+      }
       setIsShifted(false);
     }
   };
@@ -266,17 +302,11 @@ export default function MultiplayerScreen() {
   const kbRows = useMemo(() => {
     return BASE_KB_ROWS.map((row, ri) => {
       if (ri === 2) {
-        if (gameType === "wordle") {
-          
-          return ["ENTER", ...row.slice(1)];
-        } else {
-          
-          return [...row.slice(0, row.length - 1), "SPACE", row[row.length - 1]];
-        }
+        return ["ENTER", ...row.slice(1)];
       }
       return row.map(k => isShifted && SHIFTED_GEORGIAN_KEYS[k] ? SHIFTED_GEORGIAN_KEYS[k] : k);
     });
-  }, [isShifted, gameType]);
+  }, [isShifted]);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -286,7 +316,7 @@ export default function MultiplayerScreen() {
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="უკან"
-          onPress={() => router.replace("/lobby")}
+          onPress={handleBackPress}
           style={({ pressed }) => [styles.hBtn, pressed && styles.pressed]}
         >
           <Feather color={colors.primaryText} name="chevron-left" size={26} />
@@ -365,7 +395,9 @@ export default function MultiplayerScreen() {
           )}
         </View>
 
-        <Text style={styles.vsLabel}>VS</Text>
+        <View style={styles.vsContainer}>
+          <Text style={styles.vsLabel}>VS</Text>
+        </View>
 
         {}
         {oppEmote && (
@@ -436,10 +468,24 @@ export default function MultiplayerScreen() {
             {}
             {!gameOver && (
               <>
-                <View style={styles.andazebiInput}>
-                  <Text style={styles.andazebiInputText}>
-                    {currentGuess.length > 0 ? currentGuess : "აკრიფე სიტყვა..."}
-                  </Text>
+                <View style={styles.andazebiInputContainer}>
+                  {andazebiAnswers.map((answer, index) => (
+                    <Pressable 
+                      key={index} 
+                      style={[
+                        styles.andazebiInputBox, 
+                        activeInputIndex === index && styles.andazebiInputBoxActive
+                      ]}
+                      onPress={() => setActiveInputIndex(index)}
+                    >
+                      <Text style={[
+                        styles.andazebiInputBoxText,
+                        activeInputIndex === index && styles.andazebiInputBoxTextActive
+                      ]}>
+                        {answer || "_"}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
                 <Pressable
                   style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
@@ -467,7 +513,6 @@ export default function MultiplayerScreen() {
                     key === "ENTER" && styles.kbEnter,
                     key === "⌫"    && styles.kbDel,
                     key === "SHIFT" && styles.kbShift,
-                    key === "SPACE" && styles.kbSpaceInline,
                     key === "SHIFT" && isShifted && styles.kbShiftActive,
                     pressed && styles.pressed,
                   ]}
@@ -475,7 +520,7 @@ export default function MultiplayerScreen() {
                 >
                   <Text style={[
                     styles.kbKeyText, 
-                    (key === "ENTER" || key === "⌫" || key === "SHIFT" || key === "SPACE") && styles.kbSpecialText,
+                    (key === "ENTER" || key === "⌫" || key === "SHIFT") && styles.kbSpecialText,
                     key === "SHIFT" && isShifted && styles.kbShiftActiveText
                   ]}>
                     {displayKey}
@@ -502,6 +547,24 @@ export default function MultiplayerScreen() {
               </Pressable>
               <Pressable style={styles.secondaryBtn} onPress={() => router.replace("/")}>
                 <Text style={styles.secondaryBtnText}>მთავარი</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {leaveModalOpen && !gameOver && (
+        <View style={styles.overlay}>
+          <View style={styles.resultCard}>
+            <Text style={styles.resultEmoji}>🚪</Text>
+            <Text style={styles.resultTitle}>ნამდვილად გადიხარ?</Text>
+            <Text style={styles.resultAnswer}>თუ გახვალ, ავტომატურად წააგებ.</Text>
+            <View style={styles.resultActions}>
+              <Pressable style={styles.primaryBtn} onPress={confirmLeave}>
+                <Text style={styles.primaryBtnText}>დიახ, გასვლა</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryBtn} onPress={() => setLeaveModalOpen(false)}>
+                <Text style={styles.secondaryBtnText}>არა, გაგრძელება</Text>
               </Pressable>
             </View>
           </View>
@@ -563,6 +626,7 @@ function createStyles(colors: AppColors, cellSize: number) {
     oppAvatar:   { alignItems: "center", borderRadius: 18, height: 36, justifyContent: "center", width: 36 },
     oppAvatarIcon: { fontSize: 18 },
     oppName:     { color: colors.secondaryText, fontSize: 10, fontWeight: "700", textAlign: "center" },
+    vsContainer: { width: 52, alignItems: "center", justifyContent: "center" },
     vsLabel:     { color: colors.secondaryText, fontSize: 11, fontWeight: "900", letterSpacing: 1 },
 
     miniGrid: { flex: 1, gap: MINI_GAP, justifyContent: "center", alignItems: "center" },
@@ -589,8 +653,11 @@ function createStyles(colors: AppColors, cellSize: number) {
     historyCorrect: { backgroundColor: colors.correct, borderColor: colors.correct },
     historyWrong:   { backgroundColor: colors.absent, borderColor: colors.absent },
     historyText:    { color: colors.primaryText, fontSize: 14, fontWeight: "700" },
-    andazebiInput:  { backgroundColor: colors.background, borderWidth: 2, borderColor: colors.accent, borderRadius: 12, padding: 16, alignItems: "center" },
-    andazebiInputText: { fontSize: 20, color: colors.primaryText, fontWeight: "900", letterSpacing: 1 },
+    andazebiInputContainer: { flexDirection: "row", gap: 10, justifyContent: "center", flexWrap: "wrap", marginVertical: 8 },
+    andazebiInputBox: { backgroundColor: colors.background, borderWidth: 2, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, minWidth: 60, alignItems: "center" },
+    andazebiInputBoxActive: { borderColor: colors.accent },
+    andazebiInputBoxText: { fontSize: 20, color: colors.secondaryText, fontWeight: "700" },
+    andazebiInputBoxTextActive: { color: colors.primaryText, fontWeight: "900" },
 
     keyboard:     { gap: KB_GAP, paddingBottom: 10, paddingHorizontal: 4 },
     kbRow:        { flexDirection: "row", gap: 4, justifyContent: "center" },
@@ -598,7 +665,6 @@ function createStyles(colors: AppColors, cellSize: number) {
     kbEnter:      { flex: 1.7, maxWidth: 58 },
     kbDel:        { flex: 1.3, maxWidth: 46 },
     kbShift:      { flex: 1.2, maxWidth: 42 },
-    kbSpaceInline:{ flex: 1.5, maxWidth: 52 },
     kbShiftActive: { backgroundColor: colors.accent },
     kbShiftActiveText: { color: "#fff" },
     kbSpace:      { flex: 4, maxWidth: 200 },

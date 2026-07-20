@@ -64,7 +64,7 @@ const SHIFTED_GEORGIAN_KEYS: Record<string, string> = {
 const BASE_KB_ROWS = [
   ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
   ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
-  ["SHIFT", "ზ", "ხ", "ც", "ვ", "ბ", "ნ", "მ", "⌫"],
+  ["ზ", "ხ", "ც", "ვ", "ბ", "ნ", "მ", "⌫"]
 ];
 
 const GEORGIAN_LETTERS = new Set([
@@ -115,9 +115,9 @@ export default function MultiplayerScreen() {
   const [gameOver,         setGameOver]         = useState(false);
   const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
   const [leaveModalOpen,   setLeaveModalOpen]   = useState(false);
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startTimer = () => {
     setTimeLeft(30);
@@ -136,6 +136,9 @@ export default function MultiplayerScreen() {
   const stopTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
+
+  const isMyTurn = !!socket && !!activePlayerId && activePlayerId === (socket as any).user?._id;
+  const waitingForOpponent = !isMyTurn;
   
   const [emotePickerOpen,  setEmotePickerOpen]  = useState(false);
   const [isShifted,        setIsShifted]        = useState(false);
@@ -187,18 +190,11 @@ export default function MultiplayerScreen() {
       setResults(data); 
     };
     
-    const onWaitForOpponent = () => {
-      setWaitingForOpponent(true);
-      stopTimer();
-    };
+    
 
-    const onYourTurn = () => {
-      setWaitingForOpponent(false);
-      startTimer();
-    };
+    
 
     const onTurnTimeout = () => {
-      setWaitingForOpponent(true);
       stopTimer();
       if (gameType === "wordle") {
         setGuesses(prev => [...prev, ""]);
@@ -209,16 +205,37 @@ export default function MultiplayerScreen() {
       }
     };
 
-    startTimer();
+    
 
     const onReceiveEmote = (data: { emote: string }) => {
       setOppEmote(data.emote);
       triggerFloat(oppY, oppOp, () => setOppEmote(null));
     };
 
+    
+    const onGameStart = (data: any) => {
+      setActivePlayerId(data.activePlayerId);
+      if (data.activePlayerId === (socket as any).user?._id) {
+        startTimer();
+      } else {
+        stopTimer();
+      }
+    };
+    
+    const onTurnChanged = (data: any) => {
+      setActivePlayerId(data.activePlayerId);
+      if (data.activePlayerId === (socket as any).user?._id) {
+        startTimer();
+      } else {
+        stopTimer();
+      }
+    };
+
+    socket.on("game-start", onGameStart);
+    socket.on("turn-changed", onTurnChanged);
+
     socket.on("guess-result",   onGuessResult);
-    socket.on("wait-for-opponent", onWaitForOpponent);
-    socket.on("your-turn", onYourTurn);
+    
     socket.on("turn-timeout", onTurnTimeout);
     socket.on("opponent-guess", onOpponentGuess);
     socket.on("game-over",      onGameOver);
@@ -229,9 +246,10 @@ export default function MultiplayerScreen() {
       socket.off("opponent-guess", onOpponentGuess);
       socket.off("game-over",      onGameOver);
       socket.off("receive-emote",  onReceiveEmote);
-      socket.off("wait-for-opponent", onWaitForOpponent);
-      socket.off("your-turn", onYourTurn);
+      
       socket.off("turn-timeout", onTurnTimeout);
+      socket.off("game-start", onGameStart);
+      socket.off("turn-changed", onTurnChanged);
       stopTimer();
     };
   }, [socket, oppY, oppOp, gameType, wordLength]);
@@ -351,10 +369,7 @@ export default function MultiplayerScreen() {
     gameType === "andazebi" ? "ანდაზები"    : "მატჩი";
 
   const kbRows = useMemo(() => {
-    return BASE_KB_ROWS.map((row, ri) => {
-      if (ri === 2) {
-        return ["ENTER", ...row.slice(1)];
-      }
+    return BASE_KB_ROWS.map((row) => {
       return row.map(k => isShifted && SHIFTED_GEORGIAN_KEYS[k] ? SHIFTED_GEORGIAN_KEYS[k] : k);
     });
   }, [isShifted]);
@@ -562,35 +577,79 @@ export default function MultiplayerScreen() {
 
       {}
       <View style={styles.keyboard}>
-        {kbRows.map((row, ri) => (
-          <View key={ri} style={styles.kbRow}>
-            {row.map(key => {
-              const displayKey = key === "ENTER" ? "შეყვანა" : (key === "SHIFT" ? "⇧" : key === "SPACE" ? "ჰარი" : key);
-              return (
-                <Pressable
-                  key={key}
-                  style={({ pressed }) => [
-                    styles.kbKey,
-                    key === "ENTER" && styles.kbEnter,
-                    key === "⌫"    && styles.kbDel,
-                    key === "SHIFT" && styles.kbShift,
-                    key === "SHIFT" && isShifted && styles.kbShiftActive,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={() => handleKey(key)}
-                >
-                  <Text style={[
-                    styles.kbKeyText, 
-                    (key === "ENTER" || key === "⌫" || key === "SHIFT") && styles.kbSpecialText,
-                    key === "SHIFT" && isShifted && styles.kbShiftActiveText
-                  ]}>
-                    {displayKey}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
+        <View style={styles.kbRow}>
+          {kbRows[0].map(key => (
+            <Pressable
+              key={key}
+              style={({ pressed }) => [
+                styles.kbKey,
+                pressed && styles.pressed
+              ]}
+              onPress={() => handleKey(key)}
+            >
+              <Text style={styles.kbKeyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.kbRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.kbKey,
+              styles.kbShift,
+              isShifted && styles.kbShiftActive,
+              pressed && styles.pressed
+            ]}
+            onPress={() => handleKey("SHIFT")}
+          >
+            <Text style={[
+              styles.kbKeyText,
+              styles.kbSpecialText,
+              isShifted && styles.kbShiftActiveText
+            ]}>⇧</Text>
+          </Pressable>
+          {kbRows[1].map(key => (
+            <Pressable
+              key={key}
+              style={({ pressed }) => [
+                styles.kbKey,
+                pressed && styles.pressed
+              ]}
+              onPress={() => handleKey(key)}
+            >
+              <Text style={styles.kbKeyText}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.kbRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.kbKey,
+              styles.kbEnter,
+              pressed && styles.pressed
+            ]}
+            onPress={() => handleKey("ENTER")}
+          >
+            <Text style={[styles.kbKeyText, styles.kbSpecialText]}>ENTER</Text>
+          </Pressable>
+          {kbRows[2].map(key => (
+            <Pressable
+              key={key}
+              style={({ pressed }) => [
+                styles.kbKey,
+                key === "⌫" && styles.kbDel,
+                pressed && styles.pressed
+              ]}
+              onPress={() => handleKey(key)}
+            >
+              <Text style={[
+                styles.kbKeyText,
+                key === "⌫" && styles.kbSpecialText
+              ]}>{key}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {}

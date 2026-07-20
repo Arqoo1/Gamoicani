@@ -79,7 +79,9 @@ function createRoom({ gameType, passcode = null, players, roomId = generateId() 
     scores: {},
     totalRounds: gameType === "mix" ? 3 : 1,
     turnSubmissions: {},
-    turnIndex: 0
+    turnIndex: 0,
+    activePlayerId: null,
+    turnCount: 0
   };
 }
 
@@ -209,10 +211,10 @@ function clearTurnTimer(roomId) {
   }
 }
 
-function setTurnTimer(io, roomId, turnIndex) {
+function setTurnTimer(io, roomId, turnCount) {
   clearTurnTimer(roomId);
   const timer = setTimeout(() => {
-    handleTurnTimeout(io, roomId, turnIndex);
+    handleTurnTimeout(io, roomId, turnCount);
   }, TURN_TIMEOUT_MS);
   turnTimers.set(roomId, timer);
 }
@@ -386,7 +388,7 @@ async function resolveTurn(io, roomId, room) {
 
     room.turnIndex += 1;
     io.to(roomId).emit("your-turn", { turnIndex: room.turnIndex });
-    setTurnTimer(io, roomId, room.turnIndex);
+    setTurnTimer(io, roomId, room.turnCount);
   }
   
   await saveRoom(room);
@@ -410,7 +412,8 @@ async function startGame(io, roomId) {
   room.guesses = {};
   room.finished = [];
   room.turnSubmissions = {};
-  room.turnIndex = 0;
+  room.turnCount = 0;
+  room.activePlayerId = room.players[0].userId;
 
   if (room.gameType === "mix") {
     room.roundResults[room.roundIndex] = [];
@@ -428,7 +431,7 @@ async function startGame(io, roomId) {
     roomId,
     roundIndex: room.roundIndex,
     totalRounds: room.totalRounds,
-    turnIndex: room.turnIndex
+    activePlayerId: room.activePlayerId
   });
   
   setTurnTimer(io, roomId, room.turnIndex);
@@ -631,8 +634,8 @@ export async function initSocket(httpServer) {
           return socket.emit("error-message", { message: "Game already finished for you" });
         }
         
-        if (room.turnSubmissions[player.userId]) {
-          return socket.emit("error-message", { message: "Wait for your opponent" });
+        if (room.activePlayerId !== player.userId) {
+          return socket.emit("error-message", { message: "Wait for your turn" });
         }
 
         const normalized = normalizeGuessInput(guess, room);
@@ -653,7 +656,6 @@ export async function initSocket(httpServer) {
 
           playerGuesses.push({ guess: normalizedGuess, tiles });
           room.guesses[player.userId] = playerGuesses;
-          room.turnSubmissions[player.userId] = { guess: normalizedGuess, isCorrect, tiles };
 
           socket.emit("guess-result", { attempt: playerGuesses.length, guess: normalizedGuess, isCorrect, tiles });
           
@@ -665,7 +667,6 @@ export async function initSocket(httpServer) {
 
           playerGuesses.push({ correct: isCorrect, guess: normalizedGuess });
           room.guesses[player.userId] = playerGuesses;
-          room.turnSubmissions[player.userId] = { guess: normalizedGuess, isCorrect };
 
           socket.emit("guess-result", { attempt: playerGuesses.length, guess: normalizedGuess, isCorrect });
           
@@ -673,16 +674,52 @@ export async function initSocket(httpServer) {
           if (opponent) io.to(opponent.socketId).emit("opponent-guess", { attempt: playerGuesses.length, isCorrect });
         }
 
-        socket.emit("wait-for-opponent");
-
-        const activePlayers = room.players.filter(p => !room.finished.includes(p.userId));
-        const allSubmitted = activePlayers.every(p => room.turnSubmissions[p.userId]);
-
-        if (allSubmitted) {
-          await resolveTurn(io, roomId, room);
-        } else {
-          await saveRoom(room);
+        const maxAttempts = room.actualType === "wordle" ? MAX_WORDLE_ATTEMPTS : MAX_ANDAZEBI_ATTEMPTS;
+        
+        if (isCorrect || playerGuesses.length >= maxAttempts) {
+          room.finished.push(player.userId);
+          // Auto-finish opponent if current player is correct
+          if (isCorrect) {
+             const opponent = getOpponent(room, socket);
+             if (opponent && !room.finished.includes(opponent.userId)) {
+                 room.finished.push(opponent.userId);
+             }
+          }
         }
+
+        if (room.finished.length >= 2) {
+          clearTurnTimer(roomId);
+          const p1 = room.players[0];
+          const p2 = room.players[1];
+          let winnerId = null;
+          let isDraw = false;
+          
+          const p1Guesses = room.guesses[p1.userId] || [];
+          const p2Guesses = room.guesses[p2.userId] || [];
+          const p1Correct = p1Guesses.some(g => g.isCorrect || (g.tiles && g.tiles.every(t=>t==='correct')) || g.correct);
+          const p2Correct = p2Guesses.some(g => g.isCorrect || (g.tiles && g.tiles.every(t=>t==='correct')) || g.correct);
+
+          if (p1Correct && p2Correct) {
+             isDraw = true;
+          } else if (p1Correct) {
+             winnerId = p1.userId;
+          } else if (p2Correct) {
+             winnerId = p2.userId;
+          } else {
+             isDraw = true; // both failed
+          }
+
+          await handleRoundOver(io, roomId, room, winnerId, isDraw);
+        } else {
+          const opponent = getOpponent(room, socket);
+          if (opponent && !room.finished.includes(opponent.userId)) {
+            room.activePlayerId = opponent.userId;
+          }
+          room.turnCount++;
+          io.to(roomId).emit("turn-changed", { activePlayerId: room.activePlayerId });
+          setTurnTimer(io, roomId, room.turnCount);
+        }
+        await saveRoom(room);
       } finally {
         await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
       }

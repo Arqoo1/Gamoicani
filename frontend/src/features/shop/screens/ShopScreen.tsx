@@ -415,7 +415,6 @@ function createStyles(colors: AppColors) {
     previewMockBanner: {
       height: 100,
       width: "100%",
-      overflow: "hidden",
       position: "relative",
     },
     previewMockAvatarWrap: {

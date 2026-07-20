@@ -77,7 +77,7 @@ export default function ProfileScreen() {
 
   const [hasAttemptedRepair, setHasAttemptedRepair] = useState(false);
 
-  // Refresh user data from server on mount so gameStats/totalPoints are always current
+  
   useEffect(() => {
     refreshUser();
   }, []);
@@ -465,7 +465,7 @@ export default function ProfileScreen() {
           />
           <View style={styles.divider} />
 
-          {/* Read-only fields */}
+          
           <View style={styles.fieldRow}>
             <View style={styles.fieldContent}>
               <Text style={styles.fieldLabel}>ელ-ფოსტა</Text>
@@ -766,18 +766,19 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ── Logout ── */}
+        
         <Pressable
           style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutText}>⬡  გასვლა</Text>
+          <Feather name="log-out" size={20} color="#e63946" />
+          <Text style={styles.logoutText}>გასვლა</Text>
         </Pressable>
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ── Action Sheet Modal (Cover/Avatar) ── */}
+      
       <Modal visible={actionSheet !== "none"} transparent animationType="fade" onRequestClose={() => setActionSheet("none")}>
         <TouchableOpacity style={styles.modalBackdropAction} activeOpacity={1} onPress={() => setActionSheet("none")}>
           <View style={styles.actionSheet}>
@@ -834,8 +835,11 @@ export default function ProfileScreen() {
       <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
         <View style={styles.modalBackdropDialog}>
           <View style={styles.dialog}>
+            <View style={styles.dialogIconContainer}>
+              <Feather name="log-out" size={28} color="#e63946" />
+            </View>
             <Text style={styles.dialogTitle}>გასვლა</Text>
-            <Text style={styles.dialogText}>ნამდვილად გსურს გასვლა?</Text>
+            <Text style={styles.dialogText}>ნამდვილად გსურს ანგარიშიდან გასვლა?</Text>
             <View style={styles.dialogActions}>
               <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setShowLogoutConfirm(false)}>
                 <Text style={styles.dialogCancelBtnText}>გაუქმება</Text>
@@ -1175,6 +1179,8 @@ function createStyles(colors: AppColors) {
       borderColor: "#e6394640",
       borderRadius: 12,
       borderWidth: 1.5,
+      flexDirection: "row",
+      gap: 10,
       justifyContent: "center",
       marginHorizontal: 20,
       marginTop: 4,
@@ -1196,6 +1202,7 @@ function createStyles(colors: AppColors) {
     actionSheetCancelBtnText: { color: colors.secondaryText, fontSize: 16, fontWeight: "800" },
 
     dialog: { backgroundColor: colors.card, borderRadius: 16, margin: 24, padding: 24, alignSelf: "center", width: "85%", maxWidth: 400 },
+    dialogIconContainer: { alignSelf: "center", backgroundColor: "#e6394612", borderRadius: 30, width: 60, height: 60, alignItems: "center", justifyContent: "center", marginBottom: 16 },
     dialogTitle: { color: colors.primaryText, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: "center" },
     dialogText: { color: colors.secondaryText, fontSize: 15, fontWeight: "600", marginBottom: 24, textAlign: "center", lineHeight: 22 },
     dialogActions: { flexDirection: "row", gap: 12 },

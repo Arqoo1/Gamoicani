@@ -429,8 +429,10 @@ function createStyles(colors: AppColors) {
     },
     modalTitle: {
       color: colors.primaryText,
-      fontSize: 22,
-      fontWeight: "900"
+      fontSize: 20,
+      fontWeight: "900",
+      flexShrink: 1,
+      paddingRight: 10,
     },
     closeButton: {
       alignItems: "center",

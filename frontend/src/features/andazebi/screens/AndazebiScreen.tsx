@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import ViewShot, { captureRef } from "react-native-view-shot";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import proverbs from "@data/content/andazebi.json";
 import { AuthUser } from "@/entities/user/types";
@@ -312,6 +312,7 @@ function reportProverbCompletion(
 export default function AndazebiScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const { updateUser, user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -1020,7 +1021,7 @@ export default function AndazebiScreen() {
   }, [handleKeyPress]);
 
   return (
-    <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "right", "left"]} style={styles.safe}>
       <ConfettiCannon
         ref={confettiRef}
         count={180}
@@ -1034,7 +1035,7 @@ export default function AndazebiScreen() {
         animationType="fade"
         transparent
         visible={gameMode === null}
-        onRequestClose={() => router.push("/")}
+        onRequestClose={() => router.back()}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modePickerModal}>
@@ -1100,7 +1101,7 @@ export default function AndazebiScreen() {
 
             <Pressable
               style={({ pressed }) => [styles.modePickerBack, pressed && styles.pressed]}
-              onPress={() => router.push("/")}
+              onPress={() => router.back()}
             >
               <Text style={styles.modePickerBackText}>← უკან</Text>
             </Pressable>
@@ -1112,7 +1113,7 @@ export default function AndazebiScreen() {
         <Pressable
           accessibilityLabel="უკან დაბრუნება"
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          onPress={() => router.push("/")}
+          onPress={() => router.back()}
         >
           <BackIcon styles={styles} />
         </Pressable>
@@ -1343,7 +1344,7 @@ export default function AndazebiScreen() {
         </ScrollView>
 
         {!isDailyComplete && currentItem && (
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
             <View style={[styles.keyboard, { gap: keyboardRowGap }]}>
               <View style={[styles.keyboardRow, { gap: keyboardGap }]}>
                 {keyboardRows[0].map((key) => (

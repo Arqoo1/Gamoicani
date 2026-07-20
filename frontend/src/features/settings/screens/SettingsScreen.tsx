@@ -2,12 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, Alert,
+  Modal,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Switch,
   Text,
+  TouchableOpacity,
   View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,6 +28,7 @@ export default function SettingsScreen() {
 
   const [pendingXp, setPendingXp] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     getPendingCount().then(setPendingXp).catch(() => {});
@@ -49,11 +52,8 @@ export default function SettingsScreen() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    Alert.alert("გასვლა", "დარწმუნებული ხარ?", [
-      { text: "გაუქმება", style: "cancel" },
-      { text: "გასვლა", style: "destructive", onPress: logoutAndGoLogin },
-    ]);
-  }, [logoutAndGoLogin]);
+    setShowLogoutConfirm(true);
+  }, []);
 
   const themeModes: { key: ThemeMode; label: string; icon: string }[] = [
     { key: "light", label: "ნათელი", icon: "sun" },
@@ -240,6 +240,26 @@ export default function SettingsScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
+        <View style={styles.modalBackdropDialog}>
+          <View style={styles.dialog}>
+            <View style={styles.dialogIconContainer}>
+              <Feather name="log-out" size={28} color="#e63946" />
+            </View>
+            <Text style={styles.dialogTitle}>გასვლა</Text>
+            <Text style={styles.dialogText}>ნამდვილად გსურს ანგარიშიდან გასვლა?</Text>
+            <View style={styles.dialogActions}>
+              <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setShowLogoutConfirm(false)}>
+                <Text style={styles.dialogCancelBtnText}>გაუქმება</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.dialogDangerBtn} onPress={() => { setShowLogoutConfirm(false); logoutAndGoLogin(); }}>
+                <Text style={styles.dialogDangerBtnText}>გასვლა</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -357,5 +377,16 @@ function createStyles(colors: AppColors) {
       paddingVertical: 16,
     },
     logoutText: { color: "#e63946", fontSize: 16, fontWeight: "800" },
+
+    modalBackdropDialog: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center" },
+    dialog: { backgroundColor: colors.card, borderRadius: 16, margin: 24, padding: 24, alignSelf: "center", width: "85%", maxWidth: 400 },
+    dialogIconContainer: { alignSelf: "center", backgroundColor: "#e6394612", borderRadius: 30, width: 60, height: 60, alignItems: "center", justifyContent: "center", marginBottom: 16 },
+    dialogTitle: { color: colors.primaryText, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: "center" },
+    dialogText: { color: colors.secondaryText, fontSize: 15, fontWeight: "600", marginBottom: 24, textAlign: "center", lineHeight: 22 },
+    dialogActions: { flexDirection: "row", gap: 12 },
+    dialogCancelBtn: { flex: 1, backgroundColor: colors.button, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+    dialogCancelBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
+    dialogDangerBtn: { flex: 1, backgroundColor: "#e63946", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+    dialogDangerBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   });
 }

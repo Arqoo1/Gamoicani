@@ -595,7 +595,7 @@ export default function WordleScreen() {
   }, [sharePreview]);
 
   return (
-    <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "right", "left"]} style={styles.safe}>
       <ConfettiCannon
         ref={confettiRef}
         count={180}
@@ -610,7 +610,7 @@ export default function WordleScreen() {
         animationType="fade"
         transparent
         visible={gameMode === null}
-        onRequestClose={() => router.push("/")}
+        onRequestClose={() => router.back()}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modePickerModal}>
@@ -678,7 +678,7 @@ export default function WordleScreen() {
 
             <Pressable
               style={({ pressed }) => [styles.modePickerBack, pressed && styles.pressed]}
-              onPress={() => router.push("/")}
+              onPress={() => router.back()}
             >
               <Text style={styles.modePickerBackText}>← უკან</Text>
             </Pressable>
@@ -689,17 +689,19 @@ export default function WordleScreen() {
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          onPress={() => router.push("/")}
+          onPress={() => router.back()}
         >
           <Text style={styles.headerIcon}>‹</Text>
         </Pressable>
-        <Text style={styles.logo}>სიტყვობანა</Text>
+        <View pointerEvents="none" style={styles.logoWrap}>
+          <Text style={styles.logo}>სიტყვობანა</Text>
+        </View>
         <View style={styles.headerActions}>
-          {gameMode === "practice" || gameMode === "tutorial" ? (
+          {false ? (
             <View style={styles.practiceBadge}>
-              <Text style={styles.practiceBadgeText}>{gameMode === "practice" ? "ვარჯიში" : "გაკვეთილი"}</Text>
+              <Text style={styles.practiceBadgeText}>გაკვეთილი</Text>
             </View>
-          ) : (
+          ) : (gameMode !== "practice" && gameMode !== "tutorial") ? (
             <Pressable
               accessibilityLabel="სტატისტიკა"
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -707,7 +709,7 @@ export default function WordleScreen() {
             >
               <StatsIcon styles={styles} />
             </Pressable>
-          )}
+          ) : null}
           <Pressable
             accessibilityLabel="ახალი სიტყვა"
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -769,7 +771,7 @@ export default function WordleScreen() {
         )}
       </View>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
         {gameStatus !== "playing" && (
           <Pressable
             style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
@@ -1026,7 +1028,14 @@ function createStyles(colors: AppColors) {
     fontSize: 29,
     fontWeight: "900",
     letterSpacing: 0,
-    marginLeft: 42
+    textAlign: "center"
+  },
+  logoWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
   statsIcon: {
     alignItems: "flex-end",

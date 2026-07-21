@@ -60,23 +60,35 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   const rank = getRankInfo(user.totalPoints ?? 0);
   const initials = getInitials(user.displayName ?? user.username);
 
-  const stats = user.gameStats?.wordle || { plays: 0, wins: 0, currentStreak: 0, bestStreak: 0, guessDistribution: {} };
-  const totalPlays = stats.plays ?? 0;
-  const wins = stats.wins ?? 0;
-  const winPct = totalPlays > 0 ? Math.round((wins / totalPlays) * 100) : 0;
-  const bestStreak = stats.bestStreak ?? 0;
-
-  const mockDistribution = Array.from({ length: 6 }, (_, i) => stats.guessDistribution?.[String(i + 1)] || 0);
-  const maxDist = Math.max(1, ...mockDistribution);
-
-  const gameEntries = Object.entries(user.gameStats || {})
-    .filter(([key]) => key !== "wordle")
-    .map(([key, stat]: [string, any]) => ({
-      gameId: key,
-      emoji: GAME_META[key as keyof typeof GAME_META]?.emoji || "🎮",
-      label: GAME_META[key as keyof typeof GAME_META]?.label || key,
-      stat,
+  const gameEntries = (() => {
+    if (!user?.gameStats) return [];
+    return Object.entries(user.gameStats).map(([gameId, stat]: [string, any]) => ({
+      emoji: GAME_META[gameId]?.emoji ?? "🎮",
+      gameId,
+      label: GAME_META[gameId]?.label ?? gameId,
+      stat
     }));
+  })();
+
+  const totalWins = gameEntries.reduce((sum, g) => sum + (g.stat.wins ?? 0), 0);
+  const totalPlays = gameEntries.reduce((sum, g) => sum + (g.stat.plays ?? 0), 0);
+  const bestStreak = Math.max(0, ...gameEntries.map((g) => g.stat.maxStreak ?? 0));
+
+  const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
+
+  const mockDistribution = (() => {
+    let remaining = totalWins;
+    const dist = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 6; i++) {
+      if (i === 5) { dist[i] = remaining; break; }
+      const alloc = Math.floor(Math.random() * (remaining / 2));
+      dist[i] = alloc;
+      remaining -= alloc;
+    }
+    return dist;
+  })();
+
+  const maxDist = Math.max(1, ...mockDistribution);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -308,7 +320,7 @@ function createStyles(colors: AppColors) {
       overflow: "hidden",
       backgroundColor: colors.card,
     },
-    avatarImage: { width: "100%", height: "100%", resizeMode: "cover" },
+    avatarImage: { width: 88, height: 88, borderRadius: 44, resizeMode: "cover" },
     avatarInitials: { color: "#fff", fontSize: 36, fontWeight: "900" },
     heroInfo: { flex: 1, marginLeft: 16, paddingBottom: 4 },
     heroNameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },

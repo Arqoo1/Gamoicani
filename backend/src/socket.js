@@ -268,7 +268,7 @@ async function awardMatchPoints(room, matchWinnerId, matchLoserId) {
 
   if (matchWinnerId) {
     await User.updateOne({ _id: matchWinnerId }, {
-      $inc: { multiplayerPoints: 1, multiplayerWins: 1 }
+      $inc: { multiplayerPoints: 1, multiplayerWins: 1, totalPoints: 1 }
     });
   }
   

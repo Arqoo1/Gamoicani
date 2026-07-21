@@ -79,6 +79,14 @@ export default function LobbyScreen() {
       setStatus("idle");
     }
 
+    function onChatHistory({ messages: history }: { messages: ChatMessage[] }) {
+      if (!history || history.length === 0) return;
+      setMessages(history);
+      setTimeout(() => {
+        chatScrollRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+
     function onChatMessage(msg: ChatMessage) {
       setMessages((prev) => [...prev.slice(-99), msg]);
       if (activeTab !== "chat") setUnread((n) => n + 1);
@@ -92,6 +100,7 @@ export default function LobbyScreen() {
     socket.on("room-joined", onRoomJoined);
     socket.on("game-start", onGameStart);
     socket.on("error-message", onErrorMessage);
+    socket.on("chat-history", onChatHistory);
     socket.on("chat-message", onChatMessage);
 
     return () => {
@@ -100,6 +109,7 @@ export default function LobbyScreen() {
       socket.off("room-joined", onRoomJoined);
       socket.off("game-start", onGameStart);
       socket.off("error-message", onErrorMessage);
+      socket.off("chat-history", onChatHistory);
       socket.off("chat-message", onChatMessage);
     };
   }, [socket, router, activeTab]);

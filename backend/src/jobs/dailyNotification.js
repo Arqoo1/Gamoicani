@@ -3,7 +3,7 @@ import { Expo } from "expo-server-sdk";
 
 import { config } from "../config/env.js";
 import { User } from "../models/User.js";
-import { acquireRedisLock, releaseRedisLock } from "../services/redisClient.js";
+import { acquireRedisLock, getRedisClient, releaseRedisLock } from "../services/redisClient.js";
 
 const expo = new Expo();
 const LOCK_KEY = "jobs:daily-reset-notifications";
@@ -129,9 +129,22 @@ export async function runDailyResetNotifications() {
     }
 
     await processNotificationBatch(batch);
+
+    // Clear global chat messages at the daily reset
+    await clearGlobalChat();
   } finally {
     await releaseRedisLock(LOCK_KEY, lock.token);
     localJobRunning = false;
+  }
+}
+export async function clearGlobalChat() {
+  try {
+    const client = await getRedisClient();
+    if (!client) return;
+    await client.del("global-chat:messages");
+    console.log("[DailyReset] Global chat messages cleared.");
+  } catch (err) {
+    console.error("[DailyReset] Failed to clear global chat:", err);
   }
 }
 

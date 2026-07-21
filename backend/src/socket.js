@@ -519,11 +519,12 @@ export async function initSocket(httpServer) {
     socket.join("global-chat");
     socket.lastChatAt = 0;
 
-    // Send existing chat history to the newly connected client
-    const history = await loadChatHistory();
-    if (history.length > 0) {
-      socket.emit("chat-history", { messages: history });
-    }
+    socket.on("request-chat-history", async () => {
+      const history = await loadChatHistory();
+      if (history.length > 0) {
+        socket.emit("chat-history", { messages: history });
+      }
+    });
 
     socket.on("chat-send", async ({ text }) => {
       if (!text || typeof text !== "string") return;

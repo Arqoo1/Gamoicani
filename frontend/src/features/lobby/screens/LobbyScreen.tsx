@@ -20,7 +20,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/application/providers/auth";
 import { useSocket } from "@/application/providers/socket";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
-import { sendFriendRequest } from "@/features/social/api/friendsApi";
+import { listFriends, sendFriendRequest } from "@/features/social/api/friendsApi";
+import { FriendUser } from "@/entities/user/types";
 
 type ChatMessage = {
   id: string;
@@ -54,6 +55,13 @@ export default function LobbyScreen() {
   
   const [selectedUser, setSelectedUser] = useState<{ id: string, displayName: string, username: string } | null>(null);
   const [friendRequestStatus, setFriendRequestStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [friendsList, setFriendsList] = useState<FriendUser[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      listFriends().then(setFriendsList).catch(console.error);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!socket) return;
@@ -102,6 +110,9 @@ export default function LobbyScreen() {
     socket.on("error-message", onErrorMessage);
     socket.on("chat-history", onChatHistory);
     socket.on("chat-message", onChatMessage);
+
+    // Request chat history now that listeners are active
+    socket.emit("request-chat-history");
 
     return () => {
       socket.off("queue-joined", onQueueJoined);
@@ -411,26 +422,50 @@ export default function LobbyScreen() {
               >
                 <Text style={styles.profileBtnCloseText}>დახურვა</Text>
               </Pressable>
+              
               <Pressable
-                style={({ pressed }) => [
-                  styles.profileBtnAdd,
-                  (pressed || friendRequestStatus === "loading" || friendRequestStatus === "sent") && styles.pressed,
-                  friendRequestStatus === "sent" && { backgroundColor: colors.correct }
-                ]}
-                onPress={handleAddFriend}
-                disabled={friendRequestStatus === "loading" || friendRequestStatus === "sent"}
+                style={({ pressed }) => [styles.profileBtnView, pressed && styles.pressed]}
+                onPress={() => {
+                  if (selectedUser) {
+                    router.push({ pathname: "/public-profile", params: { username: selectedUser.username } });
+                    setSelectedUser(null);
+                  }
+                }}
               >
-                {friendRequestStatus === "loading" ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Feather name={friendRequestStatus === "sent" ? "check" : "user-plus"} size={16} color="#fff" />
-                    <Text style={styles.profileBtnAddText}>
-                      {friendRequestStatus === "sent" ? "გაიგზავნა" : "დამატება"}
-                    </Text>
-                  </>
-                )}
+                <Text style={styles.profileBtnViewText}>პროფილი</Text>
               </Pressable>
+            </View>
+
+            <View style={[styles.profileActions, { marginTop: 12 }]}>
+              {friendsList.some(f => f.id === selectedUser?.id) ? (
+                <View style={[styles.profileBtnAdd, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
+                  <Feather name="check" size={16} color={colors.correct} />
+                  <Text style={[styles.profileBtnAddText, { color: colors.correct }]}>
+                    მეგობარია
+                  </Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.profileBtnAdd,
+                    (pressed || friendRequestStatus === "loading" || friendRequestStatus === "sent") && styles.pressed,
+                    friendRequestStatus === "sent" && { backgroundColor: colors.correct }
+                  ]}
+                  onPress={handleAddFriend}
+                  disabled={friendRequestStatus === "loading" || friendRequestStatus === "sent"}
+                >
+                  {friendRequestStatus === "loading" ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Feather name={friendRequestStatus === "sent" ? "check" : "user-plus"} size={16} color="#fff" />
+                      <Text style={styles.profileBtnAddText}>
+                        {friendRequestStatus === "sent" ? "გაიგზავნა" : "დამატება"}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
           </Pressable>
         </Pressable>
@@ -707,5 +742,15 @@ function createStyles(colors: AppColors) {
       gap: 8,
     },
     profileBtnAddText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+    profileBtnView: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+    },
+    profileBtnViewText: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
   });
 }

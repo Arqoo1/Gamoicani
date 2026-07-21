@@ -60,6 +60,7 @@ async function uploadFile(path: string, uri: string) {
   return parseUploadResponse(response.status, await response.text());
 }
 
+
 export async function uploadProfilePhoto(uri: string) {
   const response = await uploadFile("/uploads/avatar", uri);
   await setAuthToken(response.data.token);
@@ -70,4 +71,15 @@ export async function uploadCoverPhoto(uri: string) {
   const response = await uploadFile("/uploads/cover", uri);
   await setAuthToken(response.data.token);
   return response.data;
+}
+
+export async function getPublicProfile(username: string) {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/users/${username}`, {
+    headers: { Accept: "application/json" }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "User not found");
+  }
+  return data.data;
 }

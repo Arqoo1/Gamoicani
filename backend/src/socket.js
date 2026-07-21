@@ -263,35 +263,51 @@ async function handleTurnTimeout(io, roomId, turnIndex) {
   }
 }
 
-async function awardMatchPoints(room, matchWinnerId, matchLoserId) {
+async function awardMatchPoints(room, matchWinnerId, matchLoserId, isDraw = false) {
   if (room.passcode) return;
 
-  if (matchWinnerId) {
-    await User.updateOne({ _id: matchWinnerId }, {
-      $inc: { multiplayerPoints: 1, multiplayerWins: 1, totalPoints: 1 }
-    });
-  }
-  
-  if (matchLoserId) {
-    const loserDoc = await User.findById(matchLoserId);
-    if (loserDoc) {
-      const pts = loserDoc.multiplayerPoints || 0;
-      const deduction = pts >= 100 ? -1 : 0;
-      loserDoc.multiplayerPoints = pts + deduction;
-      loserDoc.multiplayerLosses = (loserDoc.multiplayerLosses || 0) + 1;
-      await loserDoc.save();
+  const gameType = room.gameType;
+
+  for (const p of room.players) {
+    const doc = await User.findById(p.userId);
+    if (!doc) continue;
+
+    const isWinner = !isDraw && p.userId === matchWinnerId;
+    const isLoser = !isDraw && p.userId === matchLoserId;
+
+    if (isWinner) {
+      doc.multiplayerPoints = (doc.multiplayerPoints || 0) + 1;
+      doc.multiplayerWins = (doc.multiplayerWins || 0) + 1;
+      doc.totalPoints = (doc.totalPoints || 0) + 1;
+    } else if (isLoser) {
+      const pts = doc.multiplayerPoints || 0;
+      doc.multiplayerPoints = pts + (pts >= 100 ? -1 : 0);
+      doc.multiplayerLosses = (doc.multiplayerLosses || 0) + 1;
     }
+
+    let stat = doc.gameStats.get(gameType);
+    if (!stat) stat = { currentStreak: 0, lastCompletedKey: null, lastPlayedAt: null, maxStreak: 0, plays: 0, points: 0, wins: 0 };
+    
+    stat.plays = (stat.plays || 0) + 1;
+    stat.lastPlayedAt = new Date();
+
+    if (isWinner) {
+      stat.wins = (stat.wins || 0) + 1;
+      stat.points = (stat.points || 0) + 1;
+      stat.currentStreak = (stat.currentStreak || 0) + 1;
+      stat.maxStreak = Math.max(stat.maxStreak || 0, stat.currentStreak);
+    } else {
+      stat.currentStreak = 0;
+    }
+
+    doc.gameStats.set(gameType, stat);
+    await doc.save();
   }
 }
 
 async function finishMatch(io, roomId, room, winnerId, loserId, draw) {
-
   clearTurnTimer(roomId);
-  
-  if (!draw) {
-    await awardMatchPoints(room, winnerId, loserId);
-  }
-
+  await awardMatchPoints(room, winnerId, loserId, draw);
 }
 
 async function handleRoundOver(io, roomId, room, winnerId, draw) {

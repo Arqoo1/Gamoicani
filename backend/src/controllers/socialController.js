@@ -9,8 +9,7 @@ export const getFeed = asyncHandler(async (req, res) => {
   const allIds = [req.user._id, ...friendIds];
 
   const events = await ScoreEvent.find({
-    user: { $in: allIds },
-    won: true,
+    user: { $in: allIds }
   })
     .sort({ occurredAt: -1 })
     .limit(50)

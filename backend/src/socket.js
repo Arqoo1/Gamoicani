@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 import { config } from "./config/env.js";
 import { User } from "./models/User.js";
+import { ScoreEvent } from "./models/ScoreEvent.js";
 import { getContentPayload } from "./services/contentPackCache.js";
 import {
   clearSocketRoom,
@@ -328,6 +329,24 @@ async function awardMatchPoints(room, matchWinnerId, matchLoserId, isDraw = fals
 
     doc.gameStats.set(gameType, stat);
     await doc.save();
+
+    const attempts = room.guesses[p.userId]?.length || 1;
+    try {
+      await ScoreEvent.create({
+        attempts,
+        completionMethod: isWinner ? "solved" : "lost",
+        eventKey: `multiplayer:${room.roomId}:${p.userId}`,
+        gameId: gameType,
+        mode: "multiplayer",
+        points: isWinner ? 1 : 0,
+        user: p.userId,
+        won: isWinner
+      });
+    } catch (err) {
+      if (err?.code !== 11000) {
+        console.error("ScoreEvent create error for multiplayer:", err);
+      }
+    }
   }
 }
 

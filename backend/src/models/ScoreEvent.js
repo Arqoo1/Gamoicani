@@ -35,7 +35,7 @@ const scoreEventSchema = new mongoose.Schema(
     },
     mode: {
       default: "daily",
-      enum: ["daily", "practice"],
+      enum: ["daily", "practice", "multiplayer"],
       type: String
     },
     occurredAt: {

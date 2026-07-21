@@ -75,10 +75,10 @@ export default function LobbyScreen() {
 
     function onRoomJoined({ roomId, players }: { roomId: string; players: any[] }) {}
 
-    function onGameStart({ gameType, puzzle, roomId }: any) {
+    function onGameStart({ gameType, puzzle, roomId, activePlayerId }: any) {
       router.push({
         pathname: "/multiplayer",
-        params: { roomId, gameType, puzzle: JSON.stringify(puzzle) }
+        params: { roomId, gameType, puzzle: JSON.stringify(puzzle), activePlayerId: activePlayerId ?? "" }
       });
     }
 

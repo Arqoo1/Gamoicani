@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSocket } from "@/application/providers/socket";
+import { useAuth } from "@/application/providers/auth";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 
 type RouteParam = string | string[] | undefined;
@@ -96,15 +97,17 @@ function triggerFloat(
 export default function MultiplayerScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const params = useLocalSearchParams<{ roomId?: RouteParam; gameType?: RouteParam; puzzle?: RouteParam }>();
+  const params = useLocalSearchParams<{ roomId?: RouteParam; gameType?: RouteParam; puzzle?: RouteParam; activePlayerId?: RouteParam }>();
 
   const roomId     = firstParam(params.roomId)    ?? "";
   const gameType   = firstParam(params.gameType)  ?? "wordle";
+  const initialActivePlayer = firstParam(params.activePlayerId) || null;
   const puzzle     = useMemo(() => parsePuzzleParam(params.puzzle), [params.puzzle]);
   const wordLength = Math.max(1, Math.min(12, Number(puzzle?.wordLength) || 5));
 
   const { colors, isDark } = useAppTheme();
   const { socket, opponentProfile } = useSocket();
+  const { user } = useAuth();
 
   const [guesses,          setGuesses]          = useState<string[]>([]);
   const [currentGuess,     setCurrentGuess]     = useState("");
@@ -115,7 +118,7 @@ export default function MultiplayerScreen() {
   const [gameOver,         setGameOver]         = useState(false);
   const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
   const [leaveModalOpen,   setLeaveModalOpen]   = useState(false);
-  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(initialActivePlayer);
   const [timeLeft, setTimeLeft] = useState(30);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -137,7 +140,17 @@ export default function MultiplayerScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  const isMyTurn = !!socket && !!activePlayerId && activePlayerId === (socket as any).user?._id;
+  const hasStartedTimer = useRef(false);
+
+  // Start timer when user is available if it's our turn
+  useEffect(() => {
+    if (user && initialActivePlayer && initialActivePlayer === user.id && !hasStartedTimer.current) {
+      hasStartedTimer.current = true;
+      startTimer();
+    }
+  }, [user, initialActivePlayer]);
+
+  const isMyTurn = !!socket && !!activePlayerId && !!user && activePlayerId === user.id;
   const waitingForOpponent = !isMyTurn;
   
   const [emotePickerOpen,  setEmotePickerOpen]  = useState(false);
@@ -215,7 +228,7 @@ export default function MultiplayerScreen() {
     
     const onGameStart = (data: any) => {
       setActivePlayerId(data.activePlayerId);
-      if (data.activePlayerId === (socket as any).user?._id) {
+      if (user && data.activePlayerId === user.id) {
         startTimer();
       } else {
         stopTimer();
@@ -224,7 +237,7 @@ export default function MultiplayerScreen() {
     
     const onTurnChanged = (data: any) => {
       setActivePlayerId(data.activePlayerId);
-      if (data.activePlayerId === (socket as any).user?._id) {
+      if (user && data.activePlayerId === user.id) {
         startTimer();
       } else {
         stopTimer();
@@ -252,7 +265,7 @@ export default function MultiplayerScreen() {
       socket.off("turn-changed", onTurnChanged);
       stopTimer();
     };
-  }, [socket, oppY, oppOp, gameType, wordLength]);
+  }, [socket, oppY, oppOp, gameType, wordLength, user]);
 
   const handleBackPress = () => {
     if (gameOver) {
@@ -294,7 +307,7 @@ export default function MultiplayerScreen() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [gameOver, currentGuess, gameType]);
+  }, [gameOver, currentGuess, gameType, waitingForOpponent]);
 
   const sendEmote = (emote: string) => {
     socket?.emit("send-emote", { roomId, emote });

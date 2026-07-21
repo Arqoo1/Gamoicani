@@ -219,45 +219,71 @@ function setTurnTimer(io, roomId, turnCount) {
   turnTimers.set(roomId, timer);
 }
 
-async function handleTurnTimeout(io, roomId, turnIndex) {
+async function handleTurnTimeout(io, roomId, turnCount) {
   const lock = await acquireRoomLock(roomId);
   if (!lock.acquired) return;
 
   try {
     const room = await getRoom(roomId);
-    if (!room || room.turnIndex !== turnIndex || room.finished.length >= 2) return;
+    if (!room || room.turnCount !== turnCount || room.finished.length >= 2) return;
 
-    const activePlayers = room.players.filter(p => !room.finished.includes(p.userId));
-    let changed = false;
+    const pId = room.activePlayerId;
+    if (!pId) return;
 
-    for (const p of activePlayers) {
-      if (!room.turnSubmissions[p.userId]) {
+    const player = room.players.find(p => p.userId === pId);
+    if (!player || room.finished.includes(pId)) return;
 
-        const playerGuesses = room.guesses[p.userId] ?? [];
-        
-        if (room.actualType === "wordle") {
-          const tiles = Array(room.puzzle.wordLength).fill("absent");
-          playerGuesses.push({ guess: "", tiles });
-          room.turnSubmissions[p.userId] = { guess: "", isCorrect: false, tiles };
-          io.to(p.socketId).emit("turn-timeout", { attempt: playerGuesses.length });
-          const opponent = getOpponentById(room, p.userId);
-          if (opponent) io.to(opponent.socketId).emit("opponent-guess", { attempt: playerGuesses.length, tiles });
-        } else {
-          playerGuesses.push({ guess: "", correct: false });
-          room.turnSubmissions[p.userId] = { guess: "", isCorrect: false };
-          io.to(p.socketId).emit("turn-timeout", { attempt: playerGuesses.length });
-          const opponent = getOpponentById(room, p.userId);
-          if (opponent) io.to(opponent.socketId).emit("opponent-guess", { attempt: playerGuesses.length, isCorrect: false });
-        }
-        
-        room.guesses[p.userId] = playerGuesses;
-        changed = true;
+    const playerGuesses = room.guesses[pId] ?? [];
+    
+    if (room.actualType === "wordle") {
+      const tiles = Array(room.puzzle.wordLength).fill("absent");
+      playerGuesses.push({ correct: false, guess: "", tiles });
+      io.to(player.socketId).emit("turn-timeout", { attempt: playerGuesses.length });
+      const opponent = getOpponentById(room, pId);
+      if (opponent) io.to(opponent.socketId).emit("opponent-guess", { attempt: playerGuesses.length, tiles });
+    } else {
+      playerGuesses.push({ correct: false, guess: "" });
+      io.to(player.socketId).emit("turn-timeout", { attempt: playerGuesses.length });
+      const opponent = getOpponentById(room, pId);
+      if (opponent) io.to(opponent.socketId).emit("opponent-guess", { attempt: playerGuesses.length, isCorrect: false });
+    }
+    
+    room.guesses[pId] = playerGuesses;
+
+    const maxAttempts = room.actualType === "wordle" ? MAX_WORDLE_ATTEMPTS : MAX_ANDAZEBI_ATTEMPTS;
+    if (playerGuesses.length >= maxAttempts) {
+      room.finished.push(pId);
+    }
+
+    if (room.finished.length >= 2) {
+      clearTurnTimer(roomId);
+      const p1 = room.players[0];
+      const p2 = room.players[1];
+      let winnerId = null;
+      let isDraw = false;
+      
+      const p1Guesses = room.guesses[p1.userId] || [];
+      const p2Guesses = room.guesses[p2.userId] || [];
+      const p1Correct = p1Guesses.some(g => g.isCorrect || (g.tiles && g.tiles.every(t=>t==='correct')) || g.correct);
+      const p2Correct = p2Guesses.some(g => g.isCorrect || (g.tiles && g.tiles.every(t=>t==='correct')) || g.correct);
+
+      if (p1Correct && p2Correct) isDraw = true;
+      else if (p1Correct) winnerId = p1.userId;
+      else if (p2Correct) winnerId = p2.userId;
+      else isDraw = true;
+
+      await handleRoundOver(io, roomId, room, winnerId, isDraw);
+    } else {
+      const opponent = getOpponentById(room, pId);
+      if (opponent && !room.finished.includes(opponent.userId)) {
+        room.activePlayerId = opponent.userId;
       }
+      room.turnCount++;
+      io.to(roomId).emit("turn-changed", { activePlayerId: room.activePlayerId });
+      setTurnTimer(io, roomId, room.turnCount);
     }
 
-    if (changed) {
-      await resolveTurn(io, roomId, room);
-    }
+    await saveRoom(room);
   } finally {
     await releaseRedisLock(`multiplayer:room-lock:${roomId}`, lock.token);
   }

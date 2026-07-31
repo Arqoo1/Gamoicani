@@ -4,6 +4,7 @@ import { connectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
 import { initSocket } from "./socket.js";
 import { startDailyResetJob } from "./jobs/dailyNotification.js";
+import { startKeepAliveJob } from "./jobs/keepAlive.js";
 import { seedContent } from "./services/contentSeedService.js";
 
 async function startServer() {
@@ -27,6 +28,8 @@ async function startServer() {
     if (config.enableJobs) {
       startDailyResetJob();
     }
+    // Always start the keep-alive ping for Render
+    startKeepAliveJob();
   });
 }
 

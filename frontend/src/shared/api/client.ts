@@ -14,7 +14,7 @@ export type ApiEnvelope<T> = {
 
 const TOKEN_STORAGE_KEY = "auth:token:v1";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const PRODUCTION_API_URL = "https://gamoicani-production.up.railway.app/api";
+const PRODUCTION_API_URL = "https://gamoicani-ub68.onrender.com/api";
 
 function getDefaultApiUrl() {
   return Platform.OS === "android" ? "http://10.0.2.2:4000/api" : "http://localhost:4000/api";

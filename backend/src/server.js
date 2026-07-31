@@ -28,7 +28,6 @@ async function startServer() {
     if (config.enableJobs) {
       startDailyResetJob();
     }
-    // Always start the keep-alive ping for Render
     startKeepAliveJob();
   });
 }

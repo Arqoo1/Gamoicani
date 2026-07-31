@@ -32,6 +32,33 @@ export const ACHIEVEMENTS_META: Record<string, { label: string; emoji: string }>
   "all-games": { label: "ყველა თამაში", emoji: "🎮" }
 };
 
+export const SHOP_ITEMS_META: Record<string, { category: string; emoji?: string; color?: string; colors?: string[] }> = {
+  "avatar-fire":   { category: "avatar",  emoji: "🔥" },
+  "avatar-crown":  { category: "avatar",  emoji: "👑" },
+  "avatar-gem":    { category: "avatar",  emoji: "💎" },
+  "avatar-star":   { category: "avatar",  emoji: "⭐" },
+  "avatar-bolt":   { category: "avatar",  emoji: "⚡" },
+  "avatar-brain":  { category: "avatar",  emoji: "🧠" },
+  "avatar-trophy": { category: "avatar",  emoji: "🏆" },
+  "avatar-rocket": { category: "avatar",  emoji: "🚀" },
+  "tag-gold":      { category: "nameTag", color: "#FFD700" },
+  "tag-purple":    { category: "nameTag", color: "#9b5de5" },
+  "tag-red":       { category: "nameTag", color: "#e63946" },
+  "tag-blue":      { category: "nameTag", color: "#2176ae" },
+  "tag-orange":    { category: "nameTag", color: "#f77f00" },
+  "tag-teal":      { category: "nameTag", color: "#2ec4b6" },
+  "banner-aurora": { category: "banner",  colors: ["#0f0c29", "#302b63", "#24243e"] },
+  "banner-sunset": { category: "banner",  colors: ["#f77f00", "#e63946", "#9b5de5"] },
+  "banner-ocean":  { category: "banner",  colors: ["#0077b6", "#00b4d8", "#90e0ef"] },
+  "banner-forest": { category: "banner",  colors: ["#1b4332", "#2d6a4f", "#74c69d"] },
+  "banner-fire":   { category: "banner",  colors: ["#6a040f", "#d00000", "#ffba08"] },
+  "banner-galaxy": { category: "banner",  colors: ["#03045e", "#7209b7", "#f72585"] },
+  "banner-neon":   { category: "banner",  colors: ["#0d0d0d", "#39ff14", "#00f5ff"] },
+  "banner-candy":  { category: "banner",  colors: ["#ff6b9d", "#c44dff", "#45e3ff"] },
+  "banner-gold":   { category: "banner",  colors: ["#1a0a00", "#b8860b", "#ffd700"] },
+  "banner-ice":    { category: "banner",  colors: ["#e8f4f8", "#a8dadc", "#457b9d"] },
+};
+
 export function getInitials(name: string): string {
   return name
     .trim()

@@ -26,6 +26,12 @@ export type AuthUser = {
   email: string | null;
   gameStats: Record<string, GameStat>;
   id: string;
+  inventory: string[];
+  equippedItems: {
+    avatar: string | null;
+    banner: string | null;
+    nameTag: string | null;
+  };
   profilePhotoUrl: string | null;
   role: "user" | "admin";
   totalPoints: number;

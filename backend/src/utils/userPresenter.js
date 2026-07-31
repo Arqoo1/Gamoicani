@@ -39,6 +39,12 @@ export function serializeUser(user) {
     email: source.email ?? null,
     gameStats,
     id: String(source._id),
+    inventory: (source.inventory ?? []).map((i) => i.itemId ?? i),
+    equippedItems: {
+      avatar: source.equippedItems?.avatar ?? null,
+      banner: source.equippedItems?.banner ?? null,
+      nameTag: source.equippedItems?.nameTag ?? null,
+    },
     profilePhotoUrl: source.profilePhotoUrl ?? null,
     role: source.role ?? "user",
     totalPoints: source.totalPoints ?? 0,

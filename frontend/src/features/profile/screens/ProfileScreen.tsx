@@ -33,6 +33,7 @@ import {
   AVATAR_COLORS,
   COVER_GRADIENTS,
   GAME_META,
+  SHOP_ITEMS_META,
   formatDate,
   getInitials,
   getMediaUrl,
@@ -63,7 +64,17 @@ export default function ProfileScreen() {
 
   const coverIndex = user?.coverGradient ?? 0;
   const avatarColor = user?.avatarColor ?? "#2f9e5d";
-  const coverColors = COVER_GRADIENTS[coverIndex % COVER_GRADIENTS.length]!;
+
+  const equippedBannerId = user?.equippedItems?.banner ?? null;
+  const equippedAvatarId = user?.equippedItems?.avatar ?? null;
+  const equippedNameTagId = user?.equippedItems?.nameTag ?? null;
+  const equippedBannerColors = equippedBannerId ? SHOP_ITEMS_META[equippedBannerId]?.colors : null;
+  const equippedAvatarEmoji = equippedAvatarId ? SHOP_ITEMS_META[equippedAvatarId]?.emoji : null;
+  const equippedNameTagColor = equippedNameTagId ? SHOP_ITEMS_META[equippedNameTagId]?.color : null;
+
+  const coverColors = equippedBannerColors
+    ? [equippedBannerColors[0], equippedBannerColors[equippedBannerColors.length - 1]] as [string, string]
+    : COVER_GRADIENTS[coverIndex % COVER_GRADIENTS.length]!;;
 
   const [actionSheet, setActionSheet] = useState<"none" | "cover" | "avatar">("none");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -334,12 +345,14 @@ export default function ProfileScreen() {
         {}
         <View style={styles.avatarRow}>
           <TouchableOpacity
-            style={[styles.avatar, !user.profilePhotoUrl && { backgroundColor: avatarColor }]}
+            style={[styles.avatar, !user.profilePhotoUrl && !equippedAvatarEmoji && { backgroundColor: avatarColor }]}
             onPress={handleAvatarTap}
             activeOpacity={0.8}
           >
             {user.profilePhotoUrl ? (
               <Image source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
+            ) : equippedAvatarEmoji ? (
+              <Text style={styles.avatarEmoji}>{equippedAvatarEmoji}</Text>
             ) : (
               <Text style={styles.avatarInitials}>{initials}</Text>
             )}
@@ -350,7 +363,12 @@ export default function ProfileScreen() {
 
           <View style={styles.heroInfo}>
             <View style={styles.heroNameRow}>
-              <Text style={styles.heroName} numberOfLines={1}>{user.displayName}</Text>
+              <Text
+                style={[styles.heroName, equippedNameTagColor ? { color: equippedNameTagColor } : undefined]}
+                numberOfLines={1}
+              >
+                {user.displayName}
+              </Text>
               <View style={[styles.rankBadge, { borderColor: rank.color }]}>
                 <Text style={styles.rankBadgeIcon}>{rank.icon}</Text>
                 <Text style={[styles.rankBadgeText, { color: rank.color }]}>{rank.label}</Text>
@@ -963,6 +981,7 @@ function createStyles(colors: AppColors) {
     },
     avatarImage: { height: "100%", width: "100%" },
     avatarInitials: { color: "#fff", fontSize: 28, fontWeight: "900" },
+    avatarEmoji: { fontSize: 44 },
     avatarEditBadge: {
       alignItems: "center",
       backgroundColor: colors.accent,

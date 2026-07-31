@@ -9,6 +9,7 @@ import {
   ACHIEVEMENTS_META,
   COVER_GRADIENTS,
   GAME_META,
+  SHOP_ITEMS_META,
   formatDate,
   getInitials,
   getMediaUrl,
@@ -57,6 +58,19 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   const avatarColor = user.avatarColor ?? "#2f9e5d";
   const coverColors = COVER_GRADIENTS[coverIndex % COVER_GRADIENTS.length]!;
 
+  // Equipped shop items
+  const equippedBannerId = user.equippedItems?.banner ?? null;
+  const equippedAvatarId = user.equippedItems?.avatar ?? null;
+  const equippedNameTagId = user.equippedItems?.nameTag ?? null;
+  const equippedBannerColors = equippedBannerId ? SHOP_ITEMS_META[equippedBannerId]?.colors : null;
+  const equippedAvatarEmoji = equippedAvatarId ? SHOP_ITEMS_META[equippedAvatarId]?.emoji : null;
+  const equippedNameTagColor = equippedNameTagId ? SHOP_ITEMS_META[equippedNameTagId]?.color : null;
+
+  // Use equipped banner if present, otherwise fall back to cover gradient
+  const activeCoverColors = equippedBannerColors
+    ? [equippedBannerColors[0], equippedBannerColors[equippedBannerColors.length - 1]] as [string, string]
+    : coverColors;;
+
   const rank = getRankInfo(user.totalPoints ?? 0);
   const initials = getInitials(user.displayName ?? user.username);
 
@@ -94,7 +108,7 @@ export default function PublicProfileScreen({ username }: { username: string }) 
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-      <View style={[styles.header, { backgroundColor: colors.card }]}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <Pressable
           style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
           onPress={() => router.back()}
@@ -116,8 +130,8 @@ export default function PublicProfileScreen({ username }: { username: string }) 
             <Image source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
           ) : (
             <>
-              <View style={[styles.coverGradientTop, { backgroundColor: coverColors[0] }]} />
-              <View style={[styles.coverGradientBottom, { backgroundColor: coverColors[1] }]} />
+              <View style={[styles.coverGradientTop, { backgroundColor: activeCoverColors[0] }]} />
+              <View style={[styles.coverGradientBottom, { backgroundColor: activeCoverColors[1] }]} />
             </>
           )}
           <View style={styles.coverOverlay} />
@@ -125,9 +139,11 @@ export default function PublicProfileScreen({ username }: { username: string }) 
 
         {/* Avatar & Hero Info */}
         <View style={styles.avatarRow}>
-          <View style={[styles.avatar, !user.profilePhotoUrl && { backgroundColor: avatarColor }]}>
+          <View style={[styles.avatar, !user.profilePhotoUrl && !equippedAvatarEmoji && { backgroundColor: avatarColor }]}>
             {user.profilePhotoUrl ? (
               <Image source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
+            ) : equippedAvatarEmoji ? (
+              <Text style={styles.avatarEmoji}>{equippedAvatarEmoji}</Text>
             ) : (
               <Text style={styles.avatarInitials}>{initials}</Text>
             )}
@@ -135,7 +151,12 @@ export default function PublicProfileScreen({ username }: { username: string }) 
 
           <View style={styles.heroInfo}>
             <View style={styles.heroNameRow}>
-              <Text style={styles.heroName} numberOfLines={1}>{user.displayName}</Text>
+              <Text
+                style={[styles.heroName, equippedNameTagColor ? { color: equippedNameTagColor } : undefined]}
+                numberOfLines={1}
+              >
+                {user.displayName}
+              </Text>
               <View style={[styles.rankBadge, { borderColor: rank.color }]}>
                 <Text style={styles.rankBadgeIcon}>{rank.icon}</Text>
                 <Text style={[styles.rankBadgeText, { color: rank.color }]}>{rank.label}</Text>
@@ -307,7 +328,7 @@ function createStyles(colors: AppColors) {
     cover: { height: 160, width: "100%", backgroundColor: colors.card, position: "relative" },
     coverGradientTop: { position: "absolute", top: 0, left: 0, right: 0, bottom: "50%" },
     coverGradientBottom: { position: "absolute", top: "50%", left: 0, right: 0, bottom: 0 },
-    coverOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.15)" },
+    coverOverlay: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.15)" },
     avatarRow: { flexDirection: "row", paddingHorizontal: 20, marginTop: -36, marginBottom: 20, alignItems: "flex-end", zIndex: 10 },
     avatar: {
       width: 96,
@@ -322,6 +343,7 @@ function createStyles(colors: AppColors) {
     },
     avatarImage: { width: 88, height: 88, borderRadius: 44, resizeMode: "cover" },
     avatarInitials: { color: "#fff", fontSize: 36, fontWeight: "900" },
+    avatarEmoji: { fontSize: 52 },
     heroInfo: { flex: 1, marginLeft: 16, paddingBottom: 4 },
     heroNameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
     heroName: { color: colors.primaryText, fontSize: 24, fontWeight: "900", flexShrink: 1 },

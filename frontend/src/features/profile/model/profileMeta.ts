@@ -1,4 +1,5 @@
-import { API_BASE_URL } from "@/shared/api/client";
+import { getApiOrigin } from "@/shared/api/client";
+import { AuthUser, GameStat } from "@/entities/user/types";
 
 export const COVER_GRADIENTS = [
   ["#0f4c35", "#2f9e5d"],
@@ -77,7 +78,49 @@ export function getRankInfo(points: number) {
 
 export function getMediaUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined;
-  return API_BASE_URL.replace("/api", "") + path;
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getApiOrigin()}${normalizedPath}`;
+}
+
+export type ProfileGameEntry = {
+  emoji: string;
+  gameId: string;
+  label: string;
+  stat: GameStat;
+};
+
+export type ProfileStatsSummary = {
+  bestStreak: number;
+  gameEntries: ProfileGameEntry[];
+  totalPlays: number;
+  totalWins: number;
+  winPct: number;
+};
+
+export function getProfileStatsSummary(user: Pick<AuthUser, "gameStats"> | null | undefined): ProfileStatsSummary {
+  const gameEntries = Object.entries(user?.gameStats ?? {}).map(([gameId, stat]) => ({
+    emoji: GAME_META[gameId]?.emoji ?? "🎮",
+    gameId,
+    label: GAME_META[gameId]?.label ?? gameId,
+    stat
+  }));
+
+  const totalWins = gameEntries.reduce((sum, game) => sum + (game.stat.wins ?? 0), 0);
+  const totalPlays = gameEntries.reduce((sum, game) => sum + (game.stat.plays ?? 0), 0);
+  const bestStreak = Math.max(0, ...gameEntries.map((game) => game.stat.maxStreak ?? 0));
+  const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
+
+  return { bestStreak, gameEntries, totalPlays, totalWins, winPct };
+}
+
+export function normalizeGuessDistribution(value: unknown): number[] {
+  const source = Array.isArray(value) ? value : [];
+  return Array.from({ length: 6 }, (_, index) => {
+    const count = Number(source[index]);
+    return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  });
 }
 
 export function formatDate(iso: string | null | undefined): string {

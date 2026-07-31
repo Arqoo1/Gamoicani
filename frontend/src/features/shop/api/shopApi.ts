@@ -21,3 +21,11 @@ export async function equipItem(itemId: string): Promise<{ equippedItems: ShopDa
   });
   return response.data;
 }
+
+export async function unequipItem(category: string): Promise<{ equippedItems: ShopData["equippedItems"] }> {
+  const response = await requestJson<{ equippedItems: ShopData["equippedItems"] }>("/shop/unequip", {
+    body: JSON.stringify({ category }),
+    method: "POST"
+  });
+  return response.data;
+}

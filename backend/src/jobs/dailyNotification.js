@@ -130,7 +130,6 @@ export async function runDailyResetNotifications() {
 
     await processNotificationBatch(batch);
 
-    // Clear global chat messages at the daily reset
     await clearGlobalChat();
   } finally {
     await releaseRedisLock(LOCK_KEY, lock.token);

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 declare const process:
@@ -12,7 +13,9 @@ export type ApiEnvelope<T> = {
   data: T;
 };
 
-const TOKEN_STORAGE_KEY = "auth:token:v1";
+const LEGACY_TOKEN_STORAGE_KEY = "auth:token:v1";
+const TOKEN_STORAGE_KEY = "auth-token-v1";
+const TOKEN_MIGRATED_KEY = "auth-token-secure-migrated-v1";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const PRODUCTION_API_URL = "https://gamoicani-ub68.onrender.com/api";
 
@@ -36,16 +39,36 @@ function resolveApiBaseUrl() {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
+export function getApiOrigin() {
+  return API_BASE_URL.replace(/\/api\/?$/, "");
+}
+
 export async function getAuthToken() {
-  return AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+  const secureToken = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
+  if (secureToken) return secureToken;
+
+  const migrated = await AsyncStorage.getItem(TOKEN_MIGRATED_KEY);
+  if (migrated) return null;
+
+  const legacyToken = await AsyncStorage.getItem(LEGACY_TOKEN_STORAGE_KEY);
+  if (!legacyToken) {
+    await AsyncStorage.setItem(TOKEN_MIGRATED_KEY, "true");
+    return null;
+  }
+
+  await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, legacyToken);
+  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
+  return legacyToken;
 }
 
 export async function setAuthToken(token: string) {
-  await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
+  await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, token);
+  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }
 
 export async function clearAuthToken() {
-  await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+  await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }
 
 export async function fetchWithTimeout(

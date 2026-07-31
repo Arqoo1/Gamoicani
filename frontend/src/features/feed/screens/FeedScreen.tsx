@@ -2,9 +2,9 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -13,8 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FeedEvent, fetchSocialFeed } from "@/features/feed/api/feedApi";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
-import { API_BASE_URL } from "@/shared/api/client";
 import { FeedEventCard } from "@/features/feed/ui/FeedEventCard";
+import { getMediaUrl } from "@/features/profile/model/profileMeta";
 
 const GAME_META: Record<string, { label: string; emoji: string }> = {
   wordle:   { label: "სიტყვობანა", emoji: "🟩" },
@@ -43,15 +43,19 @@ export default function FeedScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
+    setErrorMessage("");
     try {
       const data = await fetchSocialFeed();
       setEvents(data);
-    } catch {} finally {
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Feed failed to load");
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -85,8 +89,17 @@ export default function FeedScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
+      ) : errorMessage ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>{errorMessage}</Text>
+          <Pressable style={styles.retryButton} onPress={() => load()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={events}
+          keyExtractor={(ev) => ev.id}
           contentContainerStyle={styles.content}
           refreshControl={
             <RefreshControl
@@ -97,35 +110,30 @@ export default function FeedScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
-        >
-          {events.length === 0 ? (
+          ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🌐</Text>
               <Text style={styles.emptyTitle}>ჯერ არავის შედეგი</Text>
               <Text style={styles.emptyHint}>დაამეგობრდი სხვებს, რომ მათი გამარჯვებები იხილო</Text>
             </View>
-          ) : (
-            events.map((ev) => {
-              const avatarUrl = ev.user.profilePhotoUrl
-                ? API_BASE_URL.replace("/api", "") + ev.user.profilePhotoUrl
-                : null;
-              return (
-                <FeedEventCard
-                  key={ev.id}
-                  avatarColor={ev.user.avatarColor}
-                  avatarText={getInitials(ev.user.displayName)}
-                  avatarUrl={avatarUrl}
-                  displayName={ev.user.displayName}
-                  gameDescription={getGameDescription(ev)}
-                  styles={styles}
-                  timeLabel={timeAgo(ev.occurredAt)}
-                  winText={`🏆 მოიგო! +${ev.points} ქულა`}
-                />
-              );
-            })
-          )}
-          <View style={{ height: 24 }} />
-        </ScrollView>
+          }
+          renderItem={({ item: ev }) => {
+            const avatarUrl = getMediaUrl(ev.user.profilePhotoUrl) ?? null;
+            return (
+              <FeedEventCard
+                avatarColor={ev.user.avatarColor}
+                avatarText={getInitials(ev.user.displayName)}
+                avatarUrl={avatarUrl}
+                displayName={ev.user.displayName}
+                gameDescription={getGameDescription(ev)}
+                styles={styles}
+                timeLabel={timeAgo(ev.occurredAt)}
+                winText={`🏆 მოიგო! +${ev.points} ქულა`}
+              />
+            );
+          }}
+          ListFooterComponent={<View style={{ height: 24 }} />}
+        />
       )}
     </SafeAreaView>
   );
@@ -150,6 +158,14 @@ function createStyles(colors: AppColors) {
     emptyEmoji: { fontSize: 56 },
     emptyTitle: { color: colors.primaryText, fontSize: 20, fontWeight: "900" },
     emptyHint: { color: colors.secondaryText, fontSize: 14, textAlign: "center", maxWidth: 260 },
+    retryButton: {
+      backgroundColor: colors.accent,
+      borderRadius: 8,
+      marginTop: 16,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    retryButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "900" },
     card: {
       backgroundColor: colors.card,
       borderColor: colors.border,

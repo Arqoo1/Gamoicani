@@ -15,6 +15,18 @@ import { SocketProvider } from "@/application/providers/socket";
 import { ThemeProvider, useAppTheme } from "@/application/providers/theme";
 import { savePushTokenAPI } from "@/features/auth/api/authApi";
 import { registerForPushNotificationsAsync, scheduleInactivityReminder } from "@/shared/services/notifications";
+import { initAudioPool } from "@/shared/services/sound";
+import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 GoogleSignin.configure({
   webClientId: "952002684410-m0b2n1efru099m99gf768gr199b05tfq.apps.googleusercontent.com",
 });
@@ -95,17 +107,25 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    initAudioPool().catch(() => {});
+  }, []);
+
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <SettingsProvider>
-          <AuthProvider>
-            <SocketProvider>
-              <ThemedStack />
-            </SocketProvider>
-          </AuthProvider>
-        </SettingsProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <SettingsProvider>
+              <AuthProvider>
+                <SocketProvider>
+                  <ThemedStack />
+                </SocketProvider>
+              </AuthProvider>
+            </SettingsProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

@@ -113,7 +113,9 @@ export default function ShopScreen() {
         >
           <Feather color={colors.primaryText} name="chevron-left" size={28} />
         </Pressable>
-        <Text style={styles.title}>მაღაზია</Text>
+        <View style={styles.headerTitleWrap} pointerEvents="none">
+          <Text style={styles.title}>მაღაზია</Text>
+        </View>
         <View style={styles.pointsBadge}>
           <Feather name="star" size={14} color={colors.accent} />
           <Text style={styles.pointsText}>{shopData?.totalPoints.toLocaleString() ?? "..."}</Text>
@@ -256,7 +258,17 @@ function createStyles(colors: AppColors) {
       paddingVertical: 12,
     },
     backBtn: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
-    title: { color: colors.primaryText, fontSize: 18, fontWeight: "900" },
+    headerTitleWrap: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      zIndex: -1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: { color: colors.primaryText, fontSize: 18, fontWeight: "900", textAlign: "center" },
     pressed: { opacity: 0.65 },
     pointsBadge: {
       alignItems: "center",

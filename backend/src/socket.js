@@ -1,10 +1,8 @@
 import { Server } from "socket.io";
-import jwt from "jsonwebtoken";
 
 import { config } from "./config/env.js";
 import { User } from "./models/User.js";
 import { ScoreEvent } from "./models/ScoreEvent.js";
-import { getContentPayload } from "./services/contentPackCache.js";
 import {
   clearSocketRoom,
   createPlayer,
@@ -19,191 +17,35 @@ import {
   saveRoom,
   setPrivateRoom
 } from "./services/multiplayerStore.js";
-import { acquireRedisLock, getRedisClient, releaseRedisLock } from "./services/redisClient.js";
+import { releaseRedisLock } from "./services/redisClient.js";
+import { configureSocketAdapter, registerSocketAuth } from "./socket/bootstrap.js";
+import {
+  GAME_TYPES,
+  MAX_ANDAZEBI_ATTEMPTS,
+  MAX_WORDLE_ATTEMPTS,
+  TURN_TIMEOUT_MS
+} from "./socket/constants.js";
+import {
+  normalizeGuessInput,
+  pickPuzzle,
+  scoreWordleGuess
+} from "./socket/gameLogic.js";
+import { registerChatHandlers } from "./socket/chatHandlers.js";
+import {
+  acquireRoomLock,
+  createRoom,
+  generateUniquePasscode,
+  getOpponent,
+  getOpponentById,
+  getPlayer,
+  joinSocketToRoom,
+  publicPlayer,
+  socketExists
+} from "./socket/roomUtils.js";
 
-const GAME_TYPES = ["wordle", "andazebi", "mix"];
-const MAX_WORDLE_ATTEMPTS = 6;
-const MAX_ANDAZEBI_ATTEMPTS = 8;
-const MAX_RAW_GUESS_LENGTH = 120;
-const MAX_ANDAZEBI_GUESS_LENGTH = 80;
-const TURN_TIMEOUT_MS = 30000;
+export { normalizeGuessInput } from "./socket/gameLogic.js";
 
 const turnTimers = new Map();
-
-async function configureSocketAdapter(io) {
-  const pubClient = await getRedisClient();
-
-  if (!pubClient) {
-    return;
-  }
-
-  const { createAdapter } = await import("@socket.io/redis-adapter");
-  const subClient = pubClient.duplicate();
-  await subClient.connect();
-  io.adapter(createAdapter(pubClient, subClient));
-  console.log("[Socket] Redis adapter enabled");
-}
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
-function generatePasscode() {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
-async function generateUniquePasscode() {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const passcode = generatePasscode();
-
-    if (!(await getPrivateRoomId(passcode))) {
-      return passcode;
-    }
-  }
-
-  throw new Error("Could not allocate private room passcode");
-}
-
-function createRoom({ gameType, passcode = null, players, roomId = generateId() }) {
-  return {
-    actualType: null,
-    answer: null,
-    finished: [],
-    gameType,
-    guesses: {},
-    passcode,
-    players,
-    puzzle: null,
-    roomId,
-    roundIndex: 0,
-    roundResults: [],
-    scores: {},
-    totalRounds: gameType === "mix" ? 3 : 1,
-    turnSubmissions: {},
-    turnIndex: 0,
-    activePlayerId: null,
-    turnCount: 0
-  };
-}
-
-function getOpponent(room, socket) {
-  return room.players.find((player) => player.socketId !== socket?.id) ?? null;
-}
-
-function getOpponentById(room, userId) {
-  return room.players.find((player) => player.userId !== userId) ?? null;
-}
-
-function getPlayer(room, socket) {
-  return room.players.find((player) => player.socketId === socket.id) ?? null;
-}
-
-function publicPlayer(player) {
-  return {
-    displayName: player.displayName,
-    id: player.userId,
-    username: player.username
-  };
-}
-
-async function socketExists(io, socketId) {
-  const sockets = await io.in(socketId).fetchSockets();
-  return sockets.length > 0;
-}
-
-async function joinSocketToRoom(io, socketId, roomId) {
-  await io.in(socketId).socketsJoin(roomId);
-}
-
-async function acquireRoomLock(roomId) {
-  return acquireRedisLock(`multiplayer:room-lock:${roomId}`, 5000);
-}
-
-function scoreWordleGuess(guess, answer) {
-  const result = Array(answer.length).fill("absent");
-  const answerChars = [...answer];
-  const guessChars = [...guess];
-
-  for (let i = 0; i < guessChars.length; i++) {
-    if (guessChars[i] === answerChars[i]) {
-      result[i] = "correct";
-      answerChars[i] = null;
-      guessChars[i] = null;
-    }
-  }
-
-  for (let i = 0; i < guessChars.length; i++) {
-    if (guessChars[i] === null) continue;
-    const idx = answerChars.indexOf(guessChars[i]);
-    if (idx !== -1) {
-      result[i] = "present";
-      answerChars[idx] = null;
-    }
-  }
-
-  return result;
-}
-
-export function normalizeGuessInput(guess, room) {
-  if (!guess || typeof guess !== "string") return { error: "Invalid guess" };
-  if (guess.length > MAX_RAW_GUESS_LENGTH) return { error: "Guess is too long" };
-
-  const normalizedGuess = guess.trim().toLocaleLowerCase("ka-GE");
-  if (!normalizedGuess) return { error: "Invalid guess" };
-
-  if (room.actualType === "wordle") {
-    const expectedLength = Array.from(String(room.answer ?? "")).length;
-    if (Array.from(normalizedGuess).length !== expectedLength) {
-      return { error: `Guess must be ${expectedLength} letters` };
-    }
-  } else if (normalizedGuess.length > MAX_ANDAZEBI_GUESS_LENGTH) {
-    return { error: "Guess is too long" };
-  }
-
-  return { normalizedGuess };
-}
-
-async function pickPuzzle(gameType, roundIndex = 0) {
-  let actualType = gameType;
-  if (gameType === "mix") {
-    actualType = roundIndex % 2 === 0 ? "wordle" : "andazebi";
-  }
-
-  const payload = await getContentPayload(actualType).catch(() => null);
-  if (!payload) return null;
-
-  if (actualType === "wordle") {
-    const answers = payload.answers ?? payload.words ?? [];
-    if (answers.length === 0) return null;
-
-    const answer = answers[Math.floor(Math.random() * answers.length)];
-    const combinedValidWords = [...answers, ...(payload.validWords ?? payload.valid ?? [])];
-
-    return {
-      actualType: "wordle",
-      answer,
-      puzzle: { gameType: "wordle", validWords: combinedValidWords, wordLength: answer.length }
-    };
-  }
-
-  const items = payload.items ?? payload.proverbs ?? [];
-  if (items.length === 0) return null;
-
-  const item = items[Math.floor(Math.random() * items.length)];
-  const answer = item.answer ?? item.text ?? item;
-
-  return {
-    actualType: "andazebi",
-    answer: typeof answer === "string" ? answer : String(answer),
-    puzzle: {
-      gameType: "andazebi",
-      hint: item.hint ?? item.category ?? null,
-      prompt: item.prompt ?? item.display ?? item.masked ?? null,
-      missingWordsCount: Array.isArray(item.missingWords) ? item.missingWords.length : typeof answer === "string" ? answer.split(" ").length : 1,
-      wordLength: typeof answer === "string" ? answer.length : undefined
-    }
-  };
-}
 
 function clearTurnTimer(roomId) {
   if (turnTimers.has(roomId)) {
@@ -525,94 +367,10 @@ export async function initSocket(httpServer) {
 
   await configureSocketAdapter(io);
 
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth?.token;
-      if (!token) return next(new Error("Authentication required"));
-      const payload = jwt.verify(token, config.jwtSecret);
-      const user = await User.findById(payload.sub);
-      if (!user) return next(new Error("Authentication required"));
-      socket.user = user;
-      next();
-    } catch {
-      next(new Error("Authentication required"));
-    }
-  });
-
-  const CHAT_REDIS_KEY = "global-chat:messages";
-  const CHAT_MAX_MESSAGES = 100;
-  const CHAT_TTL_SECONDS = 86400; // 24 hours
-
-  async function saveChatMessage(message) {
-    try {
-      const client = await getRedisClient();
-      if (!client) return;
-      const serialized = JSON.stringify(message);
-      // Push to the right end of the list and trim to keep the last CHAT_MAX_MESSAGES
-      await client.rPush(CHAT_REDIS_KEY, serialized);
-      await client.lTrim(CHAT_REDIS_KEY, -CHAT_MAX_MESSAGES, -1);
-      // Only set the TTL once (when the key is new) so it expires at a fixed point,
-      // not rolling forward on every message. The daily cron also deletes the key.
-      const ttl = await client.ttl(CHAT_REDIS_KEY);
-      if (ttl < 0) {
-        await client.expire(CHAT_REDIS_KEY, CHAT_TTL_SECONDS);
-      }
-    } catch (err) {
-      console.error("[Chat] Failed to save message to Redis:", err);
-    }
-  }
-
-  async function loadChatHistory() {
-    try {
-      const client = await getRedisClient();
-      if (!client) return [];
-      const raw = await client.lRange(CHAT_REDIS_KEY, 0, -1);
-      return raw
-        .map((s) => { try { return JSON.parse(s); } catch { return null; } })
-        .filter(Boolean);
-    } catch (err) {
-      console.error("[Chat] Failed to load history from Redis:", err);
-      return [];
-    }
-  }
+  registerSocketAuth(io);
 
   io.on("connection", async (socket) => {
-    socket.join("global-chat");
-    socket.lastChatAt = 0;
-
-    socket.on("request-chat-history", async () => {
-      const history = await loadChatHistory();
-      if (history.length > 0) {
-        socket.emit("chat-history", { messages: history });
-      }
-    });
-
-    socket.on("chat-send", async ({ text }) => {
-      if (!text || typeof text !== "string") return;
-      const msg = text.trim().slice(0, 200);
-      if (!msg) return;
-
-      const now = Date.now();
-      if (now - socket.lastChatAt < 2000) {
-        socket.emit("error-message", { message: "Too many messages. Please wait." });
-        return;
-      }
-      socket.lastChatAt = now;
-
-      const chatMessage = {
-        displayName: socket.user.displayName,
-        id: generateId(),
-        text: msg,
-        timestamp: now,
-        userId: socket.user._id.toString(),
-        username: socket.user.username
-      };
-
-      // Persist to Redis before broadcasting
-      await saveChatMessage(chatMessage);
-
-      io.to("global-chat").emit("chat-message", chatMessage);
-    });
+    registerChatHandlers(io, socket);
 
     socket.on("profile-update", async ({ equippedItems }) => {
       const found = await findRoomBySocketId(socket.id);
@@ -788,7 +546,6 @@ export async function initSocket(httpServer) {
         
         if (isCorrect || playerGuesses.length >= maxAttempts) {
           room.finished.push(player.userId);
-          // Auto-finish opponent if current player is correct
           if (isCorrect) {
              const opponent = getOpponent(room, socket);
              if (opponent && !room.finished.includes(opponent.userId)) {
@@ -816,7 +573,7 @@ export async function initSocket(httpServer) {
           } else if (p2Correct) {
              winnerId = p2.userId;
           } else {
-             isDraw = true; // both failed
+             isDraw = true; 
           }
 
           await handleRoundOver(io, roomId, room, winnerId, isDraw);

@@ -10,6 +10,7 @@ import {
   registerAccount,
   updateMyProfile
 } from "@/features/auth/api/authApi";
+import { runAuthBootstrap } from "@/features/auth/services/authBootstrap";
 import {
   uploadCoverPhoto as apiUploadCoverPhoto,
   uploadProfilePhoto as apiUploadProfilePhoto
@@ -68,7 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextUser);
       setStatus("authenticated");
       setError(null);
-    } catch {
+      runAuthBootstrap(nextUser, (repaired) => setUser(repaired)).catch(() => {});
+    } catch (error) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.warn("[Auth] Failed to refresh user:", error);
+      }
       await clearAuthToken();
       setUser(null);
       setStatus("unauthenticated");

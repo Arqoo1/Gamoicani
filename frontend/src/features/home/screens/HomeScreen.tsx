@@ -137,6 +137,14 @@ export default function HomeScreen() {
             </Pressable>
 
             <Pressable
+              accessibilityLabel="მაღაზია"
+              style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
+              onPress={() => router.push("/shop" as any)}
+            >
+              <Feather name="shopping-bag" size={18} color={colors.primaryText} />
+            </Pressable>
+
+            <Pressable
               accessibilityLabel="მულტიპლეერი"
               style={({ pressed }) => [styles.toolButton, pressed && styles.cardPressed]}
               onPress={() => router.push("/lobby")}

@@ -2,9 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { ShopData } from "@/entities/shop/types";
 import { useAuth } from "@/application/providers/auth";
-import { API_BASE_URL, getAuthToken } from "@/shared/api/client";
+import { getApiOrigin, getAuthToken } from "@/shared/api/client";
+import { ClientToServerEvents, ServerToClientEvents } from "@/shared/api/socket.types";
 
-const SOCKET_URL = API_BASE_URL.replace("/api", "");
+const SOCKET_URL = getApiOrigin();
 
 export type OpponentProfile = {
   equippedItems: ShopData["equippedItems"] | null;
@@ -12,8 +13,10 @@ export type OpponentProfile = {
   username?: string;
 };
 
+export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
 type SocketContextType = {
-  socket: Socket | null;
+  socket: AppSocket | null;
   isConnected: boolean;
   opponentProfile: OpponentProfile | null;
   emitProfileUpdate: (equippedItems: ShopData["equippedItems"]) => void;
@@ -28,12 +31,12 @@ const SocketContext = createContext<SocketContextType>({
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<AppSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [opponentProfile, setOpponentProfile] = useState<OpponentProfile | null>(null);
 
   useEffect(() => {
-    let newSocket: Socket;
+    let newSocket: AppSocket;
 
     async function initSocket() {
       if (status !== "authenticated") return;
@@ -44,7 +47,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       newSocket = io(SOCKET_URL, {
         auth: { token },
         transports: ["websocket"],
-      });
+      }) as AppSocket;
 
       newSocket.on("connect", () => {
         setIsConnected(true);
@@ -56,7 +59,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         console.log("[Socket] Disconnected");
       });
 
-      newSocket.on("error-message", (err) => {
+      newSocket.on("error-message", (err: { message: string }) => {
         console.error("[Socket Error]", err.message);
       });
 
@@ -73,6 +76,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (newSocket) {
         newSocket.disconnect();
       }
+      setSocket(null);
     };
   }, [status]);
 

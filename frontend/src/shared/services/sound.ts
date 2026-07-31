@@ -173,39 +173,51 @@ function makeLoss(): string {
   return buildWav(mixSamples(parts, SR), SR);
 }
 
-const _soundCache = new Map<string, AudioPlayer>();
 
-async function playNativeSound(dataUri: string): Promise<void> {
-  if (!_soundEnabled) return;
+type SoundKey = "pop" | "chime" | "buzz" | "win" | "reveal" | "loss";
+
+const _pool = new Map<SoundKey, AudioPlayer>();
+let _poolReady = false;
+
+export async function initAudioPool(): Promise<void> {
+  if (Platform.OS === "web" || _poolReady) return;
   try {
-    await setAudioModeAsync({
-      playsInSilentMode: true,
-    }).catch(() => {});
+    await setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
 
-    let sound = _soundCache.get(dataUri);
-    if (!sound) {
-      sound = createAudioPlayer(dataUri);
-      _soundCache.set(dataUri, sound);
+    const entries: Array<[SoundKey, string]> = [
+      ["pop",    makePop()],
+      ["chime",  makeChime()],
+      ["buzz",   makeBuzz()],
+      ["win",    makeWin()],
+      ["reveal", makeReveal()],
+      ["loss",   makeLoss()],
+    ];
+
+    for (const [key, uri] of entries) {
+      const player = createAudioPlayer(uri);
+      _pool.set(key, player);
     }
-    await sound.seekTo(0).catch(() => {});
-    sound.play();
-  } catch {
+    _poolReady = true;
+  } catch (e) {
+    console.warn("[sound] initAudioPool failed:", e);
   }
 }
 
-let _popUri: string | null = null;
-let _chimeUri: string | null = null;
-let _buzzUri: string | null = null;
-let _winUri: string | null = null;
-let _revealUri: string | null = null;
-let _lossUri: string | null = null;
+async function playPooled(key: SoundKey): Promise<void> {
+  if (!_soundEnabled) return;
+  try {
+    const player = _pool.get(key);
+    if (!player) return;
+    await player.seekTo(0).catch(() => {});
+    player.play();
+  } catch {}
+}
 
 export function playPop() {
   if (Platform.OS === "web") {
     playTone(800, 0.06, "sine", 0.15);
   } else {
-    if (!_popUri) _popUri = makePop();
-    playNativeSound(_popUri);
+    playPooled("pop");
   }
 }
 
@@ -217,8 +229,7 @@ export function playChime() {
       { freq: 784, dur: 0.2,  delay: 0.2 },
     ], "sine", 0.25);
   } else {
-    if (!_chimeUri) _chimeUri = makeChime();
-    playNativeSound(_chimeUri);
+    playPooled("chime");
   }
 }
 
@@ -226,8 +237,7 @@ export function playBuzz() {
   if (Platform.OS === "web") {
     playTone(120, 0.18, "sawtooth", 0.2);
   } else {
-    if (!_buzzUri) _buzzUri = makeBuzz();
-    playNativeSound(_buzzUri);
+    playPooled("buzz");
   }
 }
 
@@ -240,8 +250,7 @@ export function playWin() {
       { freq: 1047, dur: 0.35, delay: 0.36 },
     ], "sine", 0.3);
   } else {
-    if (!_winUri) _winUri = makeWin();
-    playNativeSound(_winUri);
+    playPooled("win");
   }
 }
 
@@ -249,8 +258,7 @@ export function playReveal() {
   if (Platform.OS === "web") {
     playTone(440, 0.08, "sine", 0.12);
   } else {
-    if (!_revealUri) _revealUri = makeReveal();
-    playNativeSound(_revealUri);
+    playPooled("reveal");
   }
 }
 
@@ -262,7 +270,7 @@ export function playLoss() {
       { freq: 262, dur: 0.3,  delay: 0.36 },
     ], "sawtooth", 0.2);
   } else {
-    if (!_lossUri) _lossUri = makeLoss();
-    playNativeSound(_lossUri);
+    playPooled("loss");
   }
 }
+

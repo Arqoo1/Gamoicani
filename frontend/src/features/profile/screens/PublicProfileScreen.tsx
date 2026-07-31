@@ -1,41 +1,39 @@
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 import {
   ACHIEVEMENTS_META,
   COVER_GRADIENTS,
-  GAME_META,
   SHOP_ITEMS_META,
   formatDate,
   getInitials,
   getMediaUrl,
-  getRankInfo
+  getProfileStatsSummary,
+  getRankInfo,
+  normalizeGuessDistribution
 } from "@/features/profile/model/profileMeta";
 import { getPublicProfile } from "@/features/profile/api/profileApi";
+import { queryKeys } from "@/shared/api/queryKeys";
 
 export default function PublicProfileScreen({ username }: { username: string }) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: queryKeys.profile.public(username),
+    queryFn: () => getPublicProfile(username),
+    enabled: Boolean(username),
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    if (!username) return;
-    setLoading(true);
-    getPublicProfile(username)
-      .then(setUser)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [username]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={[styles.safe, { justifyContent: "center", alignItems: "center" }]}>
         <ActivityIndicator size="large" color={colors.accent} />
@@ -46,7 +44,9 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   if (error || !user) {
     return (
       <SafeAreaView style={[styles.safe, { justifyContent: "center", alignItems: "center" }]}>
-        <Text style={{ color: colors.primaryText }}>{error || "User not found"}</Text>
+        <Text style={{ color: colors.primaryText }}>
+          {error instanceof Error ? error.message : "User not found"}
+        </Text>
         <Pressable style={styles.primaryBtn} onPress={() => router.back()}>
           <Text style={styles.primaryBtnText}>Back</Text>
         </Pressable>
@@ -58,7 +58,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   const avatarColor = user.avatarColor ?? "#2f9e5d";
   const coverColors = COVER_GRADIENTS[coverIndex % COVER_GRADIENTS.length]!;
 
-  // Equipped shop items
   const equippedBannerId = user.equippedItems?.banner ?? null;
   const equippedAvatarId = user.equippedItems?.avatar ?? null;
   const equippedNameTagId = user.equippedItems?.nameTag ?? null;
@@ -66,7 +65,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   const equippedAvatarEmoji = equippedAvatarId ? SHOP_ITEMS_META[equippedAvatarId]?.emoji : null;
   const equippedNameTagColor = equippedNameTagId ? SHOP_ITEMS_META[equippedNameTagId]?.color : null;
 
-  // Use equipped banner if present, otherwise fall back to cover gradient
   const activeCoverColors = equippedBannerColors
     ? [equippedBannerColors[0], equippedBannerColors[equippedBannerColors.length - 1]] as [string, string]
     : coverColors;;
@@ -74,35 +72,9 @@ export default function PublicProfileScreen({ username }: { username: string }) 
   const rank = getRankInfo(user.totalPoints ?? 0);
   const initials = getInitials(user.displayName ?? user.username);
 
-  const gameEntries = (() => {
-    if (!user?.gameStats) return [];
-    return Object.entries(user.gameStats).map(([gameId, stat]: [string, any]) => ({
-      emoji: GAME_META[gameId]?.emoji ?? "🎮",
-      gameId,
-      label: GAME_META[gameId]?.label ?? gameId,
-      stat
-    }));
-  })();
-
-  const totalWins = gameEntries.reduce((sum, g) => sum + (g.stat.wins ?? 0), 0);
-  const totalPlays = gameEntries.reduce((sum, g) => sum + (g.stat.plays ?? 0), 0);
-  const bestStreak = Math.max(0, ...gameEntries.map((g) => g.stat.maxStreak ?? 0));
-
-  const winPct = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
-
-  const mockDistribution = (() => {
-    let remaining = totalWins;
-    const dist = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 6; i++) {
-      if (i === 5) { dist[i] = remaining; break; }
-      const alloc = Math.floor(Math.random() * (remaining / 2));
-      dist[i] = alloc;
-      remaining -= alloc;
-    }
-    return dist;
-  })();
-
-  const maxDist = Math.max(1, ...mockDistribution);
+  const { bestStreak, gameEntries, totalPlays, winPct } = getProfileStatsSummary(user);
+  const guessDistribution = normalizeGuessDistribution(user.profileStats?.wordleGuessDistribution);
+  const maxDist = Math.max(1, ...guessDistribution);
 
   return (
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
@@ -124,10 +96,9 @@ export default function PublicProfileScreen({ username }: { username: string }) 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Cover */}
         <View style={styles.cover}>
           {user.coverPhotoUrl ? (
-            <Image source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
+            <Image contentFit="cover" source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
           ) : (
             <>
               <View style={[styles.coverGradientTop, { backgroundColor: activeCoverColors[0] }]} />
@@ -137,11 +108,10 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           <View style={styles.coverOverlay} />
         </View>
 
-        {/* Avatar & Hero Info */}
         <View style={styles.avatarRow}>
           <View style={[styles.avatar, !user.profilePhotoUrl && !equippedAvatarEmoji && { backgroundColor: avatarColor }]}>
             {user.profilePhotoUrl ? (
-              <Image source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
+              <Image contentFit="cover" source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
             ) : equippedAvatarEmoji ? (
               <Text style={styles.avatarEmoji}>{equippedAvatarEmoji}</Text>
             ) : (
@@ -166,7 +136,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           </View>
         </View>
 
-        {/* Global Stats */}
         <View style={styles.statsBar}>
           <View style={styles.statBarItem}>
             <Text style={styles.statBarNum}>{totalPlays}</Text>
@@ -189,7 +158,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           </View>
         </View>
 
-        {/* Basic Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>პროფილის ინფო</Text>
 
@@ -222,7 +190,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           </View>
         </View>
 
-        {/* Achievements */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🏆 მიღწევები</Text>
           <View style={styles.achievementsGrid}>
@@ -240,13 +207,12 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           </View>
         </View>
 
-        {/* Stats */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📊 სტატისტიკა</Text>
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             <Text style={styles.sectionSubtitle}>სიტყვობანას ცდების განაწილება</Text>
             <View style={styles.distribution}>
-              {mockDistribution.map((count, index) => {
+              {guessDistribution.map((count, index) => {
                 const widthPercent = `${Math.max(8, (count / maxDist) * 100)}%` as `${number}%`;
                 return (
                   <View key={index} style={styles.distributionRow}>
@@ -263,7 +229,6 @@ export default function PublicProfileScreen({ username }: { username: string }) 
           </View>
         </View>
 
-        {/* Game Entries */}
         {gameEntries.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>🎮 თამაშის ჩანაწერები</Text>
@@ -341,7 +306,7 @@ function createStyles(colors: AppColors) {
       overflow: "hidden",
       backgroundColor: colors.card,
     },
-    avatarImage: { width: 88, height: 88, borderRadius: 44, resizeMode: "cover" },
+    avatarImage: { width: 88, height: 88, borderRadius: 44 },
     avatarInitials: { color: "#fff", fontSize: 36, fontWeight: "900" },
     avatarEmoji: { fontSize: 52 },
     heroInfo: { flex: 1, marginLeft: 16, paddingBottom: 4 },
@@ -420,3 +385,5 @@ function createStyles(colors: AppColors) {
     primaryBtnText: { color: "#fff", fontWeight: "bold" },
   });
 }
+
+

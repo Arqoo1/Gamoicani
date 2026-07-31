@@ -52,3 +52,16 @@ export function serializeUser(user) {
     dailyQuests: source.dailyQuests ?? null
   };
 }
+
+export function serializeProfileStats(scoreEvents = []) {
+  const wordleGuessDistribution = [0, 0, 0, 0, 0, 0];
+
+  for (const event of scoreEvents) {
+    if (event.gameId !== "wordle" || !event.won) continue;
+    if (event.attempts >= 1 && event.attempts <= 6) {
+      wordleGuessDistribution[event.attempts - 1] += 1;
+    }
+  }
+
+  return { wordleGuessDistribution };
+}

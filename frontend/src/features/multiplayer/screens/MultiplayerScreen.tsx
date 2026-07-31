@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -12,35 +12,26 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useSocket } from "@/application/providers/socket";
 import { useAuth } from "@/application/providers/auth";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
-
-type RouteParam = string | string[] | undefined;
-type MultiplayerPuzzle = {
-  gameType?: string;
-  hint?: string | null;
-  prompt?: string | null;
-  missingWordsCount?: number;
-  validWords?: string[];
-  wordLength?: number;
-};
-
-function firstParam(value: RouteParam) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parsePuzzleParam(value: RouteParam): MultiplayerPuzzle | null {
-  const raw = firstParam(value);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as MultiplayerPuzzle;
-  } catch {
-    return null;
-  }
-}
+import {
+  BACKSPACE_KEY,
+  BASE_GEORGIAN_KEYBOARD_ROWS,
+  ENTER_KEY,
+  GEORGIAN_LETTERS,
+  QWERTY_TO_GEORGIAN,
+  SHIFT_KEY,
+  SHIFTED_GEORGIAN_KEYS,
+  SHIFTED_QWERTY_TO_GEORGIAN,
+} from "@/shared/constants/georgianKeyboard";
+import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
+import { useMultiplayerSocket } from "@/features/multiplayer/hooks/useMultiplayerSocket";
+import { GameOverPayload, GuessResultPayload, OpponentGuessPayload } from "@/shared/api/socket.types";
+import { useTurnTimer } from "@/features/multiplayer/hooks/useTurnTimer";
+import { useMultiplayerRouteParams } from "@/features/multiplayer/hooks/useMultiplayerRouteParams";
 
 function getTiles(data: unknown): string[] {
   if (Array.isArray(data)) return data as string[];
@@ -50,28 +41,7 @@ function getTiles(data: unknown): string[] {
 
 const EMOTES = ["🔥", "🧠", "🎯", "😂", "😤", "👏", "🤬", "🙏"];
 
-const QWERTY_TO_GEORGIAN: Record<string, string> = {
-  a: "ა", b: "ბ", c: "ც", d: "დ", e: "ე", f: "ფ", g: "გ", h: "ჰ", i: "ი", j: "ჯ",
-  k: "კ", l: "ლ", m: "მ", n: "ნ", o: "ო", p: "პ", q: "ქ", r: "რ", s: "ს", t: "ტ",
-  u: "უ", v: "ვ", w: "წ", x: "ხ", y: "ყ", z: "ზ"
-};
-const SHIFTED_QWERTY_TO_GEORGIAN: Record<string, string> = {
-  C: "ჩ", J: "ჟ", R: "ღ", S: "შ", T: "თ", W: "ჭ", Z: "ძ"
-};
-const SHIFTED_GEORGIAN_KEYS: Record<string, string> = {
-  ც: "ჩ", ჯ: "ჟ", რ: "ღ", ს: "შ", ტ: "თ", წ: "ჭ", ზ: "ძ"
-};
-
-const BASE_KB_ROWS = [
-  ["ქ", "წ", "ე", "რ", "ტ", "ყ", "უ", "ი", "ო", "პ"],
-  ["ა", "ს", "დ", "ფ", "გ", "ჰ", "ჯ", "კ", "ლ"],
-  ["ზ", "ხ", "ც", "ვ", "ბ", "ნ", "მ", "⌫"]
-];
-
-const GEORGIAN_LETTERS = new Set([
-  ...BASE_KB_ROWS.flat().filter((key) => key.length === 1),
-  ...Object.values(SHIFTED_GEORGIAN_KEYS)
-]);
+const BASE_KB_ROWS = BASE_GEORGIAN_KEYBOARD_ROWS;
 
 const CELL_GAP   = 5;
 const KB_KEY_H   = 42;
@@ -97,17 +67,13 @@ function triggerFloat(
 export default function MultiplayerScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const params = useLocalSearchParams<{ roomId?: RouteParam; gameType?: RouteParam; puzzle?: RouteParam; activePlayerId?: RouteParam }>();
-
-  const roomId     = firstParam(params.roomId)    ?? "";
-  const gameType   = firstParam(params.gameType)  ?? "wordle";
-  const initialActivePlayer = firstParam(params.activePlayerId) || null;
-  const puzzle     = useMemo(() => parsePuzzleParam(params.puzzle), [params.puzzle]);
+  const { activePlayerId: initialActivePlayer, gameType, puzzle, roomId } = useMultiplayerRouteParams();
   const wordLength = Math.max(1, Math.min(12, Number(puzzle?.wordLength) || 5));
 
   const { colors, isDark } = useAppTheme();
   const { socket, opponentProfile } = useSocket();
   const { user } = useAuth();
+  const { top: safeTop } = useSafeAreaInsets();
 
   const [guesses,          setGuesses]          = useState<string[]>([]);
   const [currentGuess,     setCurrentGuess]     = useState("");
@@ -119,30 +85,10 @@ export default function MultiplayerScreen() {
   const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
   const [leaveModalOpen,   setLeaveModalOpen]   = useState(false);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(initialActivePlayer);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const startTimer = () => {
-    setTimeLeft(30);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
+  const { startTimer, stopTimer, timeLeft } = useTurnTimer(30);
 
   const hasStartedTimer = useRef(false);
 
-  // Start timer when user is available if it's our turn
   useEffect(() => {
     if (user && initialActivePlayer && initialActivePlayer === user.id && !hasStartedTimer.current) {
       hasStartedTimer.current = true;
@@ -156,7 +102,6 @@ export default function MultiplayerScreen() {
   const [emotePickerOpen,  setEmotePickerOpen]  = useState(false);
   const [isShifted,        setIsShifted]        = useState(false);
 
-  // ── Floating emotes ─────────────────────────────────────────────────────────
   const [oppEmote, setOppEmote] = useState<string | null>(null);
   const oppY  = useRef(new Animated.Value(0)).current;
   const oppOp = useRef(new Animated.Value(0)).current;
@@ -165,8 +110,7 @@ export default function MultiplayerScreen() {
   const myY  = useRef(new Animated.Value(0)).current;
   const myOp = useRef(new Animated.Value(0)).current;
 
-  // ── Layout ──────────────────────────────────────────────────────────────────
-  const STATUS_H  = Platform.OS === "android" ? (StatusBar.currentHeight ?? 24) : 0;
+  const STATUS_H  = Platform.OS === "android" ? safeTop : 0;
   const HEADER_H  = 48;
   const OPP_H     = 74;
   const KB_H      = 3 * KB_KEY_H + 2 * KB_GAP + 10;
@@ -182,7 +126,7 @@ export default function MultiplayerScreen() {
   useEffect(() => {
     if (!socket) return;
 
-    const onGuessResult = (data: any) => {
+    const onGuessResult = (data: GuessResultPayload) => {
       if (gameType === "wordle") {
         setGuessResults(prev => [...prev, getTiles(data)]);
       } else {
@@ -190,7 +134,7 @@ export default function MultiplayerScreen() {
       }
     };
 
-    const onOpponentGuess = (data: any) => {
+    const onOpponentGuess = (data: OpponentGuessPayload) => {
       if (gameType === "wordle") {
         setOpponentProgress(prev => [...prev, getTiles(data)]);
       } else {
@@ -198,7 +142,7 @@ export default function MultiplayerScreen() {
       }
     };
     
-    const onGameOver = (data: Record<string, unknown>) => { 
+    const onGameOver = (data: GameOverPayload) => { 
       setGameOver(true); 
       setResults(data); 
     };
@@ -226,8 +170,8 @@ export default function MultiplayerScreen() {
     };
 
     
-    const onGameStart = (data: any) => {
-      setActivePlayerId(data.activePlayerId);
+    const onGameStart = (data: { activePlayerId?: string }) => {
+      setActivePlayerId(data.activePlayerId ?? null);
       if (user && data.activePlayerId === user.id) {
         startTimer();
       } else {
@@ -235,7 +179,7 @@ export default function MultiplayerScreen() {
       }
     };
     
-    const onTurnChanged = (data: any) => {
+    const onTurnChanged = (data: { activePlayerId: string }) => {
       setActivePlayerId(data.activePlayerId);
       if (user && data.activePlayerId === user.id) {
         startTimer();
@@ -310,7 +254,7 @@ export default function MultiplayerScreen() {
   }, [gameOver, currentGuess, gameType, waitingForOpponent]);
 
   const sendEmote = (emote: string) => {
-    socket?.emit("send-emote", { roomId, emote });
+    socket?.emit("send-emote", { emoteId: emote, roomId: roomId });
     setEmotePickerOpen(false);
     setMyEmote(emote);
     triggerFloat(myY, myOp, () => setMyEmote(null));
@@ -339,7 +283,7 @@ export default function MultiplayerScreen() {
   const handleKey = (key: string) => {
     if (gameOver) return;
     
-    if (key === "⌫") {
+    if (key === BACKSPACE_KEY) {
       if (gameType === "wordle") {
         setCurrentGuess(prev => Array.from(prev).slice(0, -1).join(""));
       } else {
@@ -589,81 +533,14 @@ export default function MultiplayerScreen() {
       </View>
 
       {}
-      <View style={styles.keyboard}>
-        <View style={styles.kbRow}>
-          {kbRows[0].map(key => (
-            <Pressable
-              key={key}
-              style={({ pressed }) => [
-                styles.kbKey,
-                pressed && styles.pressed
-              ]}
-              onPress={() => handleKey(key)}
-            >
-              <Text style={styles.kbKeyText}>{key}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.kbRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.kbKey,
-              styles.kbShift,
-              isShifted && styles.kbShiftActive,
-              pressed && styles.pressed
-            ]}
-            onPress={() => handleKey("SHIFT")}
-          >
-            <Text style={[
-              styles.kbKeyText,
-              styles.kbSpecialText,
-              isShifted && styles.kbShiftActiveText
-            ]}>⇧</Text>
-          </Pressable>
-          {kbRows[1].map(key => (
-            <Pressable
-              key={key}
-              style={({ pressed }) => [
-                styles.kbKey,
-                pressed && styles.pressed
-              ]}
-              onPress={() => handleKey(key)}
-            >
-              <Text style={styles.kbKeyText}>{key}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.kbRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.kbKey,
-              styles.kbEnter,
-              pressed && styles.pressed
-            ]}
-            onPress={() => handleKey("ENTER")}
-          >
-            <Text style={[styles.kbKeyText, styles.kbSpecialText]}>ENTER</Text>
-          </Pressable>
-          {kbRows[2].map(key => (
-            <Pressable
-              key={key}
-              style={({ pressed }) => [
-                styles.kbKey,
-                key === "⌫" && styles.kbDel,
-                pressed && styles.pressed
-              ]}
-              onPress={() => handleKey(key)}
-            >
-              <Text style={[
-                styles.kbKeyText,
-                key === "⌫" && styles.kbSpecialText
-              ]}>{key}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      <GeorgianKeyboard
+        isShifted={isShifted}
+        onKeyPress={(key) => {
+          if (key === SHIFT_KEY) handleKey("SHIFT");
+          else if (key === ENTER_KEY) handleKey("ENTER");
+          else handleKey(key);
+        }}
+      />
 
       {}
       {gameOver && results && (

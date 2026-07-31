@@ -33,6 +33,9 @@ export type AuthUser = {
     nameTag: string | null;
   };
   profilePhotoUrl: string | null;
+  profileStats?: {
+    wordleGuessDistribution: number[];
+  };
   role: "user" | "admin";
   totalPoints: number;
   username: string;

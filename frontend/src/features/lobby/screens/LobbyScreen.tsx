@@ -22,6 +22,7 @@ import { useSocket } from "@/application/providers/socket";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 import { listFriends, sendFriendRequest } from "@/features/social/api/friendsApi";
 import { FriendUser } from "@/entities/user/types";
+import { useLobbySocket } from "@/features/lobby/hooks/useLobbySocket";
 
 type ChatMessage = {
   id: string;
@@ -38,22 +39,30 @@ export default function LobbyScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { socket, isConnected } = useSocket();
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<LobbyTab>("match");
   const [gameType, setGameType] = useState<"wordle" | "andazebi" | "mix">("wordle");
 
-  const [status, setStatus] = useState<"idle" | "public-queue" | "private-hosting" | "private-joining">("idle");
-  const [passcode, setPasscode] = useState("");
-  const [inputPasscode, setInputPasscode] = useState("");
+  const {
+    cancelQueue,
+    chatInput,
+    createPrivate,
+    inputPasscode,
+    isConnected,
+    joinPrivate,
+    joinPublic,
+    messages,
+    passcode,
+    sendChatMessage,
+    setChatInput,
+    setInputPasscode,
+    status,
+    unread,
+  } = useLobbySocket(activeTab);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [unread, setUnread] = useState(0);
   const chatScrollRef = useRef<ScrollView>(null);
-  
-  const [selectedUser, setSelectedUser] = useState<{ id: string, displayName: string, username: string } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ id: string; displayName: string; username: string } | null>(null);
   const [friendRequestStatus, setFriendRequestStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [friendsList, setFriendsList] = useState<FriendUser[]>([]);
 
@@ -63,100 +72,14 @@ export default function LobbyScreen() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    function onQueueJoined() { setStatus("public-queue"); }
-
-    function onRoomCreated({ roomId, passcode }: { roomId: string; passcode: string }) {
-      setPasscode(passcode);
-      setStatus("private-hosting");
-    }
-
-    function onRoomJoined({ roomId, players }: { roomId: string; players: any[] }) {}
-
-    function onGameStart({ gameType, puzzle, roomId, activePlayerId }: any) {
-      router.push({
-        pathname: "/multiplayer",
-        params: { roomId, gameType, puzzle: JSON.stringify(puzzle), activePlayerId: activePlayerId ?? "" }
-      });
-    }
-
-    function onErrorMessage({ message }: { message: string }) {
-      Alert.alert("შეცდომა", message);
-      setStatus("idle");
-    }
-
-    function onChatHistory({ messages: history }: { messages: ChatMessage[] }) {
-      if (!history || history.length === 0) return;
-      setMessages(history);
-      setTimeout(() => {
-        chatScrollRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-    }
-
-    function onChatMessage(msg: ChatMessage) {
-      setMessages((prev) => [...prev.slice(-99), msg]);
-      if (activeTab !== "chat") setUnread((n) => n + 1);
-      setTimeout(() => {
-        chatScrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-
-    socket.on("queue-joined", onQueueJoined);
-    socket.on("room-created", onRoomCreated);
-    socket.on("room-joined", onRoomJoined);
-    socket.on("game-start", onGameStart);
-    socket.on("error-message", onErrorMessage);
-    socket.on("chat-history", onChatHistory);
-    socket.on("chat-message", onChatMessage);
-
-    // Request chat history now that listeners are active
-    socket.emit("request-chat-history");
-
-    return () => {
-      socket.off("queue-joined", onQueueJoined);
-      socket.off("room-created", onRoomCreated);
-      socket.off("room-joined", onRoomJoined);
-      socket.off("game-start", onGameStart);
-      socket.off("error-message", onErrorMessage);
-      socket.off("chat-history", onChatHistory);
-      socket.off("chat-message", onChatMessage);
-    };
-  }, [socket, router, activeTab]);
-
-  const joinPublic = () => {
-    if (!socket || !isConnected) return Alert.alert("შეცდომა", "სერვერთან კავშირი ვერ მოხერხდა");
-    socket.emit("join-public-queue", { gameType });
-    setStatus("public-queue");
-  };
-
-  const createPrivate = () => {
-    if (!socket || !isConnected) return Alert.alert("შეცდომა", "სერვერთან კავშირი ვერ მოხერხდა");
-    socket.emit("create-private-room", { gameType });
-  };
-
-  const joinPrivate = () => {
-    if (!socket || !isConnected) return Alert.alert("შეცდომა", "სერვერთან კავშირი ვერ მოხერხდა");
-    if (!inputPasscode || inputPasscode.length !== 4) return Alert.alert("შეცდომა", "შეიყვანეთ 4 ნიშნა კოდი");
-    socket.emit("join-private-room", { passcode: inputPasscode });
-    setStatus("private-joining");
-  };
-
-  const cancelAction = () => {
-    if (status === "public-queue" && socket) socket.emit("leave-queue");
-    setStatus("idle");
-  };
-
-  const sendChat = () => {
-    if (!socket || !chatInput.trim()) return;
-    socket.emit("chat-send", { text: chatInput.trim() });
-    setChatInput("");
-  };
+  const joinPublicHandler = () => joinPublic(gameType);
+  const createPrivateHandler = () => createPrivate(gameType);
+  const joinPrivateHandler = () => joinPrivate();
+  const cancelAction = () => cancelQueue();
+  const sendChat = () => sendChatMessage();
 
   const switchToChat = () => {
     setActiveTab("chat");
-    setUnread(0);
     setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: false }), 100);
   };
 
@@ -263,7 +186,7 @@ export default function LobbyScreen() {
 
               <Pressable
                 style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-                onPress={joinPublic}
+                onPress={joinPublicHandler}
               >
                 <Feather name="globe" size={24} color="#fff" />
                 <Text style={styles.primaryBtnText}>საჯარო მატჩი</Text>
@@ -280,7 +203,7 @@ export default function LobbyScreen() {
                 <View style={styles.privateActions}>
                   <Pressable
                     style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                    onPress={createPrivate}
+                    onPress={createPrivateHandler}
                   >
                     <Feather name="plus-circle" size={20} color={colors.primaryText} />
                     <Text style={styles.secondaryBtnText}>შექმნა</Text>
@@ -297,7 +220,7 @@ export default function LobbyScreen() {
                     />
                     <Pressable
                       style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed, { flex: 0, paddingHorizontal: 16 }]}
-                      onPress={joinPrivate}
+                      onPress={joinPrivateHandler}
                     >
                       <Text style={styles.secondaryBtnText}>შესვლა</Text>
                     </Pressable>

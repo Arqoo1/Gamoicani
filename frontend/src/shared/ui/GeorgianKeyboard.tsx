@@ -130,6 +130,7 @@ const KeyboardRow = memo(function KeyboardRow({
         if (isShifted && SHIFTED_GEORGIAN_KEYS[key]) {
           displayValue = SHIFTED_GEORGIAN_KEYS[key]!;
         }
+        const pressValue = !isSpecial && isShifted ? SHIFTED_GEORGIAN_KEYS[key] ?? key : key;
         if (isEnter) {
           displayValue = "შემოწმება";
         }
@@ -162,7 +163,7 @@ const KeyboardRow = memo(function KeyboardRow({
         return (
           <KeyButton
             key={key}
-            keyValue={key}
+            keyValue={pressValue}
             displayValue={displayValue}
             bgColor={bgColor}
             textColor={textColor}

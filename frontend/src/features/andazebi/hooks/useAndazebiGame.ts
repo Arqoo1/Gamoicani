@@ -6,7 +6,7 @@ import {
   triggerInvalidHaptic,
   triggerSuccessHaptic,
 } from "@/shared/services/haptics";
-import { playLoss, playReveal } from "@/shared/services/sound";
+import { playBuzz, playChime, playLoss, playPop, playReveal } from "@/shared/services/sound";
 import { fetchGameContent } from "@/features/games/api/gamesApi";
 import { cacheGameContent, getCachedGameContent } from "@/shared/storage/contentCache";
 import {
@@ -288,9 +288,8 @@ export function useAndazebiGame(
 
   const isDailyDone = useMemo(() => {
     const stat = (user?.gameStats as any)?.["andazebi"];
-    if (!stat?.lastCompletedKey) return false;
-    return stat.lastCompletedKey === dateKey;
-  }, [user?.gameStats, dateKey]);
+    return state.stats.completedDates.includes(dateKey) || stat?.lastCompletedKey === dateKey || stat?.lastCompletedDate === dateKey;
+  }, [state.stats.completedDates, user?.gameStats, dateKey]);
 
   const isPracticeMode = state.gameMode === "practice";
   const isDailyComplete =
@@ -505,6 +504,7 @@ export function useAndazebiGame(
             ? "correct"
             : "wrong"
       ) as Array<WordStatus | undefined>;
+      playBuzz();
       dispatch({
         type: "WRONG_ANSWER",
         payload: { feedback: "შეავსე ყველა გამოტოვებული სიტყვა", wordStatuses: partial },
@@ -523,6 +523,7 @@ export function useAndazebiGame(
     );
 
     if (!isCorrect) {
+      playBuzz();
       dispatch({
         type: "WRONG_ANSWER",
         payload: { feedback: "ჯერ არა, კიდევ სცადე", wordStatuses: nextWordStatuses },
@@ -536,6 +537,7 @@ export function useAndazebiGame(
     confettiStart();
     pulseCorrectAnswer();
     triggerSuccessHaptic();
+    playChime();
 
     if (!isPracticeMode) {
       const newItem: CompletedItem = {
@@ -762,6 +764,7 @@ export function useAndazebiGame(
       }
       if (!GEORGIAN_LETTERS.has(key)) return;
       triggerSelectionHaptic();
+      playPop();
       dispatch({ type: "TYPE_LETTER", payload: { key, activeInputIndex: state.activeInputIndex } });
     },
     [isDailyComplete, state.activeInputIndex, state.result, submitAnswer]

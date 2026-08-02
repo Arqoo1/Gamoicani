@@ -97,7 +97,12 @@ export default function PublicProfileScreen({ username }: { username: string }) 
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.cover}>
-          {user.coverPhotoUrl ? (
+          {equippedBannerColors ? (
+            <>
+              <View style={[styles.coverGradientTop, { backgroundColor: activeCoverColors[0] }]} />
+              <View style={[styles.coverGradientBottom, { backgroundColor: activeCoverColors[1] }]} />
+            </>
+          ) : user.coverPhotoUrl ? (
             <Image contentFit="cover" source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
           ) : (
             <>
@@ -109,11 +114,11 @@ export default function PublicProfileScreen({ username }: { username: string }) 
         </View>
 
         <View style={styles.avatarRow}>
-          <View style={[styles.avatar, !user.profilePhotoUrl && !equippedAvatarEmoji && { backgroundColor: avatarColor }]}>
-            {user.profilePhotoUrl ? (
-              <Image contentFit="cover" source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
-            ) : equippedAvatarEmoji ? (
+          <View style={[styles.avatar, !equippedAvatarEmoji && !user.profilePhotoUrl && { backgroundColor: avatarColor }]}>
+            {equippedAvatarEmoji ? (
               <Text style={styles.avatarEmoji}>{equippedAvatarEmoji}</Text>
+            ) : user.profilePhotoUrl ? (
+              <Image contentFit="cover" source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarInitials}>{initials}</Text>
             )}

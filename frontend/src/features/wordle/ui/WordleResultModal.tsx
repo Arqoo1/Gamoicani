@@ -1,8 +1,7 @@
 import React, { memo, useRef } from "react";
-import { Modal, Platform, Pressable, Share, Text, View } from "react-native";
+import { Modal, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import ViewShot from "react-native-view-shot";
 import { GameStatus, scoreGuess } from "@/features/wordle/model/wordle";
-import { WordleTile } from "@/features/wordle/ui/WordleBoardPieces";
 
 type WordleResultModalProps = {
   answer: string;
@@ -22,6 +21,21 @@ function scoreToEmoji(score: "correct" | "present" | "absent") {
   if (score === "present") return "🟨";
   return "⬛";
 }
+
+const staticTileScoreStyles = StyleSheet.create({
+  correct: {
+    backgroundColor: "#2f9e5d",
+    borderColor: "#2f9e5d"
+  },
+  present: {
+    backgroundColor: "#d6a12a",
+    borderColor: "#d6a12a"
+  },
+  absent: {
+    backgroundColor: "#66727f",
+    borderColor: "#66727f"
+  }
+});
 
 export const WordleResultModal = memo(function WordleResultModal({
   answer,
@@ -64,18 +78,23 @@ export const WordleResultModal = memo(function WordleResultModal({
   };
 
   return (
-    <Modal animationType="slide" transparent visible={isVisible} onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalContent}>
+    <Modal animationType="fade" transparent visible={isVisible} onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={styles.resultModal} onPress={() => {}}>
           <ViewShot ref={viewShotRef} options={{ format: "png", quality: 0.9 }}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {gameStatus === "won" ? "🎉 გილოცავთ!" : "😔 სამწუხაროდ წააგეთ"}
-              </Text>
-              <Text style={styles.modalSubtitle}>
-                {gameStatus === "won" ? `სიტყვა გამოიცანით ${guesses.length}/6 მცდელობაში` : `სწორი სიტყვა იყო: ${answer}`}
-              </Text>
+            <View style={styles.resultModalTop}>
+              <View style={styles.resultBadge}>
+                <Text style={styles.resultBadgeText}>{gameStatus === "won" ? "\u2713" : "!"}</Text>
+              </View>
+              <Pressable style={styles.modalCloseButton} onPress={onClose}>
+                <Text style={styles.modalCloseText}>{"\u00d7"}</Text>
+              </Pressable>
             </View>
+
+            <Text style={styles.resultTitle}>{gameStatus === "won" ? "\u10db\u10dd\u10d2\u10d4\u10d1\u10d0" : "\u10ec\u10d0\u10d2\u10d4\u10d1\u10d0"}</Text>
+            <Text style={styles.resultSubtitle}>
+              {gameStatus === "won" ? `${guesses.length}/6 \u10ea\u10d3\u10d0\u10e8\u10d8 \u10d2\u10d0\u10db\u10dd\u10d8\u10ea\u10d0\u10dc\u10d8` : `\u10e1\u10ec\u10dd\u10e0\u10d8 \u10e1\u10d8\u10e2\u10e7\u10d5\u10d0 \u10d8\u10e7\u10dd: ${answer}`}
+            </Text>
 
             <View style={styles.resultGrid}>
               {guesses.map((guess, rIdx) => {
@@ -83,15 +102,24 @@ export const WordleResultModal = memo(function WordleResultModal({
                 return (
                   <View key={rIdx} style={[styles.boardRow, { gap: 4, marginVertical: 2 }]}>
                     {Array.from(guess).map((char, cIdx) => (
-                      <WordleTile
+                      <View
                         key={cIdx}
-                        delayIndex={0}
-                        fontSize={tileFontSize}
-                        letter={char}
-                        score={scores[cIdx]}
-                        size={tileSize}
-                        styles={styles}
-                      />
+                        style={[
+                          styles.tile,
+                          { height: tileSize, width: tileSize },
+                          staticTileScoreStyles[scores[cIdx]]
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tileText,
+                            styles.tileTextScored,
+                            { fontSize: tileFontSize, lineHeight: tileFontSize + 7 }
+                          ]}
+                        >
+                          {char}
+                        </Text>
+                      </View>
                     ))}
                   </View>
                 );
@@ -99,20 +127,16 @@ export const WordleResultModal = memo(function WordleResultModal({
             </View>
           </ViewShot>
 
-          <View style={styles.modalActions}>
-            <Pressable style={styles.shareButton} onPress={handleShare}>
-              <Text style={styles.shareText}>გაზიარება 🔗</Text>
+          <View style={styles.resultActions}>
+            <Pressable style={styles.resultButton} onPress={handleShare}>
+              <Text style={styles.resultButtonText}>{"\u10d2\u10d0\u10d6\u10d8\u10d0\u10e0\u10d4\u10d1\u10d0"}</Text>
             </Pressable>
-            <Pressable style={[styles.shareButton, styles.nextButton]} onPress={onNextPuzzle}>
-              <Text style={styles.shareText}>შემდეგი ➔</Text>
+            <Pressable style={[styles.resultButton, styles.secondaryResultButton]} onPress={onNextPuzzle}>
+              <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>{"\u10e8\u10d4\u10db\u10d3\u10d4\u10d2\u10d8"}</Text>
             </Pressable>
           </View>
-
-          <Pressable style={styles.modalClose} onPress={onClose}>
-            <Text style={styles.modalCloseText}>დახურვა</Text>
-          </Pressable>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 });

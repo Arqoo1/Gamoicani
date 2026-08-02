@@ -110,12 +110,15 @@ export function createStyles(colors: AppColors) {
     fontWeight: "800"
   },
   boardArea: {
-    flex: 1,
-    backgroundColor: colors.background
+    alignItems: "center",
+    flex: 1.65,
+    backgroundColor: colors.card,
+    justifyContent: "center",
+    paddingHorizontal: 16
   },
   board: {
     alignSelf: "center",
-    marginTop: 10
+    marginTop: 14
   },
   boardRow: {
     flexDirection: "row"
@@ -144,7 +147,9 @@ export function createStyles(colors: AppColors) {
   },
   toast: {
     alignSelf: "center",
-    backgroundColor: colors.buttonStrong,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -153,12 +158,13 @@ export function createStyles(colors: AppColors) {
     zIndex: 10
   },
   toastText: {
-    color: "#ffffff",
+    color: colors.primaryText,
     fontSize: 14,
     fontWeight: "800"
   },
   footer: {
-    flex: 1,
+    backgroundColor: colors.card,
+    flex: 0.85,
     justifyContent: "flex-end",
     paddingBottom: 10,
     paddingHorizontal: 7
@@ -250,11 +256,44 @@ export function createStyles(colors: AppColors) {
   resultModal: {
     backgroundColor: colors.card,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 18,
     borderWidth: 1,
     maxWidth: 420,
     padding: 18,
+    shadowColor: colors.shadow,
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
     width: "100%"
+  },
+  resultModalTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10
+  },
+  resultBadge: {
+    alignItems: "center",
+    backgroundColor: colors.accentMuted,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36
+  },
+  resultBadgeText: {
+    color: colors.accent,
+    fontSize: 22,
+    fontWeight: "900",
+    lineHeight: 26
+  },
+  resultGrid: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 12
   },
   modePickerModal: {
     backgroundColor: colors.card,
@@ -373,7 +412,8 @@ export function createStyles(colors: AppColors) {
     color: colors.primaryText,
     fontSize: 28,
     fontWeight: "900",
-    letterSpacing: 0
+    letterSpacing: 0,
+    textAlign: "center"
   },
   modalCloseButton: {
     alignItems: "center",
@@ -393,7 +433,8 @@ export function createStyles(colors: AppColors) {
     color: colors.secondaryText,
     fontSize: 15,
     fontWeight: "800",
-    marginBottom: 14
+    marginBottom: 14,
+    textAlign: "center"
   },
   previewBox: {
     backgroundColor: colors.background,
@@ -427,7 +468,8 @@ export function createStyles(colors: AppColors) {
   resultButtonText: {
     color: "#ffffff",
     fontSize: 14,
-    fontWeight: "900"
+    fontWeight: "900",
+    textAlign: "center"
   },
   secondaryResultButton: {
     backgroundColor: colors.button

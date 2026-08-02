@@ -36,6 +36,8 @@ export default function ShopScreen() {
   const [activeCategory, setActiveCategory] = useState<Category>("avatar");
   const [busy, setBusy] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<ShopItem | null>(null);
+  const [buyItemPrompt, setBuyItemPrompt] = useState<ShopItem | null>(null);
+  const [shopMessage, setShopMessage] = useState<{ title: string; body: string } | null>(null);
   const { emitProfileUpdate } = useSocket();
 
   const load = useCallback(async () => {
@@ -54,35 +56,36 @@ export default function ShopScreen() {
   const handleBuy = useCallback(async (item: ShopItem) => {
     if (!shopData) return;
     if (shopData.totalPoints < item.price) {
-      Alert.alert("არასაკმარისი ქულები", `საჭიროა ${item.price} ქულა, გაქვს ${shopData.totalPoints}`);
+      setShopMessage({
+        title: "არასაკმარისი ქულები",
+        body: `საჭიროა ${item.price} ქულა, გაქვს ${shopData.totalPoints}`
+      });
       return;
     }
-    Alert.alert(
-      `${item.label} — ${item.price} ქულა`,
-      `გსურს შეძენა?`,
-      [
-        { text: "გაუქმება", style: "cancel" },
-        {
-          text: "შეძენა",
-          onPress: async () => {
-            setBusy(item.id);
-            try {
-              const result = await buyItem(item.id);
-              setShopData((prev) => prev ? {
-                ...prev,
-                totalPoints: result.totalPoints,
-                items: result.items,
-              } : prev);
-            } catch (e: any) {
-              Alert.alert("შეცდომა", e.message ?? "შეძენა ვერ მოხერხდა");
-            } finally {
-              setBusy(null);
-            }
-          },
-        },
-      ]
-    );
+    setBuyItemPrompt(item);
   }, [shopData]);
+
+  const confirmBuy = useCallback(async () => {
+    if (!buyItemPrompt) return;
+    const item = buyItemPrompt;
+    setBuyItemPrompt(null);
+    setBusy(item.id);
+    try {
+      const result = await buyItem(item.id);
+      setShopData((prev) => prev ? {
+        ...prev,
+        totalPoints: result.totalPoints,
+        items: result.items,
+      } : prev);
+    } catch (e: any) {
+      setShopMessage({
+        title: "შეცდომა",
+        body: e.message ?? "შეძენა ვერ მოხერხდა"
+      });
+    } finally {
+      setBusy(null);
+    }
+  }, [buyItemPrompt]);
 
   const handleEquip = useCallback(async (item: ShopItem) => {
     setBusy(item.id);
@@ -222,7 +225,7 @@ export default function ShopScreen() {
               {previewItem && !previewItem.owned && (
                 <Pressable
                   style={[styles.previewActionBtn, styles.previewActionBuy]}
-                  onPress={() => { setPreviewItem(null); handleBuy(previewItem!); }}
+                  onPress={() => { setPreviewItem(null); handleBuy(previewItem); }}
                 >
                   <Feather name="star" size={14} color="#fff" />
                   <Text style={styles.previewActionBuyText}>{previewItem?.price} შეძენა</Text>
@@ -239,6 +242,65 @@ export default function ShopScreen() {
                   </Text>
                 </Pressable>
               )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={!!buyItemPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBuyItemPrompt(null)}
+      >
+        <Pressable style={styles.previewModalBackdrop} onPress={() => setBuyItemPrompt(null)}>
+          <Pressable style={styles.confirmModalCard} onPress={() => {}}>
+            <View style={styles.confirmIconWrap}>
+              <Feather name="shopping-bag" size={28} color={colors.accent} />
+            </View>
+            <Text style={styles.confirmTitle}>{buyItemPrompt?.label}</Text>
+            <Text style={styles.confirmText}>
+              {buyItemPrompt ? `${buyItemPrompt.price} ქულა` : ""}
+            </Text>
+            <View style={styles.previewModalActions}>
+              <Pressable
+                style={[styles.previewActionBtn, styles.previewActionClose]}
+                onPress={() => setBuyItemPrompt(null)}
+              >
+                <Text style={styles.previewActionCloseText}>გაუქმება</Text>
+              </Pressable>
+              <Pressable
+                disabled={!!busy}
+                style={[styles.previewActionBtn, styles.previewActionBuy]}
+                onPress={confirmBuy}
+              >
+                <Text style={styles.previewActionBuyText}>შეძენა</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={!!shopMessage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShopMessage(null)}
+      >
+        <Pressable style={styles.previewModalBackdrop} onPress={() => setShopMessage(null)}>
+          <Pressable style={styles.confirmModalCard} onPress={() => {}}>
+            <View style={styles.confirmIconWrap}>
+              <Feather name="info" size={28} color={colors.accent} />
+            </View>
+            <Text style={styles.confirmTitle}>{shopMessage?.title}</Text>
+            <Text style={styles.confirmText}>{shopMessage?.body}</Text>
+            <View style={styles.previewModalActions}>
+              <Pressable
+                style={[styles.previewActionBtn, styles.previewActionBuy]}
+                onPress={() => setShopMessage(null)}
+              >
+                <Text style={styles.previewActionBuyText}>კარგი</Text>
+              </Pressable>
             </View>
           </Pressable>
         </Pressable>
@@ -423,6 +485,44 @@ function createStyles(colors: AppColors) {
       shadowOpacity: 0.35,
       shadowRadius: 20,
       elevation: 12,
+    },
+    confirmModalCard: {
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      width: "100%",
+      maxWidth: 340,
+      paddingTop: 22,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+      elevation: 12,
+    },
+    confirmIconWrap: {
+      alignItems: "center",
+      alignSelf: "center",
+      backgroundColor: colors.accent + "20",
+      borderRadius: 24,
+      height: 48,
+      justifyContent: "center",
+      marginBottom: 12,
+      width: 48,
+    },
+    confirmTitle: {
+      color: colors.primaryText,
+      fontSize: 18,
+      fontWeight: "900",
+      paddingHorizontal: 20,
+      textAlign: "center",
+    },
+    confirmText: {
+      color: colors.secondaryText,
+      fontSize: 14,
+      fontWeight: "700",
+      marginBottom: 20,
+      marginTop: 6,
+      paddingHorizontal: 20,
+      textAlign: "center",
     },
     previewMockBanner: {
       height: 100,

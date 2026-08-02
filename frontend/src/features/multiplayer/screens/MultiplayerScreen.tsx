@@ -17,6 +17,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useSocket } from "@/application/providers/socket";
 import { useAuth } from "@/application/providers/auth";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
+import { playBuzz, playChime, playPop } from "@/shared/services/sound";
+import { triggerInvalidHaptic, triggerSelectionHaptic } from "@/shared/services/haptics";
 import {
   BACKSPACE_KEY,
   BASE_GEORGIAN_KEYBOARD_ROWS,
@@ -264,12 +266,22 @@ export default function MultiplayerScreen() {
     if (gameOver || waitingForOpponent) return;
     
     if (gameType === "wordle") {
-      if (Array.from(currentGuess).length !== wordLength) return;
+      if (Array.from(currentGuess).length !== wordLength) {
+        triggerInvalidHaptic();
+        playBuzz();
+        return;
+      }
+      playChime();
       socket?.emit("submit-guess", { roomId, guess: currentGuess.trim() });
       setGuesses(prev => [...prev, currentGuess.trim()]);
       setCurrentGuess("");
     } else {
-      if (andazebiAnswers.some(ans => ans.trim().length === 0)) return;
+      if (andazebiAnswers.some(ans => ans.trim().length === 0)) {
+        triggerInvalidHaptic();
+        playBuzz();
+        return;
+      }
+      playChime();
       const combinedGuess = andazebiAnswers.join(" ");
       socket?.emit("submit-guess", { roomId, guess: combinedGuess });
       setGuesses(prev => [...prev, combinedGuess]);
@@ -284,6 +296,7 @@ export default function MultiplayerScreen() {
     if (gameOver) return;
     
     if (key === BACKSPACE_KEY) {
+      triggerSelectionHaptic();
       if (gameType === "wordle") {
         setCurrentGuess(prev => Array.from(prev).slice(0, -1).join(""));
       } else {
@@ -294,10 +307,14 @@ export default function MultiplayerScreen() {
         });
       }
     } else if (key === "ENTER") {
+      triggerSelectionHaptic();
       submitGuess();
     } else if (key === "SHIFT") {
+      triggerSelectionHaptic();
       setIsShifted(v => !v);
     } else {
+      triggerSelectionHaptic();
+      playPop();
       const actualKey = isShifted ? (SHIFTED_GEORGIAN_KEYS[key] ?? key) : key;
       if (gameType === "wordle") {
         if (Array.from(currentGuess).length >= wordLength) return;

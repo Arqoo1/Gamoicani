@@ -100,6 +100,7 @@ export default function AndazebiScreen() {
     isDailyComplete,
     isPracticeMode
   } = useAndazebiGame(user, updateUser, () => confettiRef.current?.start(), width);
+  const isDailyLocked = !isHydrated || isDailyDone;
 
   const shareResult = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -141,11 +142,11 @@ export default function AndazebiScreen() {
             <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
 
             <Pressable
-              disabled={isDailyDone}
+              disabled={isDailyLocked}
               style={({ pressed }) => [
                 styles.modePickerOption,
-                isDailyDone && styles.modePickerOptionDisabled,
-                !isDailyDone && pressed && styles.pressed
+                isDailyLocked && styles.modePickerOptionDisabled,
+                !isDailyLocked && pressed && styles.pressed
               ]}
               onPress={() => setGameMode("daily")}
             >
@@ -153,16 +154,16 @@ export default function AndazebiScreen() {
                 <Text style={styles.modePickerIcon}>📅</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, isDailyDone && styles.modePickerDisabledText]}>
+                <Text style={[styles.modePickerOptionTitle, isDailyLocked && styles.modePickerDisabledText]}>
                   დღის ანდაზები
                 </Text>
-                <Text style={[styles.modePickerOptionSub, isDailyDone && styles.modePickerDisabledText]}>
-                  {isDailyDone
+                <Text style={[styles.modePickerOptionSub, isDailyLocked && styles.modePickerDisabledText]}>
+                  {isDailyLocked
                     ? "✓ დღეს უკვე ითამაშე"
                     : "5 ახალი ანდაზა ყოველდღე"}
                 </Text>
               </View>
-              {isDailyDone ? (
+              {isDailyLocked ? (
                 <Text style={styles.modePickerDoneCheck}>✓</Text>
               ) : (
                 <Text style={styles.modePickerArrow}>›</Text>
@@ -283,7 +284,7 @@ export default function AndazebiScreen() {
                     style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
                     onPress={shareResult}
                   >
-                    <Text style={styles.primaryButtonText}>გაზიარება</Text>
+                    <Text numberOfLines={1} style={styles.primaryButtonText}>გაზიარება</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}

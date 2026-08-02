@@ -6,6 +6,7 @@ import { DEFAULT_MESSAGE, getStatusMessage, MAX_GUESSES, triggerCompletionHaptic
 import { BACKSPACE_KEY, ENTER_KEY, GEORGIAN_LETTERS, SHIFT_KEY, QWERTY_TO_GEORGIAN, SHIFTED_QWERTY_TO_GEORGIAN } from "@/shared/constants/georgianKeyboard";
 import { Platform } from "react-native";
 import { AuthUser } from "@/entities/user/types";
+import { playBuzz, playChime, playPop } from "@/shared/services/sound";
 
 type GameMode = "daily" | "practice" | "tutorial" | null;
 
@@ -70,7 +71,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentLetters: [],
         gameStatus: status,
         message: msg,
-        toast: action.payload.isWin || action.payload.isLoss ? msg : state.toast,
+        toast: state.toast,
       };
     }
     case "SET_MESSAGE":
@@ -218,7 +219,8 @@ export function useWordleGame(
     const guess = state.currentLetters.join("");
 
     if (!isFilledWord(guess, WORD_LENGTH)) {
-      showInvalidGuess("სიტყვა მოკლეა");
+      showInvalidGuess("სიტყვა მოიკლება");
+      playBuzz();
       return;
     }
 
@@ -230,6 +232,7 @@ export function useWordleGame(
       if (!validWords.has(guess)) return showInvalidGuess("სიტყვა სიაში არ არის");
     }
 
+    playChime();
     const nextGuesses = [...state.guesses, guess];
     const isWin = guess === answer;
     const isLoss = !isWin && nextGuesses.length === MAX_GUESSES;
@@ -268,6 +271,7 @@ export function useWordleGame(
     }
     if (!GEORGIAN_LETTERS.has(key)) return;
     triggerSelectionHaptic();
+    playPop();
     dispatch({ type: "TYPE_LETTER", payload: key });
   }, [state.gameStatus, submitGuess]);
 
@@ -301,3 +305,4 @@ export function useWordleGame(
     setMessage: (msg: string) => dispatch({ type: "SET_MESSAGE", payload: msg }),
   };
 }
+

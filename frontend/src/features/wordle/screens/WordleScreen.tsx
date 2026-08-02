@@ -134,9 +134,13 @@ export default function WordleScreen() {
 
   const safeHeight = Math.max(0, height - insets.top - insets.bottom);
   const tileGap = width < 380 ? 4 : 6;
-  const maxTileFromWidth = (Math.min(width - 32, 360) - tileGap * (WORD_LENGTH - 1)) / WORD_LENGTH;
-  const tileSize = Math.max(34, Math.min(maxTileFromWidth, 54));
-  const tileFontSize = Math.max(20, Math.min(27, tileSize * 0.48));
+  const boardWidthPercent = width >= 768 ? 0.72 : 0.92;
+  const boardMaxWidth = width >= 1024 ? 680 : width >= 768 ? 600 : 390;
+  const availableBoardWidth = Math.min(width * boardWidthPercent, boardMaxWidth);
+  const maxTileFromWidth = (availableBoardWidth - tileGap * (WORD_LENGTH - 1)) / WORD_LENGTH;
+  const maxTileFromHeight = ((safeHeight * (width >= 768 ? 0.58 : 0.42)) - tileGap * (MAX_GUESSES - 1)) / MAX_GUESSES;
+  const tileSize = Math.max(34, Math.min(maxTileFromWidth, maxTileFromHeight, width >= 1024 ? 104 : width >= 768 ? 92 : 60));
+  const tileFontSize = Math.max(20, Math.min(width >= 768 ? 42 : 30, tileSize * 0.5));
   const boardWidth = WORD_LENGTH * tileSize + (WORD_LENGTH - 1) * tileGap;
 
   const shakeTranslateX = shake.interpolate({
@@ -298,15 +302,6 @@ export default function WordleScreen() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
-        {gameStatus !== "playing" && (
-          <Pressable
-            style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
-            onPress={() => setIsResultModalVisible(true)}
-          >
-            <Text style={styles.shareText}>შედეგი</Text>
-          </Pressable>
-        )}
-
         <GeorgianKeyboard
           disabled={gameStatus !== "playing"}
           isShifted={isShifted}

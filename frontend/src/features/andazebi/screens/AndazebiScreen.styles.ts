@@ -7,7 +7,7 @@ const SKIPPED_GRAY = "#7b8794";
 const staticStyles = StyleSheet.create({
   levelText: { color: "#ffffff", fontSize: 12, fontWeight: "900" },
   summaryPillText: { color: "#ffffff", fontSize: 12, fontWeight: "900" },
-  resultButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "900" },
+  resultButtonText: { color: "#ffffff", fontSize: 13, fontWeight: "900", textAlign: "center" },
   primaryButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "900" },
   skipButtonText: { color: "#ffffff" },
   feedbackWrong: { color: HARD_RED },
@@ -57,6 +57,20 @@ export function createStyles(colors: AppColors) {
     headerSpacer: {
       height: 42,
       width: 42
+    },
+    doneBadge: {
+      alignItems: "center",
+      backgroundColor: colors.correct,
+      borderRadius: 8,
+      height: 42,
+      justifyContent: "center",
+      width: 42
+    },
+    doneBadgeText: {
+      color: "#ffffff",
+      fontSize: 20,
+      fontWeight: "900",
+      lineHeight: 24
     },
     headerIcon: {
       color: colors.primaryText,
@@ -238,7 +252,7 @@ export function createStyles(colors: AppColors) {
       flex: 1,
       justifyContent: "center",
       minHeight: 46,
-      paddingHorizontal: 12
+      paddingHorizontal: 8
     },
     secondaryResultButton: {
       backgroundColor: colors.button
@@ -538,7 +552,7 @@ export function createStyles(colors: AppColors) {
       color: colors.disabled
     },
     modePickerDoneCheck: {
-      color: colors.correct,
+      color: colors.disabled,
       fontSize: 24,
       fontWeight: "900",
       paddingLeft: 8

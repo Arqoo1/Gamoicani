@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, View, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import games from "@data/games.json";
 import { GameItem as ApiGameItem } from "@/entities/game/types";
 import { fetchGames } from "@/features/games/api/gamesApi";
 import { useAuth } from "@/application/providers/auth";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
+import { STATS_STORAGE_KEY, getLocalDateKey as getAndazebiLocalDateKey } from "@/features/andazebi/model/screenModel";
 import { getDailyPuzzleNumber, WORDLE_EPOCH } from "@/features/wordle/model/wordle";
 import { BookIcon, LeaderboardIcon, MoonIcon, SunIcon } from "@/features/home/ui/HomeIcons";
 
@@ -32,15 +34,15 @@ function getLocalDateKey(date = new Date()): string {
 function isDoneToday(gameId: string, gameStats: Record<string, any> | undefined): boolean {
   if (!gameStats) return false;
   const stat = gameStats[gameId];
-  if (!stat?.lastCompletedKey) return false;
 
   if (gameId === "wordle") {
+    if (!stat?.lastCompletedKey) return false;
     const todayKey = String(getDailyPuzzleNumber(WORDLE_EPOCH));
     return stat.lastCompletedKey === todayKey;
   }
 
   if (gameId === "andazebi" || gameId === "trivia") {
-    return stat.lastCompletedKey === getLocalDateKey();
+    return stat?.lastCompletedKey === getLocalDateKey() || stat?.lastCompletedDate === getLocalDateKey();
   }
 
   return false;
@@ -63,9 +65,23 @@ export default function HomeScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [guideVisible, setGuideVisible] = useState(false);
   const [gameList, setGameList] = useState<GameItem[]>(fallbackGameList);
+  const [localAndazebiDoneToday, setLocalAndazebiDoneToday] = useState(false);
 
   useEffect(() => {
     let active = true;
+
+    AsyncStorage.getItem(STATS_STORAGE_KEY)
+      .then((value) => {
+        if (!active || !value) return;
+        try {
+          const parsed = JSON.parse(value) as { completedDates?: string[]; lastCompletedDate?: string | null };
+          const today = getAndazebiLocalDateKey();
+          if (parsed.completedDates?.includes(today) || parsed.lastCompletedDate === today) {
+            setLocalAndazebiDoneToday(true);
+          }
+        } catch {}
+      })
+      .catch(() => {});
 
     fetchGames()
       .then((nextGames: ApiGameItem[]) => {
@@ -165,7 +181,10 @@ export default function HomeScreen() {
         <View style={styles.list}>
           {gameList.map((game) => {
             const ready = game.status === "ready";
-            const done = ready && isDoneToday(game.id, user?.gameStats as any);
+            const done =
+              ready &&
+              (isDoneToday(game.id, user?.gameStats as any) ||
+                (game.id === "andazebi" && localAndazebiDoneToday));
 
             return (
               <Pressable

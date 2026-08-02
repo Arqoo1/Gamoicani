@@ -134,12 +134,26 @@ export default function ProfileScreen() {
     setShowColorPicker(false);
     setShowCoverPicker(false);
     try {
+      const category = SHOP_ITEMS_META[itemId]?.category;
       const res = await equipItem(itemId);
-      if (user) updateUser({ ...user, equippedItems: res.equippedItems } as any);
+      if (category === "avatar") {
+        await updateProfile({ profilePhotoUrl: null });
+      }
+      if (category === "banner") {
+        await updateProfile({ coverPhotoUrl: null });
+      }
+      if (user) {
+        updateUser({
+          ...user,
+          equippedItems: res.equippedItems,
+          ...(category === "avatar" ? { profilePhotoUrl: null } : {}),
+          ...(category === "banner" ? { coverPhotoUrl: null } : {})
+        } as any);
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Error equipping item");
     }
-  }, [user, updateUser]);
+  }, [updateProfile, user, updateUser]);
 
   const handleUnequipShopItem = useCallback(async (category: string) => {
     try {
@@ -196,7 +210,12 @@ export default function ProfileScreen() {
       >
         {}
         <TouchableOpacity activeOpacity={0.85} onPress={handleCoverTap} style={styles.cover}>
-          {user.coverPhotoUrl ? (
+          {equippedBannerColors ? (
+            <>
+              <View style={[styles.coverGradientTop, { backgroundColor: coverColors[0] }]} />
+              <View style={[styles.coverGradientBottom, { backgroundColor: coverColors[1] }]} />
+            </>
+          ) : user.coverPhotoUrl ? (
             <Image contentFit="cover" source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
           ) : (
             <>
@@ -213,14 +232,14 @@ export default function ProfileScreen() {
         {}
         <View style={styles.avatarRow}>
           <TouchableOpacity
-            style={[styles.avatar, !user.profilePhotoUrl && !equippedAvatarEmoji && { backgroundColor: avatarColor }]}
+            style={[styles.avatar, !equippedAvatarEmoji && !user.profilePhotoUrl && { backgroundColor: avatarColor }]}
             onPress={handleAvatarTap}
             activeOpacity={0.8}
           >
-            {user.profilePhotoUrl ? (
-              <Image contentFit="cover" source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
-            ) : equippedAvatarEmoji ? (
+            {equippedAvatarEmoji ? (
               <Text style={styles.avatarEmoji}>{equippedAvatarEmoji}</Text>
+            ) : user.profilePhotoUrl ? (
+              <Image contentFit="cover" source={{ uri: getMediaUrl(user.profilePhotoUrl) }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarInitials}>{initials}</Text>
             )}

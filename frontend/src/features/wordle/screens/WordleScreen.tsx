@@ -211,10 +211,12 @@ export default function WordleScreen() {
                 <Text style={styles.modePickerIcon}>🔁</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>ვარჯიში</Text>
-                <Text style={styles.modePickerOptionSub}>შემთხვევითი სიტყვა · ქულების გარეშე</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>ვარჯიში</Text>
+                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
+                  შემთხვევითი სიტყვა · ქულების გარეშე
+                </Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
             </Pressable>
 
             <Pressable
@@ -229,10 +231,12 @@ export default function WordleScreen() {
                 <Text style={styles.modePickerIcon}>🎓</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>სწავლება</Text>
-                <Text style={styles.modePickerOptionSub}>გაკვეთილი დამწყებთათვის</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>სწავლება</Text>
+                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
+                  გაკვეთილი დამწყებთათვის
+                </Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
             </Pressable>
 
             <Pressable

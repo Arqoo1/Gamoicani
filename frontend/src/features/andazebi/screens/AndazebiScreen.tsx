@@ -178,10 +178,10 @@ export default function AndazebiScreen() {
                 <Text style={styles.modePickerIcon}>🔁</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>ვარჯიში</Text>
-                <Text style={styles.modePickerOptionSub}>უსასრულო რეჟიმი</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>ვარჯიში</Text>
+                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>უსასრულო რეჟიმი</Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
             </Pressable>
 
             <Pressable
@@ -192,10 +192,14 @@ export default function AndazebiScreen() {
                 <Text style={styles.modePickerIcon}>🎓</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={styles.modePickerOptionTitle}>როგორ ვითამაშოთ</Text>
-                <Text style={styles.modePickerOptionSub}>ინტერაქტიული გაკვეთილი</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>
+                  როგორ ვითამაშოთ
+                </Text>
+                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
+                  ინტერაქტიული გაკვეთილი
+                </Text>
               </View>
-              <Text style={styles.modePickerArrow}>›</Text>
+              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
             </Pressable>
 
             <Pressable

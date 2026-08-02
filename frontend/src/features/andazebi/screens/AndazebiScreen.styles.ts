@@ -120,6 +120,15 @@ export function createStyles(colors: AppColors) {
     modeButtonTextActive: {
       color: colors.primaryText
     },
+    modePickerOptionTitleSecondary: {
+      color: colors.primaryText
+    },
+    modePickerOptionSubSecondary: {
+      color: colors.secondaryText
+    },
+    modePickerArrowSecondary: {
+      color: colors.secondaryText
+    },
     metaRow: {
       alignItems: "center",
       alignSelf: "center",

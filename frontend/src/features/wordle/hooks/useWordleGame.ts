@@ -219,7 +219,7 @@ export function useWordleGame(
     const guess = state.currentLetters.join("");
 
     if (!isFilledWord(guess, WORD_LENGTH)) {
-      showInvalidGuess("სიტყვა მოიკლება");
+      showInvalidGuess("სიტყვა მოკლეა");
       playBuzz();
       return;
     }

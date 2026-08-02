@@ -90,7 +90,6 @@ export interface ClientToServerEvents {
   "join-private-room": (data: { passcode: string }) => void;
   "leave-queue": () => void;
   "request-chat-history": () => void;
-  "send-chat-message": (data: { text: string }) => void;
   "update-profile": (data: { equippedItems: ShopData["equippedItems"] | null }) => void;
   "profile-update": (data: { equippedItems: ShopData["equippedItems"] | null }) => void;
   "forfeit": () => void;

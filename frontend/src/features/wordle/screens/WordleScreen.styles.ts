@@ -355,11 +355,17 @@ export function createStyles(colors: AppColors) {
     fontSize: 17,
     fontWeight: "900"
   },
+  modePickerOptionTitleSecondary: {
+    color: colors.primaryText
+  },
   modePickerOptionSub: {
     color: "rgba(255,255,255,0.75)",
     fontSize: 13,
     fontWeight: "600",
     marginTop: 2
+  },
+  modePickerOptionSubSecondary: {
+    color: colors.secondaryText
   },
   modePickerDisabledText: {
     color: colors.secondaryText
@@ -373,6 +379,9 @@ export function createStyles(colors: AppColors) {
     color: "rgba(255,255,255,0.7)",
     fontSize: 24,
     fontWeight: "700"
+  },
+  modePickerArrowSecondary: {
+    color: colors.secondaryText
   },
   modePickerBack: {
     alignItems: "center",

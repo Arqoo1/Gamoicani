@@ -111,7 +111,7 @@ export function useLobbySocket(activeTab: LobbyTab) {
 
   const sendChatMessage = useCallback(() => {
     if (!chatInput.trim() || !socket) return;
-    socket.emit("send-chat-message", { text: chatInput.trim() });
+    socket.emit("chat-send", { text: chatInput.trim() });
     setChatInput("");
   }, [chatInput, socket]);
 

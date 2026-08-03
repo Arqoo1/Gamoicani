@@ -20,9 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/application/providers/auth";
 import { useSocket } from "@/application/providers/socket";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
-import { listFriends, sendFriendRequest } from "@/features/social/api/friendsApi";
-import { FriendUser } from "@/entities/user/types";
+import { sendFriendRequest } from "@/features/social/api/friendsApi";
+import { useProfileFriends } from "@/features/profile/hooks/useProfileFriends";
 import { useLobbySocket } from "@/features/lobby/hooks/useLobbySocket";
+import { getInitials } from "@/shared/lib/user";
 
 type ChatMessage = {
   id: string;
@@ -40,6 +41,7 @@ export default function LobbyScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuth();
+  const { friends: friendsList } = useProfileFriends(Boolean(user));
 
   const [activeTab, setActiveTab] = useState<LobbyTab>("match");
   const [gameType, setGameType] = useState<"wordle" | "andazebi" | "mix">("wordle");
@@ -64,13 +66,6 @@ export default function LobbyScreen() {
   const chatScrollRef = useRef<ScrollView>(null);
   const [selectedUser, setSelectedUser] = useState<{ id: string; displayName: string; username: string } | null>(null);
   const [friendRequestStatus, setFriendRequestStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
-  const [friendsList, setFriendsList] = useState<FriendUser[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      listFriends().then(setFriendsList).catch(console.error);
-    }
-  }, [user]);
 
   const joinPublicHandler = () => joinPublic(gameType);
   const createPrivateHandler = () => createPrivate(gameType);
@@ -86,10 +81,6 @@ export default function LobbyScreen() {
   function formatTime(ts: number) {
     const d = new Date(ts);
     return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-  }
-
-  function getInitials(name: string) {
-    return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
   }
 
   const handleAddFriend = async () => {

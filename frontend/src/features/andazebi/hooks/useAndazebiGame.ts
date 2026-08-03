@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { Animated, Easing, Platform } from "react-native";
+import { Animated, Easing } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   triggerSelectionHaptic,
@@ -8,15 +8,14 @@ import {
 } from "@/shared/services/haptics";
 import { playBuzz, playChime, playLoss, playPop, playReveal } from "@/shared/services/sound";
 import { fetchGameContent } from "@/features/games/api/gamesApi";
+import { getAndazebiJson } from "@/shared/services/lazyData";
 import { cacheGameContent, getCachedGameContent } from "@/shared/storage/contentCache";
 import {
   BACKSPACE_KEY,
   ENTER_KEY,
   GEORGIAN_LETTERS,
-  QWERTY_TO_GEORGIAN,
   SHIFT_KEY,
   SHIFTED_GEORGIAN_KEYS,
-  SHIFTED_QWERTY_TO_GEORGIAN,
 } from "@/shared/constants/georgianKeyboard";
 import {
   AndazebiStats,
@@ -29,7 +28,6 @@ import {
   getDailyItems,
   getDailyNumber,
   getHintText,
-  getLocalDateKey,
   getPreviousDateKey,
   getRandomPracticeItem,
   Level,
@@ -46,6 +44,8 @@ import {
   WordStatus,
   createEmptyStats,
 } from "@/features/andazebi/model/screenModel";
+import { getLocalDateKey } from "@/shared/lib/date";
+import { useGeorgianWebKeyboard } from "@/shared/hooks/useGeorgianWebKeyboard";
 import { AuthUser } from "@/entities/user/types";
 
 
@@ -375,6 +375,9 @@ export function useAndazebiGame(
         const cached = await getCachedGameContent<ProverbsJson>("andazebi").catch(() => null);
         if (active && cached?.items?.length) {
           dispatch({ type: "SET_PROVERB_DATA", payload: cached });
+        } else if (active) {
+          const fallback = await getAndazebiJson();
+          dispatch({ type: "SET_PROVERB_DATA", payload: fallback as ProverbsJson });
         }
       });
     return () => { active = false; };
@@ -770,26 +773,10 @@ export function useAndazebiGame(
     [isDailyComplete, state.activeInputIndex, state.result, submitAnswer]
   );
 
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Enter") { event.preventDefault(); handleKeyPress(ENTER_KEY); return; }
-      if (event.key === "Backspace") { event.preventDefault(); handleKeyPress(BACKSPACE_KEY); return; }
-      const typedLetter = Array.from(event.key)[0];
-      const qwertyLetter =
-        event.key.length === 1
-          ? (event.shiftKey ? SHIFTED_QWERTY_TO_GEORGIAN[event.key.toUpperCase()] : undefined) ??
-            QWERTY_TO_GEORGIAN[event.key.toLowerCase()]
-          : undefined;
-      const letter = qwertyLetter ?? typedLetter;
-      if (letter && GEORGIAN_LETTERS.has(letter)) {
-        event.preventDefault();
-        handleKeyPress(letter);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handleKeyPress]);
+  useGeorgianWebKeyboard({
+    disabled: state.result === "correct" || isDailyComplete,
+    onKeyPress: handleKeyPress,
+  });
 
 
   return {

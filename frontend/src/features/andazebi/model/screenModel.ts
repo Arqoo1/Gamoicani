@@ -1,7 +1,6 @@
 import { Platform } from "react-native";
 import { AuthUser } from "@/entities/user/types";
 import { submitScore } from "@/features/scores/api/scoresApi";
-import proverbs from "@data/content/andazebi.json";
 
 export type Level = "easy" | "medium" | "hard";
 
@@ -46,7 +45,8 @@ export type AndazebiStats = {
   lastCompletedDate: string | null;
   maxStreak: number;
 };
-export const fallbackProverbData = proverbs as ProverbsJson;
+export const fallbackProverbData: ProverbsJson = { gameId: "andazebi", items: [], title: "ანდაზები", version: 1 };
+
 export const DAILY_LIMIT = 5;
 export const DEFAULT_FEEDBACK = "შეავსე გამოტოვებული სიტყვები";
 export const PROGRESS_STORAGE_KEY = "andazebi:daily-progress:v3";

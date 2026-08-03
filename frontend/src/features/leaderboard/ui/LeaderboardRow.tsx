@@ -1,3 +1,4 @@
+import React from "react";
 import { Text, View } from "react-native";
 
 import { LeaderboardEntry } from "@/entities/score/types";
@@ -10,7 +11,7 @@ type LeaderboardRowProps = {
   styles: Record<string, any>;
 };
 
-export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
+export const LeaderboardRow = React.memo(function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
   const score = mode === "global" || mode === "friends" ? entry.totalPoints ?? 0 : entry.streak ?? 0;
   const label = mode === "global" || mode === "friends" ? "ქულა" : "სერია";
   const pointsForRank = entry.totalPoints ?? (score > 10 ? 2000 : 500);
@@ -44,4 +45,4 @@ export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
       </View>
     </View>
   );
-}
+});

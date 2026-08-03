@@ -137,22 +137,22 @@ async function syncWordleScore(
     return;
   }
 
-  const result = await submitScore({
-    attempts: guesses,
-    gameId: "wordle",
-    guesses: submittedGuesses,
-    completionMethod: won ? "solved" : "lost",
-    mode: "daily",
-    puzzleKey,
-    won
-  });
+  try {
+    const result = await submitScore({
+      attempts: guesses,
+      gameId: "wordle",
+      guesses: submittedGuesses,
+      completionMethod: won ? "solved" : "lost",
+      mode: "daily",
+      puzzleKey,
+      won,
+    });
 
-  if (!result) {
-    return;
-  }
-
-  if (result.user && onScoreResult) {
-    onScoreResult(result.user);
+    if (result?.user && onScoreResult) {
+      onScoreResult(result.user);
+    }
+  } catch {
+    // Queued in outbox; user notified via useScoreOutboxSync banner.
   }
 }
 

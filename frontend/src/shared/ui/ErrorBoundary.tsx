@@ -1,15 +1,45 @@
 import React, { Component, ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppTheme } from "@/application/providers/theme";
+import { crashReporter } from "@/shared/services/crashReporter";
 
 type Props = {
   children: ReactNode;
   fallback?: ReactNode;
+  route?: string;
 };
 
 type State = {
   hasError: boolean;
   error: Error | null;
 };
+
+function ErrorFallbackView({ error, onReset }: { error: Error | null; onReset: () => void }) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={styles.emoji}>💥</Text>
+      <Text style={[styles.title, { color: colors.primaryText }]}>რაღაც შეცდომა მოხდა</Text>
+      <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
+        აპლიკაციაში მოხდა მოულოდნელი შეცდომა. გთხოვთ სცადეთ ხელახლა.
+      </Text>
+      {__DEV__ && error && (
+        <View style={[styles.devBox, { backgroundColor: colors.card, borderColor: "#e63946" }]}>
+          <Text style={[styles.devText, { color: "#e63946" }]} numberOfLines={6}>
+            {error.message}
+          </Text>
+        </View>
+      )}
+      <Pressable
+        style={({ pressed }) => [styles.btn, { backgroundColor: colors.accent }, pressed && styles.btnPressed]}
+        onPress={onReset}
+      >
+        <Text style={styles.btnText}>ხელახლა ცდა</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -23,6 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary] Uncaught error:", error, info.componentStack);
+    crashReporter.reportError(error, this.props.route, { componentStack: info.componentStack });
   }
 
   handleReset = () => {
@@ -35,28 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      return (
-        <View style={styles.container}>
-          <Text style={styles.emoji}>💥</Text>
-          <Text style={styles.title}>რაღაც შეცდომა მოხდა</Text>
-          <Text style={styles.subtitle}>
-            აპლიკაციაში მოხდა მოულოდნელი შეცდომა. გთხოვთ სცადეთ ხელახლა.
-          </Text>
-          {__DEV__ && this.state.error && (
-            <View style={styles.devBox}>
-              <Text style={styles.devText} numberOfLines={6}>
-                {this.state.error.message}
-              </Text>
-            </View>
-          )}
-          <Pressable
-            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-            onPress={this.handleReset}
-          >
-            <Text style={styles.btnText}>ხელახლა ცდა</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallbackView error={this.state.error} onReset={this.handleReset} />;
     }
 
     return this.props.children;
@@ -66,7 +76,6 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    backgroundColor: "#0f1117",
     flex: 1,
     justifyContent: "center",
     padding: 32,
@@ -76,14 +85,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    color: "#f0f0f0",
     fontSize: 22,
     fontWeight: "900",
     marginBottom: 12,
     textAlign: "center",
   },
   subtitle: {
-    color: "#9aa3af",
     fontSize: 15,
     fontWeight: "600",
     lineHeight: 22,
@@ -91,8 +98,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   devBox: {
-    backgroundColor: "#1e1e2e",
-    borderColor: "#e63946",
     borderRadius: 10,
     borderWidth: 1,
     marginBottom: 24,
@@ -100,13 +105,11 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   devText: {
-    color: "#ff6b6b",
     fontFamily: "monospace",
     fontSize: 12,
     lineHeight: 18,
   },
   btn: {
-    backgroundColor: "#2f9e5d",
     borderRadius: 14,
     paddingHorizontal: 32,
     paddingVertical: 16,

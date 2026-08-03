@@ -3,8 +3,8 @@ import { triggerInvalidHaptic, triggerSelectionHaptic } from "@/shared/services/
 import { loadWordleProgress, recordWordleCompletion, saveWordleProgress, getProgressKey } from "@/features/wordle/model/storage";
 import { GameStatus, getDailyPuzzleNumber, isFilledWord, splitWord, WORDLE_EPOCH } from "@/features/wordle/model/wordle";
 import { DEFAULT_MESSAGE, getStatusMessage, MAX_GUESSES, triggerCompletionHaptic, WORD_LENGTH, WordsJson } from "@/features/wordle/model/screenModel";
-import { BACKSPACE_KEY, ENTER_KEY, GEORGIAN_LETTERS, SHIFT_KEY, QWERTY_TO_GEORGIAN, SHIFTED_QWERTY_TO_GEORGIAN } from "@/shared/constants/georgianKeyboard";
-import { Platform } from "react-native";
+import { BACKSPACE_KEY, ENTER_KEY, GEORGIAN_LETTERS, SHIFT_KEY } from "@/shared/constants/georgianKeyboard";
+import { useGeorgianWebKeyboard } from "@/shared/hooks/useGeorgianWebKeyboard";
 import { AuthUser } from "@/entities/user/types";
 import { playBuzz, playChime, playPop } from "@/shared/services/sound";
 
@@ -275,24 +275,10 @@ export function useWordleGame(
     dispatch({ type: "TYPE_LETTER", payload: key });
   }, [state.gameStatus, submitGuess]);
 
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Enter") { event.preventDefault(); handleKeyPress(ENTER_KEY); return; }
-      if (event.key === "Backspace") { event.preventDefault(); handleKeyPress(BACKSPACE_KEY); return; }
-      const typedLetter = Array.from(event.key)[0];
-      const qwertyLetter = event.key.length === 1
-          ? (event.shiftKey ? SHIFTED_QWERTY_TO_GEORGIAN[event.key.toUpperCase()] : undefined) ?? QWERTY_TO_GEORGIAN[event.key.toLowerCase()]
-          : undefined;
-      const letter = qwertyLetter ?? typedLetter;
-      if (letter && GEORGIAN_LETTERS.has(letter)) {
-        event.preventDefault();
-        handleKeyPress(letter);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handleKeyPress]);
+  useGeorgianWebKeyboard({
+    disabled: state.gameStatus !== "playing",
+    onKeyPress: handleKeyPress,
+  });
 
   return {
     ...state,

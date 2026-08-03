@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -15,6 +15,7 @@ import { FeedEvent, fetchSocialFeed } from "@/features/feed/api/feedApi";
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 import { FeedEventCard } from "@/features/feed/ui/FeedEventCard";
 import { getMediaUrl } from "@/features/profile/model/profileMeta";
+import { getInitials } from "@/shared/lib/user";
 
 const GAME_META: Record<string, { label: string; emoji: string }> = {
   wordle:   { label: "სიტყვობანა", emoji: "🟩" },
@@ -33,9 +34,6 @@ function timeAgo(isoDate: string): string {
   return `${days} დღის წინ`;
 }
 
-function getInitials(name: string): string {
-  return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
-}
 
 export default function FeedScreen() {
   const router = useRouter();

@@ -1,3 +1,4 @@
+import React from "react";
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
@@ -12,7 +13,7 @@ type FeedEventCardProps = {
   winText: string;
 };
 
-export function FeedEventCard({
+export const FeedEventCard = React.memo(function FeedEventCard({
   avatarColor,
   avatarText,
   avatarUrl,
@@ -42,4 +43,4 @@ export function FeedEventCard({
       </View>
     </View>
   );
-}
+});

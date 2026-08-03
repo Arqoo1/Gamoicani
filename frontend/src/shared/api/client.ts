@@ -1,41 +1,20 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
 
-declare const process:
-  | {
-      env?: Record<string, string | undefined>;
-    }
-  | undefined;
-declare const __DEV__: boolean | undefined;
+import { resolveApiBaseUrl } from "@/shared/config/env";
 
 export type ApiEnvelope<T> = {
   data: T;
 };
 
-const LEGACY_TOKEN_STORAGE_KEY = "auth:token:v1";
+type ApiErrorBody = {
+  error?: {
+    message?: string;
+  };
+};
+
 const TOKEN_STORAGE_KEY = "auth-token-v1";
-const TOKEN_MIGRATED_KEY = "auth-token-secure-migrated-v1";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const PRODUCTION_API_URL = "https://gamoicani-ub68.onrender.com/api";
-
-function getDefaultApiUrl() {
-  return Platform.OS === "android" ? "http://10.0.2.2:4000/api" : "http://localhost:4000/api";
-}
-
-function resolveApiBaseUrl() {
-  const env = process?.env ?? {};
-  const configuredUrl = env.EXPO_PUBLIC_API_URL?.trim();
-  const isDev = typeof __DEV__ === "boolean" ? __DEV__ : env.NODE_ENV !== "production";
-  const apiUrl = configuredUrl || (isDev ? getDefaultApiUrl() : PRODUCTION_API_URL);
-
-  if (!isDev && apiUrl.startsWith("http://")) {
-    console.warn("Production API URL should use HTTPS. Falling back to the hosted API URL.");
-    return PRODUCTION_API_URL;
-  }
-
-  return apiUrl.replace(/\/$/, "");
-}
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
@@ -44,31 +23,15 @@ export function getApiOrigin() {
 }
 
 export async function getAuthToken() {
-  const secureToken = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
-  if (secureToken) return secureToken;
-
-  const migrated = await AsyncStorage.getItem(TOKEN_MIGRATED_KEY);
-  if (migrated) return null;
-
-  const legacyToken = await AsyncStorage.getItem(LEGACY_TOKEN_STORAGE_KEY);
-  if (!legacyToken) {
-    await AsyncStorage.setItem(TOKEN_MIGRATED_KEY, "true");
-    return null;
-  }
-
-  await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, legacyToken);
-  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
-  return legacyToken;
+  return SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
 }
 
 export async function setAuthToken(token: string) {
   await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, token);
-  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }
 
 export async function clearAuthToken() {
   await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-  await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }
 
 export async function fetchWithTimeout(
@@ -90,7 +53,7 @@ export async function fetchWithTimeout(
   try {
     return await fetch(input, {
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     });
   } finally {
     clearTimeout(timeout);
@@ -105,17 +68,34 @@ export async function requestJson<T>(path: string, init?: RequestInit & { auth?:
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers ?? {})
-    }
+      ...(headers ?? {}),
+    },
   }, timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
 
-  const payload = (await response.json().catch(() => ({}))) as Partial<ApiEnvelope<T>> & {
-    error?: { message?: string };
-  };
+  const rawBody = await response.text();
+  if (!rawBody) {
+    throw new Error(`Empty API response from ${path}`);
+  }
+
+  let payload: Partial<ApiEnvelope<T>> & ApiErrorBody;
+
+  try {
+    payload = JSON.parse(rawBody) as Partial<ApiEnvelope<T>> & ApiErrorBody;
+  } catch {
+    throw new Error(`Invalid JSON response from ${path}`);
+  }
 
   if (!response.ok) {
     throw new Error(payload.error?.message ?? `API request failed with ${response.status}`);
   }
 
+  if (typeof payload.data === "undefined") {
+    throw new Error(`API response missing data payload from ${path}`);
+  }
+
   return payload as ApiEnvelope<T>;
+}
+
+export function getExpoExtra() {
+  return Constants.expoConfig?.extra as Record<string, unknown> | undefined;
 }

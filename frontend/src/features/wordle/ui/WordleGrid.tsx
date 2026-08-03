@@ -2,6 +2,9 @@ import React, { memo } from "react";
 import { Animated, View } from "react-native";
 import { LetterScore, scoreGuess, splitWord } from "@/features/wordle/model/wordle";
 import { WordleTile } from "@/features/wordle/ui/WordleBoardPieces";
+import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
+
+type WordleStyles = ReturnType<typeof createStyles>;
 
 type WordleGridProps = {
   answer: string;
@@ -10,7 +13,7 @@ type WordleGridProps = {
   maxGuesses?: number;
   wordLength?: number;
   shakeAnim: Animated.Value | Animated.AnimatedInterpolation<string | number>;
-  styles: any;
+  styles: WordleStyles;
   tileSize: number;
   tileFontSize: number;
   tileGap: number;
@@ -23,7 +26,7 @@ type GridRowProps = {
   rowLetters: string[];
   scores: LetterScore[] | undefined;
   wordLength: number;
-  styles: any;
+  styles: WordleStyles;
   tileSize: number;
   tileFontSize: number;
   tileGap: number;

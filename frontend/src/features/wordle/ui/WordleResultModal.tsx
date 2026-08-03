@@ -2,6 +2,9 @@ import React, { memo, useRef } from "react";
 import { Modal, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import ViewShot from "react-native-view-shot";
 import { GameStatus, scoreGuess } from "@/features/wordle/model/wordle";
+import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
+
+type WordleStyles = ReturnType<typeof createStyles>;
 
 type WordleResultModalProps = {
   answer: string;
@@ -11,7 +14,7 @@ type WordleResultModalProps = {
   onClose: () => void;
   onNextPuzzle: () => void;
   puzzleNumber: number;
-  styles: any;
+  styles: WordleStyles;
   tileSize?: number;
   tileFontSize?: number;
 };

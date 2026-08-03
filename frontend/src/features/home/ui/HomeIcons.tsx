@@ -12,7 +12,7 @@ export function MoonIcon({ color }: { color: string }) {
           borderWidth: 2,
           borderColor: color,
           overflow: "hidden",
-          position: "relative"
+          position: "relative",
         }}
       >
         {}
@@ -44,7 +44,7 @@ export function SunIcon({ color }: { color: string }) {
           height: 8,
           borderRadius: 4,
           backgroundColor: color,
-          position: "absolute"
+          position: "absolute",
         }}
       />
       {}
@@ -58,7 +58,7 @@ export function SunIcon({ color }: { color: string }) {
             borderRadius: 1,
             backgroundColor: color,
             transform: [{ rotate: `${deg}deg` }],
-            opacity: 0.85
+            opacity: 0.85,
           }}
         />
       ))}
@@ -81,7 +81,7 @@ export function BookIcon({ color }: { color: string }) {
           borderBottomLeftRadius: 2,
           borderWidth: 2,
           borderRightWidth: 0,
-          borderColor: color
+          borderColor: color,
         }}
       />
       {}
@@ -96,7 +96,7 @@ export function BookIcon({ color }: { color: string }) {
           borderBottomRightRadius: 2,
           borderWidth: 2,
           borderLeftWidth: 0,
-          borderColor: color
+          borderColor: color,
         }}
       />
       {}
@@ -106,7 +106,7 @@ export function BookIcon({ color }: { color: string }) {
           width: 2,
           height: 14,
           top: 1,
-          backgroundColor: color
+          backgroundColor: color,
         }}
       />
       {}
@@ -120,7 +120,7 @@ export function BookIcon({ color }: { color: string }) {
           borderTopRightRadius: 3,
           borderWidth: 2,
           borderBottomWidth: 0,
-          borderColor: color
+          borderColor: color,
         }}
       />
     </View>

@@ -24,7 +24,6 @@ import {
   CompletionMethod,
   DailyProgress,
   DEFAULT_FEEDBACK,
-  fallbackProverbData,
   GameMode,
   getDailyItems,
   getDailyNumber,
@@ -47,7 +46,7 @@ import {
   createEmptyStats,
 } from "@/features/andazebi/model/screenModel";
 import { AuthUser } from "@/entities/user/types";
-
+import { GameStat } from "@/entities/user/types";
 
 type GameState = {
   activeInputIndex: number;
@@ -67,7 +66,6 @@ type GameState = {
   wordStatuses: Array<WordStatus | undefined>;
   wrongAttempts: number;
 };
-
 
 type GameAction =
   | { type: "SET_PROVERB_DATA"; payload: ProverbsJson }
@@ -89,7 +87,6 @@ type GameAction =
   | { type: "RECORD_COMPLETION"; payload: string }
   | { type: "RESET_RESULT" };
 
-
 function buildEmptyItemState(numWords: number) {
   return {
     activeInputIndex: 0,
@@ -106,7 +103,11 @@ function buildEmptyItemState(numWords: number) {
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "SET_PROVERB_DATA":
-      return { ...state, proverbData: action.payload };
+      return {
+        ...state,
+        proverbData: action.payload,
+        practiceItem: state.practiceItem || getRandomPracticeItem(action.payload.items),
+      };
 
     case "SET_PRACTICE_ITEM":
       return { ...state, practiceItem: action.payload };
@@ -150,7 +151,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const isEmpty = (state.answers[activeInputIndex] ?? "").length === 0;
       const targetIndex = isEmpty && activeInputIndex > 0 ? activeInputIndex - 1 : activeInputIndex;
       const nextAnswers = [...state.answers];
-      nextAnswers[targetIndex] = Array.from(nextAnswers[targetIndex] ?? "").slice(0, -1).join("");
+      nextAnswers[targetIndex] = Array.from(nextAnswers[targetIndex] ?? "")
+        .slice(0, -1)
+        .join("");
       const nextStatuses = [...state.wordStatuses];
       nextStatuses[targetIndex] = undefined;
       return {
@@ -212,12 +215,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "RECORD_COMPLETION": {
       const dateKey = action.payload;
       if (state.stats.completedDates.includes(dateKey)) return state;
-      const continuesStreak = state.stats.lastCompletedDate === getPreviousDateKey(dateKey);
+      const continuesStreak = state.stats.lastCompletedKey === getPreviousDateKey(dateKey);
       const currentStreak = continuesStreak ? state.stats.currentStreak + 1 : 1;
       const nextStats: AndazebiStats = {
         completedDates: [...state.stats.completedDates, dateKey],
         currentStreak,
-        lastCompletedDate: dateKey,
+        lastCompletedKey: dateKey,
         maxStreak: Math.max(state.stats.maxStreak, currentStreak),
       };
       AsyncStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(nextStats)).catch(() => {});
@@ -232,7 +235,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-
 const initialState: GameState = {
   activeInputIndex: 0,
   answers: [],
@@ -244,14 +246,13 @@ const initialState: GameState = {
   isOffline: false,
   isShifted: false,
   itemIndex: 0,
-  practiceItem: getRandomPracticeItem(fallbackProverbData.items),
-  proverbData: fallbackProverbData,
+  practiceItem: null,
+  proverbData: { gameId: "andazebi", items: [], title: "ანდაზები", version: 1 },
   result: "idle",
   stats: createEmptyStats(),
   wordStatuses: [],
   wrongAttempts: 0,
 };
-
 
 const TUTORIAL_ITEM: ProverbItem = {
   id: "tutorial",
@@ -263,18 +264,16 @@ const TUTORIAL_ITEM: ProverbItem = {
   hint: "შენი საკუთარი...",
 };
 
-
 export function useAndazebiGame(
   user: AuthUser | null,
   updateUser: (u: AuthUser) => void,
   confettiStart: () => void,
-  width: number,
+  width: number
 ) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const shake = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(1)).current;
   const dateKey = useMemo(() => getLocalDateKey(), []);
-
 
   const items = state.proverbData.items;
   const dailyItems = useMemo(() => getDailyItems(items, dateKey), [dateKey, items]);
@@ -287,8 +286,8 @@ export function useAndazebiGame(
         : state.practiceItem;
 
   const isDailyDone = useMemo(() => {
-    const stat = (user?.gameStats as any)?.["andazebi"];
-    return state.stats.completedDates.includes(dateKey) || stat?.lastCompletedKey === dateKey || stat?.lastCompletedDate === dateKey;
+    const stat = user?.gameStats?.andazebi as GameStat | undefined;
+    return state.stats.completedDates.includes(dateKey) || stat?.lastCompletedKey === dateKey;
   }, [state.stats.completedDates, user?.gameStats, dateKey]);
 
   const isPracticeMode = state.gameMode === "practice";
@@ -323,7 +322,7 @@ export function useAndazebiGame(
   const keyboardRows = useMemo(
     () =>
       BASE_KEYBOARD_ROWS.map((row) =>
-        row.map((key) => (state.isShifted ? SHIFTED_GEORGIAN_KEYS[key] ?? key : key))
+        row.map((key) => (state.isShifted ? (SHIFTED_GEORGIAN_KEYS[key] ?? key) : key))
       ),
     [state.isShifted]
   );
@@ -333,7 +332,10 @@ export function useAndazebiGame(
   const levelSummary = useMemo(
     () =>
       dailyItems.reduce<Record<Level, number>>(
-        (acc, item) => { acc[item.level] += 1; return acc; },
+        (acc, item) => {
+          acc[item.level] += 1;
+          return acc;
+        },
         { easy: 0, medium: 0, hard: 0 }
       ),
     [dailyItems]
@@ -342,7 +344,10 @@ export function useAndazebiGame(
   const completedMethods = useMemo(
     () =>
       state.completedItems.reduce<Record<CompletionMethod, number>>(
-        (acc, item) => { acc[item.method] += 1; return acc; },
+        (acc, item) => {
+          acc[item.method] += 1;
+          return acc;
+        },
         { solved: 0, revealed: 0, skipped: 0 }
       ),
     [state.completedItems]
@@ -360,7 +365,6 @@ export function useAndazebiGame(
   const currentHintText = currentItem ? getHintText(currentItem, state.hintLevel) : "";
   const canUseHelp = state.wrongAttempts >= 3 && state.result !== "correct";
 
-
   useEffect(() => {
     let active = true;
     fetchGameContent<ProverbsJson>("andazebi")
@@ -377,20 +381,21 @@ export function useAndazebiGame(
           dispatch({ type: "SET_PROVERB_DATA", payload: cached });
         }
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      AsyncStorage.getItem(PROGRESS_STORAGE_KEY),
-      AsyncStorage.getItem(STATS_STORAGE_KEY),
-    ])
+    Promise.all([AsyncStorage.getItem(PROGRESS_STORAGE_KEY), AsyncStorage.getItem(STATS_STORAGE_KEY)])
       .then(([progressValue, statsValue]) => {
         if (!active) return;
         let hydratedStats = createEmptyStats();
         if (statsValue) {
-          try { hydratedStats = { ...hydratedStats, ...(JSON.parse(statsValue) as AndazebiStats) }; } catch {}
+          try {
+            hydratedStats = { ...hydratedStats, ...(JSON.parse(statsValue) as AndazebiStats) };
+          } catch {}
         }
         let completedItems: CompletedItem[] = [];
         let itemIndex = 0;
@@ -408,13 +413,8 @@ export function useAndazebiGame(
                     : null;
                 })
                 .filter((x): x is CompletedItem => Boolean(x));
-              completedItems = (progress.completedItems ?? legacy).filter((i) =>
-                dailyItemIds.has(i.id)
-              );
-              itemIndex = Math.min(
-                Math.max(progress.currentIndex, completedItems.length),
-                dailyItems.length
-              );
+              completedItems = (progress.completedItems ?? legacy).filter((i) => dailyItemIds.has(i.id));
+              itemIndex = Math.min(Math.max(progress.currentIndex, completedItems.length), dailyItems.length);
             }
           } catch {}
         }
@@ -422,9 +422,14 @@ export function useAndazebiGame(
       })
       .catch(() => {
         if (active)
-          dispatch({ type: "HYDRATE", payload: { completedItems: [], itemIndex: 0, stats: createEmptyStats() } });
+          dispatch({
+            type: "HYDRATE",
+            payload: { completedItems: [], itemIndex: 0, stats: createEmptyStats() },
+          });
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [dailyItems, dateKey]);
 
   useEffect(() => {
@@ -437,7 +442,6 @@ export function useAndazebiGame(
     shake.setValue(0);
     successScale.setValue(1);
   }, [currentItem?.id]);
-
 
   const shakeWrongAnswer = useCallback(() => {
     shake.stopAnimation();
@@ -472,7 +476,6 @@ export function useAndazebiGame(
     ]).start();
   }, [successScale]);
 
-
   const saveDailyProgress = useCallback(
     (nextIndex: number, nextCompletedItems: CompletedItem[]) => {
       if (!state.isHydrated) return;
@@ -483,14 +486,12 @@ export function useAndazebiGame(
           completedItems: nextCompletedItems,
           currentIndex: nextIndex,
           dateKey,
-          finishedAt:
-            nextIndex >= dailyItems.length ? new Date().toISOString() : undefined,
+          finishedAt: nextIndex >= dailyItems.length ? new Date().toISOString() : undefined,
         })
       ).catch(() => {});
     },
     [dailyItems.length, dateKey, state.isHydrated]
   );
-
 
   const submitAnswer = useCallback(() => {
     if (!currentItem || isDailyComplete || state.result === "correct") return;
@@ -627,9 +628,7 @@ export function useAndazebiGame(
       level: currentItem.level,
       method: "solved",
     };
-    const updatedCompleted = alreadyCompleted
-      ? state.completedItems
-      : [...state.completedItems, newItem];
+    const updatedCompleted = alreadyCompleted ? state.completedItems : [...state.completedItems, newItem];
 
     if (!alreadyCompleted) {
       dispatch({ type: "COMPLETE_ITEM", payload: newItem });
@@ -734,14 +733,7 @@ export function useAndazebiGame(
         dispatch({ type: "UPDATE_ITEM_INDEX", payload: correctedIndex });
       }
     },
-    [
-      currentItem?.id,
-      dailyItems.length,
-      items,
-      state.completedItems.length,
-      state.gameMode,
-      state.itemIndex,
-    ]
+    [currentItem?.id, dailyItems.length, items, state.completedItems.length, state.gameMode, state.itemIndex]
   );
 
   const handleKeyPress = useCallback(
@@ -773,13 +765,21 @@ export function useAndazebiGame(
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Enter") { event.preventDefault(); handleKeyPress(ENTER_KEY); return; }
-      if (event.key === "Backspace") { event.preventDefault(); handleKeyPress(BACKSPACE_KEY); return; }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleKeyPress(ENTER_KEY);
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        handleKeyPress(BACKSPACE_KEY);
+        return;
+      }
       const typedLetter = Array.from(event.key)[0];
       const qwertyLetter =
         event.key.length === 1
-          ? (event.shiftKey ? SHIFTED_QWERTY_TO_GEORGIAN[event.key.toUpperCase()] : undefined) ??
-            QWERTY_TO_GEORGIAN[event.key.toLowerCase()]
+          ? ((event.shiftKey ? SHIFTED_QWERTY_TO_GEORGIAN[event.key.toUpperCase()] : undefined) ??
+            QWERTY_TO_GEORGIAN[event.key.toLowerCase()])
           : undefined;
       const letter = qwertyLetter ?? typedLetter;
       if (letter && GEORGIAN_LETTERS.has(letter)) {
@@ -790,7 +790,6 @@ export function useAndazebiGame(
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [handleKeyPress]);
-
 
   return {
     activeInputIndex: state.activeInputIndex,

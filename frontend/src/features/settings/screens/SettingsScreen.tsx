@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, Alert,
+import {
+  Platform,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -10,13 +12,16 @@ import { Platform, Alert,
   Switch,
   Text,
   TouchableOpacity,
-  View, } from "react-native";
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth, useLogoutAndGoLogin } from "@/application/providers/auth";
 import { getPendingCount, syncPracticeXp } from "@/features/settings/model/practiceXp";
 import { useSettings } from "@/application/providers/settings";
 import { AppColors, ThemeMode, useAppTheme } from "@/application/providers/theme";
+import { Href } from "expo-router";
+import { createStyles } from "@/features/settings/screens/SettingsScreen.styles";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -31,7 +36,9 @@ export default function SettingsScreen() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
-    getPendingCount().then(setPendingXp).catch(() => {});
+    getPendingCount()
+      .then(setPendingXp)
+      .catch(() => {});
   }, []);
 
   const handleSync = useCallback(async () => {
@@ -77,7 +84,6 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
         {}
         <Text style={styles.sectionTitle}>გარეგნობა</Text>
         <View style={styles.card}>
@@ -91,13 +97,11 @@ export default function SettingsScreen() {
                   style={[styles.themeBtn, isActive && styles.themeBtnActive]}
                 >
                   <Feather
-                    name={icon as any}
+                    name={icon as "sun" | "moon" | "smartphone"}
                     size={18}
                     color={isActive ? colors.accent : colors.secondaryText}
                   />
-                  <Text style={[styles.themeBtnText, isActive && styles.themeBtnTextActive]}>
-                    {label}
-                  </Text>
+                  <Text style={[styles.themeBtnText, isActive && styles.themeBtnTextActive]}>{label}</Text>
                 </Pressable>
               );
             })}
@@ -148,14 +152,10 @@ export default function SettingsScreen() {
               style={({ pressed }) => [styles.syncBtn, (pressed || syncing) && styles.pressed]}
             >
               <Feather name="refresh-cw" size={16} color="#fff" />
-              <Text style={styles.syncBtnText}>
-                {syncing ? "..." : "სინქრონიზაცია"}
-              </Text>
+              <Text style={styles.syncBtnText}>{syncing ? "..." : "სინქრონიზაცია"}</Text>
             </Pressable>
           </View>
-          <Text style={styles.xpHint}>
-            პრაქტიკის რეჟიმის შედეგები ითვლება ონლაინ სინქრონიზაციის შემდეგ.
-          </Text>
+          <Text style={styles.xpHint}>პრაქტიკის რეჟიმის შედეგები ითვლება ონლაინ სინქრონიზაციის შემდეგ.</Text>
         </View>
 
         {}
@@ -197,7 +197,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Pressable
             style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-            onPress={() => router.push("/shop" as any)}
+            onPress={() => router.push("/shop" as Href)}
           >
             <View style={styles.linkLeft}>
               <Feather name="shopping-bag" size={20} color={colors.accent} />
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
           <View style={styles.separator} />
           <Pressable
             style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-            onPress={() => router.push("/feed" as any)}
+            onPress={() => router.push("/feed" as Href)}
           >
             <View style={styles.linkLeft}>
               <Feather name="activity" size={20} color={colors.accent} />
@@ -219,7 +219,7 @@ export default function SettingsScreen() {
           <View style={styles.separator} />
           <Pressable
             style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-            onPress={() => router.push("/profile" as any)}
+            onPress={() => router.push("/profile" as Href)}
           >
             <View style={styles.linkLeft}>
               <Feather name="user" size={20} color={colors.accent} />
@@ -241,7 +241,12 @@ export default function SettingsScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      <Modal visible={showLogoutConfirm} transparent animationType="fade" onRequestClose={() => setShowLogoutConfirm(false)}>
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
         <View style={styles.modalBackdropDialog}>
           <View style={styles.dialog}>
             <View style={styles.dialogIconContainer}>
@@ -253,7 +258,13 @@ export default function SettingsScreen() {
               <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setShowLogoutConfirm(false)}>
                 <Text style={styles.dialogCancelBtnText}>გაუქმება</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.dialogDangerBtn} onPress={() => { setShowLogoutConfirm(false); logoutAndGoLogin(); }}>
+              <TouchableOpacity
+                style={styles.dialogDangerBtn}
+                onPress={() => {
+                  setShowLogoutConfirm(false);
+                  logoutAndGoLogin();
+                }}
+              >
                 <Text style={styles.dialogDangerBtnText}>გასვლა</Text>
               </TouchableOpacity>
             </View>
@@ -262,131 +273,4 @@ export default function SettingsScreen() {
       </Modal>
     </SafeAreaView>
   );
-}
-
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background  },
-    header: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-    },
-    backBtn: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
-    title: { color: colors.primaryText, fontSize: 18, fontWeight: "900" },
-    pressed: { opacity: 0.65 },
-    content: { padding: 20, paddingTop: 8 },
-    sectionTitle: {
-      color: colors.secondaryText,
-      fontSize: 12,
-      fontWeight: "800",
-      letterSpacing: 1,
-      marginBottom: 8,
-      marginTop: 24,
-      textTransform: "uppercase",
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
-      borderRadius: 16,
-      borderWidth: 1,
-      overflow: "hidden",
-    },
-    separator: { height: 1, backgroundColor: colors.border, marginHorizontal: 16 },
-    themeRow: { flexDirection: "row", gap: 8, padding: 12 },
-    themeBtn: {
-      alignItems: "center",
-      backgroundColor: colors.background,
-      borderColor: colors.border,
-      borderRadius: 12,
-      borderWidth: 2,
-      flex: 1,
-      gap: 6,
-      paddingVertical: 14,
-    },
-    themeBtnActive: {
-      borderColor: colors.accent,
-      backgroundColor: colors.accent + "18",
-    },
-    themeBtnText: { color: colors.secondaryText, fontSize: 12, fontWeight: "700" },
-    themeBtnTextActive: { color: colors.accent },
-    toggleRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    toggleLeft: { alignItems: "center", flexDirection: "row", gap: 12 },
-    toggleLabel: { color: colors.primaryText, fontSize: 16, fontWeight: "600" },
-    xpRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      padding: 16,
-    },
-    xpLabel: { color: colors.secondaryText, fontSize: 13, fontWeight: "700", marginBottom: 2 },
-    xpValue: { color: colors.primaryText, fontSize: 22, fontWeight: "900" },
-    syncBtn: {
-      alignItems: "center",
-      backgroundColor: colors.accent,
-      borderRadius: 10,
-      flexDirection: "row",
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-    },
-    syncBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
-    xpHint: {
-      color: colors.secondaryText,
-      fontSize: 12,
-      lineHeight: 17,
-      paddingBottom: 14,
-      paddingHorizontal: 16,
-    },
-    infoRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    infoLabel: { color: colors.secondaryText, fontSize: 14, fontWeight: "700" },
-    infoValue: { color: colors.primaryText, fontSize: 14, fontWeight: "700" },
-    linkRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-    },
-    linkLeft: { alignItems: "center", flexDirection: "row", gap: 12 },
-    linkLabel: { color: colors.primaryText, fontSize: 16, fontWeight: "700" },
-    logoutBtn: {
-      alignItems: "center",
-      backgroundColor: "#e6394618",
-      borderColor: "#e63946",
-      borderRadius: 14,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: 10,
-      justifyContent: "center",
-      marginTop: 32,
-      paddingVertical: 16,
-    },
-    logoutText: { color: "#e63946", fontSize: 16, fontWeight: "800" },
-
-    modalBackdropDialog: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center" },
-    dialog: { backgroundColor: colors.card, borderRadius: 16, margin: 24, padding: 24, alignSelf: "center", width: "85%", maxWidth: 400 },
-    dialogIconContainer: { alignSelf: "center", backgroundColor: "#e6394612", borderRadius: 30, width: 60, height: 60, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-    dialogTitle: { color: colors.primaryText, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: "center" },
-    dialogText: { color: colors.secondaryText, fontSize: 15, fontWeight: "600", marginBottom: 24, textAlign: "center", lineHeight: 22 },
-    dialogActions: { flexDirection: "row", gap: 12 },
-    dialogCancelBtn: { flex: 1, backgroundColor: colors.button, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-    dialogCancelBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: "800" },
-    dialogDangerBtn: { flex: 1, backgroundColor: "#e63946", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-    dialogDangerBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  });
 }

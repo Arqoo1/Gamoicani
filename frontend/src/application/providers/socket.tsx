@@ -29,6 +29,37 @@ const SocketContext = createContext<SocketContextType>({
   emitProfileUpdate: () => {},
 });
 
+function createAppSocket(token: string): AppSocket {
+  return io(SOCKET_URL, {
+    auth: { token },
+    transports: ["websocket"],
+  }) as AppSocket;
+}
+
+function bindSocketEvents(
+  socket: AppSocket,
+  handlers: {
+    onConnected: () => void;
+    onDisconnected: () => void;
+    onErrorMessage: (err: { message: string }) => void;
+    onOpponentProfile: (profile: OpponentProfile) => void;
+  }
+) {
+  const { onConnected, onDisconnected, onErrorMessage, onOpponentProfile } = handlers;
+
+  socket.on("connect", onConnected);
+  socket.on("disconnect", onDisconnected);
+  socket.on("error-message", onErrorMessage);
+  socket.on("opponent-profile", onOpponentProfile);
+
+  return () => {
+    socket.off("connect", onConnected);
+    socket.off("disconnect", onDisconnected);
+    socket.off("error-message", onErrorMessage);
+    socket.off("opponent-profile", onOpponentProfile);
+  };
+}
+
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const [socket, setSocket] = useState<AppSocket | null>(null);
@@ -36,46 +67,50 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [opponentProfile, setOpponentProfile] = useState<OpponentProfile | null>(null);
 
   useEffect(() => {
-    let newSocket: AppSocket;
+    let cancelled = false;
+    let activeSocket: AppSocket | null = null;
 
     async function initSocket() {
       if (status !== "authenticated") return;
 
       const token = await getAuthToken();
-      if (!token) return;
+      if (cancelled || !token) return;
 
-      newSocket = io(SOCKET_URL, {
-        auth: { token },
-        transports: ["websocket"],
-      }) as AppSocket;
+      const nextSocket = createAppSocket(token);
+      activeSocket = nextSocket;
 
-      newSocket.on("connect", () => {
-        setIsConnected(true);
-        console.log("[Socket] Connected:", newSocket.id);
+      const unbind = bindSocketEvents(nextSocket, {
+        onConnected: () => {
+          setIsConnected(true);
+        },
+        onDisconnected: () => {
+          setIsConnected(false);
+        },
+        onErrorMessage: (err) => {
+          console.error("[Socket Error]", err.message);
+        },
+        onOpponentProfile: (profile) => {
+          setOpponentProfile(profile);
+        },
       });
 
-      newSocket.on("disconnect", () => {
-        setIsConnected(false);
-        console.log("[Socket] Disconnected");
-      });
+      if (cancelled) {
+        unbind();
+        nextSocket.disconnect();
+        return;
+      }
 
-      newSocket.on("error-message", (err: { message: string }) => {
-        console.error("[Socket Error]", err.message);
-      });
-
-      newSocket.on("opponent-profile", (profile: OpponentProfile) => {
-        setOpponentProfile(profile);
-      });
-
-      setSocket(newSocket);
+      setSocket(nextSocket);
     }
 
     initSocket();
 
     return () => {
-      if (newSocket) {
-        newSocket.disconnect();
+      cancelled = true;
+      if (activeSocket) {
+        activeSocket.disconnect();
       }
+      setIsConnected(false);
       setSocket(null);
     };
   }, [status]);

@@ -1,7 +1,8 @@
 import React, { memo, useRef } from "react";
 import { Modal, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
-import ViewShot from "react-native-view-shot";
+import ViewShot, { ViewShotRef } from "react-native-view-shot";
 import { GameStatus, scoreGuess } from "@/features/wordle/model/wordle";
+import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
 
 type WordleResultModalProps = {
   answer: string;
@@ -11,7 +12,7 @@ type WordleResultModalProps = {
   onClose: () => void;
   onNextPuzzle: () => void;
   puzzleNumber: number;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
   tileSize?: number;
   tileFontSize?: number;
 };
@@ -25,16 +26,16 @@ function scoreToEmoji(score: "correct" | "present" | "absent") {
 const staticTileScoreStyles = StyleSheet.create({
   correct: {
     backgroundColor: "#2f9e5d",
-    borderColor: "#2f9e5d"
+    borderColor: "#2f9e5d",
   },
   present: {
     backgroundColor: "#d6a12a",
-    borderColor: "#d6a12a"
+    borderColor: "#d6a12a",
   },
   absent: {
     backgroundColor: "#66727f",
-    borderColor: "#66727f"
-  }
+    borderColor: "#66727f",
+  },
 });
 
 export const WordleResultModal = memo(function WordleResultModal({
@@ -49,13 +50,11 @@ export const WordleResultModal = memo(function WordleResultModal({
   tileSize = 38,
   tileFontSize = 20,
 }: WordleResultModalProps) {
-  const viewShotRef = useRef<any>(null);
+  const viewShotRef = useRef<ViewShotRef | null>(null);
 
   const sharePreview = React.useMemo(() => {
     const result = gameStatus === "won" ? `${guesses.length}/6` : "X/6";
-    const emojiRows = guesses.map((guess) =>
-      scoreGuess(guess, answer).map(scoreToEmoji).join("")
-    );
+    const emojiRows = guesses.map((guess) => scoreGuess(guess, answer).map(scoreToEmoji).join(""));
 
     return [`ქართული სიტყვობანა #${puzzleNumber} ${result}`, ...emojiRows].join("\n");
   }, [answer, gameStatus, guesses, puzzleNumber]);
@@ -91,9 +90,15 @@ export const WordleResultModal = memo(function WordleResultModal({
               </Pressable>
             </View>
 
-            <Text style={styles.resultTitle}>{gameStatus === "won" ? "\u10db\u10dd\u10d2\u10d4\u10d1\u10d0" : "\u10ec\u10d0\u10d2\u10d4\u10d1\u10d0"}</Text>
+            <Text style={styles.resultTitle}>
+              {gameStatus === "won"
+                ? "\u10db\u10dd\u10d2\u10d4\u10d1\u10d0"
+                : "\u10ec\u10d0\u10d2\u10d4\u10d1\u10d0"}
+            </Text>
             <Text style={styles.resultSubtitle}>
-              {gameStatus === "won" ? `${guesses.length}/6 \u10ea\u10d3\u10d0\u10e8\u10d8 \u10d2\u10d0\u10db\u10dd\u10d8\u10ea\u10d0\u10dc\u10d8` : `\u10e1\u10ec\u10dd\u10e0\u10d8 \u10e1\u10d8\u10e2\u10e7\u10d5\u10d0 \u10d8\u10e7\u10dd: ${answer}`}
+              {gameStatus === "won"
+                ? `${guesses.length}/6 \u10ea\u10d3\u10d0\u10e8\u10d8 \u10d2\u10d0\u10db\u10dd\u10d8\u10ea\u10d0\u10dc\u10d8`
+                : `\u10e1\u10ec\u10dd\u10e0\u10d8 \u10e1\u10d8\u10e2\u10e7\u10d5\u10d0 \u10d8\u10e7\u10dd: ${answer}`}
             </Text>
 
             <View style={styles.resultGrid}>
@@ -107,14 +112,14 @@ export const WordleResultModal = memo(function WordleResultModal({
                         style={[
                           styles.tile,
                           { height: tileSize, width: tileSize },
-                          staticTileScoreStyles[scores[cIdx]]
+                          staticTileScoreStyles[scores[cIdx]],
                         ]}
                       >
                         <Text
                           style={[
                             styles.tileText,
                             styles.tileTextScored,
-                            { fontSize: tileFontSize, lineHeight: tileFontSize + 7 }
+                            { fontSize: tileFontSize, lineHeight: tileFontSize + 7 },
                           ]}
                         >
                           {char}
@@ -129,10 +134,14 @@ export const WordleResultModal = memo(function WordleResultModal({
 
           <View style={styles.resultActions}>
             <Pressable style={styles.resultButton} onPress={handleShare}>
-              <Text style={styles.resultButtonText}>{"\u10d2\u10d0\u10d6\u10d8\u10d0\u10e0\u10d4\u10d1\u10d0"}</Text>
+              <Text style={styles.resultButtonText}>
+                {"\u10d2\u10d0\u10d6\u10d8\u10d0\u10e0\u10d4\u10d1\u10d0"}
+              </Text>
             </Pressable>
             <Pressable style={[styles.resultButton, styles.secondaryResultButton]} onPress={onNextPuzzle}>
-              <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>{"\u10e8\u10d4\u10db\u10d3\u10d4\u10d2\u10d8"}</Text>
+              <Text style={[styles.resultButtonText, styles.secondaryResultButtonText]}>
+                {"\u10e8\u10d4\u10db\u10d3\u10d4\u10d2\u10d8"}
+              </Text>
             </Pressable>
           </View>
         </Pressable>

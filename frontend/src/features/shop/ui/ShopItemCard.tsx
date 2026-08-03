@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 
 import { ShopItem } from "@/entities/shop/types";
+import { createStyles } from "@/features/shop/screens/ShopScreen.styles.ts";
 
 type ShopItemCardProps = {
   isBusy: boolean;
@@ -10,7 +11,7 @@ type ShopItemCardProps = {
   onBuy: (item: ShopItem) => void;
   onEquip: (item: ShopItem) => void;
   onPreview: (item: ShopItem) => void;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ShopItemCard({
@@ -20,14 +21,12 @@ export function ShopItemCard({
   onBuy,
   onEquip,
   onPreview,
-  styles
+  styles,
 }: ShopItemCardProps) {
   return (
     <View style={[styles.itemCard, isEquipped && styles.itemCardEquipped]}>
       <Pressable onPress={() => onPreview(item)} style={styles.preview}>
-        {item.category === "avatar" && (
-          <Text style={styles.previewEmoji}>{item.emoji}</Text>
-        )}
+        {item.category === "avatar" && <Text style={styles.previewEmoji}>{item.emoji}</Text>}
         {item.category === "nameTag" && (
           <View style={[styles.nameTagPreview, { borderColor: item.color }]}>
             <Text style={[styles.nameTagText, { color: item.color }]}>{item.label}</Text>
@@ -61,7 +60,7 @@ export function ShopItemCard({
           style={({ pressed }) => [
             styles.equipBtn,
             isEquipped && styles.equipBtnActive,
-            (pressed || isBusy) && styles.pressed
+            (pressed || isBusy) && styles.pressed,
           ]}
         >
           <Text style={[styles.equipBtnText, isEquipped && styles.equipBtnTextActive]}>
@@ -72,10 +71,7 @@ export function ShopItemCard({
         <Pressable
           onPress={() => onBuy(item)}
           disabled={isBusy}
-          style={({ pressed }) => [
-            styles.buyBtn,
-            (pressed || isBusy) && styles.pressed
-          ]}
+          style={({ pressed }) => [styles.buyBtn, (pressed || isBusy) && styles.pressed]}
         >
           <Feather name="star" size={14} color="#fff" />
           <Text style={styles.buyBtnText}>{item.price}</Text>

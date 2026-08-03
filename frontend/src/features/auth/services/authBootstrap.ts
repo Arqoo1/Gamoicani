@@ -11,10 +11,7 @@ export async function runAuthBootstrap(
     const alreadyRun = await AsyncStorage.getItem(REPAIR_DONE_KEY);
     if (alreadyRun) return;
 
-    const userPlays = Object.values(user.gameStats || {}).reduce(
-      (sum: number, g: any) => sum + (g.plays || 0),
-      0
-    );
+    const userPlays = Object.values(user.gameStats || {}).reduce((sum, g) => sum + g.plays, 0);
 
     if (userPlays === 0) {
       const { getRepairCompletions } = await import(
@@ -27,7 +24,7 @@ export async function runAuthBootstrap(
           "@/features/scores/api/scoresApi"
         );
         const res = await repairStats(completions);
-        if (res?.user) updateUser(res.user as AuthUser);
+        if (res.user) updateUser(res.user as AuthUser);
       }
     }
 

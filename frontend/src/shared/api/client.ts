@@ -43,7 +43,52 @@ export function getApiOrigin() {
   return API_BASE_URL.replace(/\/api\/?$/, "");
 }
 
+function readWebTokenStorage(): Storage | null {
+  try {
+    return sessionStorage ?? localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+
+  try {
+    const payloadSegment = token.split(".")[1];
+    if (!payloadSegment) return false;
+
+    const normalized = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = typeof atob === "function" ? atob(padded) : "";
+    const json = decoded ? decodeURIComponent(escape(decoded)) : "";
+    const payload = JSON.parse(json) as { exp?: number };
+
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) {
+      return false;
+    }
+
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return false;
+  }
+}
+
+export function isAuthFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /401|unauthorized|authentication required|token expired|invalid token|expired session/i.test(message);
+}
+
 export async function getAuthToken() {
+  if (Platform.OS === "web") {
+    try {
+      const storage = readWebTokenStorage();
+      return storage?.getItem(TOKEN_STORAGE_KEY) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   const secureToken = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
   if (secureToken) return secureToken;
 
@@ -62,11 +107,34 @@ export async function getAuthToken() {
 }
 
 export async function setAuthToken(token: string) {
+  if (Platform.OS === "web") {
+    try {
+      const storage = readWebTokenStorage();
+      if (storage) {
+        storage.setItem(TOKEN_STORAGE_KEY, token);
+      }
+    } catch {}
+    return;
+  }
+
   await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, token);
   await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }
 
 export async function clearAuthToken() {
+  if (Platform.OS === "web") {
+    try {
+      const storage = readWebTokenStorage();
+      if (storage) {
+        storage.removeItem(TOKEN_STORAGE_KEY);
+      }
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    } catch {}
+    return;
+  }
+
   await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
   await AsyncStorage.multiRemove([LEGACY_TOKEN_STORAGE_KEY, TOKEN_MIGRATED_KEY]);
 }

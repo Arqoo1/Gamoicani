@@ -1,10 +1,12 @@
 import { FriendRequest, FriendUser } from "@/entities/user/types";
 import { requestJson } from "@/shared/api/client";
 
-type RawFriendRequest = FriendRequest | {
-  createdAt: string;
-  user?: FriendUser;
-};
+type RawFriendRequest =
+  | FriendRequest
+  | {
+      createdAt: string;
+      user?: FriendUser;
+    };
 
 export async function searchUsers(query: string) {
   const response = await requestJson<FriendUser[]>(`/friends/search?q=${encodeURIComponent(query)}`);
@@ -14,7 +16,7 @@ export async function searchUsers(query: string) {
 export async function sendFriendRequest(userId: string) {
   const response = await requestJson<{ message: string }>("/friends/request", {
     body: JSON.stringify({ userId }),
-    method: "POST"
+    method: "POST",
   });
   return response.data;
 }
@@ -22,7 +24,7 @@ export async function sendFriendRequest(userId: string) {
 export async function acceptFriendRequest(userId: string) {
   const response = await requestJson<{ message: string }>("/friends/accept", {
     body: JSON.stringify({ userId }),
-    method: "POST"
+    method: "POST",
   });
   return response.data;
 }
@@ -30,14 +32,14 @@ export async function acceptFriendRequest(userId: string) {
 export async function rejectFriendRequest(userId: string) {
   const response = await requestJson<{ message: string }>("/friends/reject", {
     body: JSON.stringify({ userId }),
-    method: "POST"
+    method: "POST",
   });
   return response.data;
 }
 
 export async function removeFriend(userId: string) {
   const response = await requestJson<{ message: string }>(`/friends/${userId}`, {
-    method: "DELETE"
+    method: "DELETE",
   });
   return response.data;
 }
@@ -53,7 +55,7 @@ export async function listFriendRequests() {
   return response.data
     .map((request) => ({
       createdAt: request.createdAt,
-      from: "from" in request ? request.from : request.user
+      from: "from" in request ? request.from : request.user,
     }))
     .filter((request): request is FriendRequest => Boolean(request.from));
 }

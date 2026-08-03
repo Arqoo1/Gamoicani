@@ -7,7 +7,7 @@ async function run() {
   await connectDatabase();
 
   const result = await seedContent({
-    dataDir: path.resolve(process.env.SEED_DATA_DIR ?? path.join(process.cwd(), "..", "frontend", "data"))
+    dataDir: path.resolve(process.env.SEED_DATA_DIR ?? path.join(process.cwd(), "data"))
   });
 
   console.log(`Seeded ${result.count} games from ${result.dataDir}`);

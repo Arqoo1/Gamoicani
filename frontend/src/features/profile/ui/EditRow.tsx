@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 interface EditRowProps {
   colors: AppColors;
@@ -11,11 +12,20 @@ interface EditRowProps {
   multiline?: boolean;
   onSave: (val: string) => Promise<void>;
   placeholder?: string;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   value: string;
 }
 
-export function EditRow({ colors, label, limit, multiline, onSave, placeholder, styles, value }: EditRowProps) {
+export function EditRow({
+  colors,
+  label,
+  limit,
+  multiline,
+  onSave,
+  placeholder,
+  styles,
+  value,
+}: EditRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);

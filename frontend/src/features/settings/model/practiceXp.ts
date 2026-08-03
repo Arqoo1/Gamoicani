@@ -17,11 +17,7 @@ function generateId() {
   return `pxp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export async function recordPracticeSession(
-  gameId: string,
-  won: boolean,
-  attempts: number
-): Promise<void> {
+export async function recordPracticeSession(gameId: string, won: boolean, attempts: number): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
     const queue: PracticeSession[] = raw ? JSON.parse(raw) : [];
@@ -51,7 +47,7 @@ export async function syncPracticeXp(onScoreResult?: (freshUser: AuthUser) => vo
           clientEventId: session.id,
           completionMethod: session.won ? "solved" : "lost",
         });
-        if (result?.user) {
+        if (result.user) {
           lastFreshUser = result.user;
         }
         synced++;

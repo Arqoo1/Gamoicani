@@ -37,7 +37,7 @@ function resolveContentPath(dataDir, contentPath) {
 }
 
 export async function seedContent({
-  dataDir = path.join(projectRoot, "frontend", "data"),
+  dataDir = path.resolve(__dirname, "../../data"),
   logger = console
 } = {}) {
   const resolvedDataDir = path.resolve(dataDir);

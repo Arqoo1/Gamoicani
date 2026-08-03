@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { Animated, View } from "react-native";
 import { LetterScore, scoreGuess, splitWord } from "@/features/wordle/model/wordle";
 import { WordleTile } from "@/features/wordle/ui/WordleBoardPieces";
+import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
 
 type WordleGridProps = {
   answer: string;
@@ -10,20 +11,19 @@ type WordleGridProps = {
   maxGuesses?: number;
   wordLength?: number;
   shakeAnim: Animated.Value | Animated.AnimatedInterpolation<string | number>;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
   tileSize: number;
   tileFontSize: number;
   tileGap: number;
   boardWidth: number;
 };
 
-
 type GridRowProps = {
   rowIndex: number;
   rowLetters: string[];
   scores: LetterScore[] | undefined;
   wordLength: number;
-  styles: any;
+  styles: ReturnType<typeof createStyles>;
   tileSize: number;
   tileFontSize: number;
   tileGap: number;
@@ -57,7 +57,6 @@ const GridRow = memo(function GridRow({
   );
 });
 
-
 export const WordleGrid = memo(function WordleGrid({
   answer,
   currentLetters,
@@ -78,11 +77,7 @@ export const WordleGrid = memo(function WordleGrid({
       {rows.map((_, rowIndex) => {
         const isCurrentRow = rowIndex === guesses.length;
         const submittedGuess = guesses[rowIndex];
-        const rowLetters = submittedGuess
-          ? splitWord(submittedGuess)
-          : isCurrentRow
-          ? currentLetters
-          : [];
+        const rowLetters = submittedGuess ? splitWord(submittedGuess) : isCurrentRow ? currentLetters : [];
         const scores = submittedGuess ? scoreGuess(submittedGuess, answer) : undefined;
 
         const rowNode = (
@@ -101,10 +96,7 @@ export const WordleGrid = memo(function WordleGrid({
 
         if (isCurrentRow) {
           return (
-            <Animated.View
-              key={rowIndex}
-              style={{ transform: [{ translateX: shakeAnim }] }}
-            >
+            <Animated.View key={rowIndex} style={{ transform: [{ translateX: shakeAnim }] }}>
               {rowNode}
             </Animated.View>
           );

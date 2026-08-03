@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { triggerSelectionHaptic } from "@/shared/services/haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Modal,
   Platform,
@@ -9,12 +10,11 @@ import {
   StatusBar,
   Text,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import words from "@data/words.json";
 import { fetchGameContent } from "@/features/games/api/gamesApi";
 import { useAuth } from "@/application/providers/auth";
 import { useAppTheme } from "@/application/providers/theme";
@@ -24,7 +24,7 @@ import {
   mergeLetterScores,
   scoreGuess,
   splitWord,
-  WORDLE_EPOCH
+  WORDLE_EPOCH,
 } from "@/features/wordle/model/wordle";
 import { cacheGameContent, getCachedGameContent } from "@/shared/storage/contentCache";
 import { StatsIcon } from "@/features/wordle/ui/WordleBoardPieces";
@@ -33,6 +33,7 @@ import { WordleGrid } from "@/features/wordle/ui/WordleGrid";
 import { WordleResultModal } from "@/features/wordle/ui/WordleResultModal";
 import { useWordleGame } from "@/features/wordle/hooks/useWordleGame";
 import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
+import { GameStat } from "@/entities/user/types";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -52,8 +53,6 @@ type WordsJson = {
   validWords: string[];
 };
 
-const fallbackWordData = words as WordsJson;
-
 export default function WordleScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -63,11 +62,11 @@ export default function WordleScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [gameMode, setGameMode] = useState<"daily" | "practice" | "tutorial" | null>(null);
-  const [wordData, setWordData] = useState<WordsJson>(fallbackWordData);
+  const [wordData, setWordData] = useState<WordsJson | null>(null);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
 
   const isDailyDone = useMemo(() => {
-    const stat = (user?.gameStats as any)?.["wordle"];
+    const stat = user?.gameStats?.wordle as GameStat | undefined;
     if (!stat?.lastCompletedKey) return false;
     return stat.lastCompletedKey === String(dailyPuzzleNumber);
   }, [user?.gameStats, dailyPuzzleNumber]);
@@ -98,16 +97,26 @@ export default function WordleScreen() {
     handleKeyPress,
     resetBoard,
     setMessage,
-    startRandomPuzzle
+    startRandomPuzzle,
   } = useWordleGame(
     gameMode,
-    wordData,
+    wordData || { answers: [], validWords: [] },
     user,
     updateUser,
     () => setIsResultModalVisible(true),
     shakeCurrentRow,
     () => confettiRef.current?.start()
   );
+
+  if (!wordData) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color={colors.accent} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   useEffect(() => {
     let active = true;
@@ -138,14 +147,18 @@ export default function WordleScreen() {
   const boardMaxWidth = width >= 1024 ? 680 : width >= 768 ? 600 : 390;
   const availableBoardWidth = Math.min(width * boardWidthPercent, boardMaxWidth);
   const maxTileFromWidth = (availableBoardWidth - tileGap * (WORD_LENGTH - 1)) / WORD_LENGTH;
-  const maxTileFromHeight = ((safeHeight * (width >= 768 ? 0.58 : 0.42)) - tileGap * (MAX_GUESSES - 1)) / MAX_GUESSES;
-  const tileSize = Math.max(34, Math.min(maxTileFromWidth, maxTileFromHeight, width >= 1024 ? 104 : width >= 768 ? 92 : 60));
+  const maxTileFromHeight =
+    (safeHeight * (width >= 768 ? 0.58 : 0.42) - tileGap * (MAX_GUESSES - 1)) / MAX_GUESSES;
+  const tileSize = Math.max(
+    34,
+    Math.min(maxTileFromWidth, maxTileFromHeight, width >= 1024 ? 104 : width >= 768 ? 92 : 60)
+  );
   const tileFontSize = Math.max(20, Math.min(width >= 768 ? 42 : 30, tileSize * 0.5));
   const boardWidth = WORD_LENGTH * tileSize + (WORD_LENGTH - 1) * tileGap;
 
   const shakeTranslateX = shake.interpolate({
     inputRange: [0, 1, 2, 3, 4, 5, 6],
-    outputRange: [0, -10, 10, -8, 8, -4, 0]
+    outputRange: [0, -10, 10, -8, 8, -4, 0],
   });
 
   const letterScores = useMemo(() => {
@@ -171,7 +184,12 @@ export default function WordleScreen() {
       />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
 
-      <Modal animationType="fade" transparent visible={gameMode === null} onRequestClose={() => router.back()}>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={gameMode === null}
+        onRequestClose={() => router.back()}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modePickerModal}>
             <Text style={styles.modePickerKicker}>სიტყვობანა</Text>
@@ -182,7 +200,7 @@ export default function WordleScreen() {
               style={({ pressed }) => [
                 styles.modePickerOption,
                 isDailyDone && styles.modePickerOptionDisabled,
-                !isDailyDone && pressed && styles.pressed
+                !isDailyDone && pressed && styles.pressed,
               ]}
               onPress={() => setGameMode("daily")}
             >
@@ -197,11 +215,19 @@ export default function WordleScreen() {
                   {isDailyDone ? "✓ დღეს უკვე ითამაშე" : `#${puzzleNumber} · ქულები ითვლება`}
                 </Text>
               </View>
-              {isDailyDone ? <Text style={styles.modePickerDoneCheck}>✓</Text> : <Text style={styles.modePickerArrow}>›</Text>}
+              {isDailyDone ? (
+                <Text style={styles.modePickerDoneCheck}>✓</Text>
+              ) : (
+                <Text style={styles.modePickerArrow}>›</Text>
+              )}
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.modePickerOption,
+                styles.modePickerOptionSecondary,
+                pressed && styles.pressed,
+              ]}
               onPress={() => {
                 startRandomPuzzle();
                 setGameMode("practice");
@@ -211,7 +237,9 @@ export default function WordleScreen() {
                 <Text style={styles.modePickerIcon}>🔁</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>ვარჯიში</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>
+                  ვარჯიში
+                </Text>
                 <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
                   შემთხვევითი სიტყვა · ქულების გარეშე
                 </Text>
@@ -220,7 +248,11 @@ export default function WordleScreen() {
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.modePickerOption,
+                styles.modePickerOptionSecondary,
+                pressed && styles.pressed,
+              ]}
               onPress={() => {
                 resetBoard(0);
                 setGameMode("tutorial");
@@ -231,7 +263,9 @@ export default function WordleScreen() {
                 <Text style={styles.modePickerIcon}>🎓</Text>
               </View>
               <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>სწავლება</Text>
+                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>
+                  სწავლება
+                </Text>
                 <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
                   გაკვეთილი დამწყებთათვის
                 </Text>
@@ -250,7 +284,10 @@ export default function WordleScreen() {
       </Modal>
 
       <View style={styles.header}>
-        <Pressable style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]} onPress={() => router.back()}>
+        <Pressable
+          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          onPress={() => router.back()}
+        >
           <Text style={styles.headerIcon}>‹</Text>
         </Pressable>
         <View pointerEvents="none" style={styles.logoWrap}>

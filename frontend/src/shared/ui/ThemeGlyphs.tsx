@@ -14,7 +14,7 @@ export function SunIcon({ color }: { color: string }) {
             borderRadius: 1,
             backgroundColor: color,
             transform: [{ rotate: `${deg}deg` }],
-            opacity: 0.85
+            opacity: 0.85,
           }}
         />
       ))}
@@ -25,7 +25,16 @@ export function SunIcon({ color }: { color: string }) {
 export function MoonIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
-      <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: color, overflow: "hidden" }}>
+      <View
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          borderWidth: 2,
+          borderColor: color,
+          overflow: "hidden",
+        }}
+      >
         <View
           style={{
             position: "absolute",
@@ -35,7 +44,7 @@ export function MoonIcon({ color }: { color: string }) {
             top: -3,
             right: -3,
             borderWidth: 3,
-            borderColor: color
+            borderColor: color,
           }}
         />
       </View>

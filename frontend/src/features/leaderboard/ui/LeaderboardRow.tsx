@@ -1,3 +1,4 @@
+import { createStyles } from "@/features/leaderboard/ui/LeaderboardScreen.styles";
 import { Text, View } from "react-native";
 
 import { LeaderboardEntry } from "@/entities/score/types";
@@ -7,11 +8,11 @@ type BoardMode = "global" | "wordle" | "andazebi" | "friends";
 type LeaderboardRowProps = {
   entry: LeaderboardEntry;
   mode: BoardMode;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
-  const score = mode === "global" || mode === "friends" ? entry.totalPoints ?? 0 : entry.streak ?? 0;
+  const score = mode === "global" || mode === "friends" ? (entry.totalPoints ?? 0) : (entry.streak ?? 0);
   const label = mode === "global" || mode === "friends" ? "ქულა" : "სერია";
   const pointsForRank = entry.totalPoints ?? (score > 10 ? 2000 : 500);
   let rankIcon = "🥉";
@@ -31,7 +32,15 @@ export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text style={styles.playerName}>{entry.displayName}</Text>
           {mode === "global" && (
-            <View style={{ paddingHorizontal: 4, paddingVertical: 1, borderRadius: 8, borderWidth: 1, borderColor: rankColor }}>
+            <View
+              style={{
+                paddingHorizontal: 4,
+                paddingVertical: 1,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: rankColor,
+              }}
+            >
               <Text style={{ fontSize: 10 }}>{rankIcon}</Text>
             </View>
           )}

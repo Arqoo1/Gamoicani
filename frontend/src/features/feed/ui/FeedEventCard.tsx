@@ -1,13 +1,15 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
+import { createStyles } from "@/features/feed/screens/FeedScreen.styles";
+
 type FeedEventCardProps = {
   avatarColor: string;
   avatarText: string;
   avatarUrl: string | null;
   displayName: string;
   gameDescription: string;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   timeLabel: string;
   winText: string;
 };

@@ -1,0 +1,82 @@
+import { StyleSheet } from "react-native";
+import { AppColors } from "@/application/providers/theme";
+
+export function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    chatContent: { padding: 12, flexGrow: 1 },
+    chatEmpty: { flex: 1, alignItems: "center", justifyContent: "center", marginTop: 80 },
+    chatEmptyText: { color: colors.secondaryText, fontSize: 15, fontWeight: "600", textAlign: "center" },
+    msgRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 10, gap: 8 },
+    msgRowMe: { flexDirection: "row-reverse" },
+    msgAvatar: {
+      alignItems: "center",
+      borderRadius: 16,
+      height: 32,
+      justifyContent: "center",
+      width: 32,
+    },
+    msgAvatarText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+    msgBubble: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderTopLeftRadius: 2,
+      borderWidth: 1,
+      maxWidth: "75%",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    msgBubbleMe: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 2,
+    },
+    msgName: { color: colors.accent, fontSize: 11, fontWeight: "800", marginBottom: 2 },
+    msgText: { color: colors.primaryText, fontSize: 14, fontWeight: "500" },
+    msgTextMe: { color: "#fff" },
+    msgTime: {
+      alignSelf: "flex-end",
+      color: colors.secondaryText,
+      fontSize: 9,
+      fontWeight: "600",
+      marginTop: 4,
+    },
+    msgTimeMe: { color: "#ffffffa0" },
+    chatInputRow: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    chatInput: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      color: colors.primaryText,
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      height: 40,
+      paddingHorizontal: 16,
+    },
+    sendBtn: {
+      alignItems: "center",
+      backgroundColor: colors.accent,
+      borderRadius: 20,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    disabledBtn: {
+      backgroundColor: colors.border,
+      opacity: 0.5,
+    },
+    pressed: { opacity: 0.7 },
+  });
+}

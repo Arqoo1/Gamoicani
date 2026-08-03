@@ -1,5 +1,7 @@
 import { AuthUser } from "@/entities/user/types";
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export type ScorePayload = {
   attempts?: number;
   clientEventId?: string;
@@ -8,7 +10,7 @@ export type ScorePayload = {
   guesses?: string[];
   itemId?: string;
   level?: "easy" | "medium" | "hard";
-  metadata?: Record<string, unknown>;
+  metadata?: JsonValue;
   mode?: "daily" | "practice";
   puzzleKey?: string;
   streakKey?: string;

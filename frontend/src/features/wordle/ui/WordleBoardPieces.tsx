@@ -6,7 +6,7 @@ import { playReveal } from "@/shared/services/sound";
 
 const USE_NATIVE_ANIMATION_DRIVER = Platform.OS !== "web";
 
-type WordleStyles = Record<string, any>;
+type WordleStyles = ReturnType<typeof import("@/features/wordle/screens/WordleScreen.styles").createStyles>;
 
 type WordleTileProps = {
   delayIndex: number;
@@ -20,16 +20,16 @@ type WordleTileProps = {
 const tileScoreStyles = StyleSheet.create({
   correct: {
     backgroundColor: "#2f9e5d",
-    borderColor: "#2f9e5d"
+    borderColor: "#2f9e5d",
   },
   present: {
     backgroundColor: "#d6a12a",
-    borderColor: "#d6a12a"
+    borderColor: "#d6a12a",
   },
   absent: {
     backgroundColor: "#66727f",
-    borderColor: "#66727f"
-  }
+    borderColor: "#66727f",
+  },
 });
 
 export function StatsIcon({ styles }: { styles: WordleStyles }) {
@@ -74,8 +74,8 @@ export function WordleTile({ delayIndex, fontSize, letter, score, size, styles }
         duration: 130,
         easing: Easing.in(Easing.quad),
         toValue: 90,
-        useNativeDriver: USE_NATIVE_ANIMATION_DRIVER
-      })
+        useNativeDriver: USE_NATIVE_ANIMATION_DRIVER,
+      }),
     ]).start(({ finished }) => {
       if (!finished || !isMounted.current || animIdRef.current !== myId) return;
       setVisibleScore(score);
@@ -84,14 +84,14 @@ export function WordleTile({ delayIndex, fontSize, letter, score, size, styles }
         duration: 130,
         easing: Easing.out(Easing.quad),
         toValue: 0,
-        useNativeDriver: USE_NATIVE_ANIMATION_DRIVER
+        useNativeDriver: USE_NATIVE_ANIMATION_DRIVER,
       }).start();
     });
   }, [delayIndex, rotation, score]);
 
   const rotateX = rotation.interpolate({
     inputRange: [0, 90],
-    outputRange: ["0deg", "90deg"]
+    outputRange: ["0deg", "90deg"],
   });
 
   return (
@@ -100,14 +100,14 @@ export function WordleTile({ delayIndex, fontSize, letter, score, size, styles }
         styles.tile,
         { height: size, transform: [{ perspective: 800 }, { rotateX }], width: size },
         letter && !visibleScore && styles.tileFilled,
-        visibleScore && tileScoreStyles[visibleScore]
+        visibleScore && tileScoreStyles[visibleScore],
       ]}
     >
       <Text
         style={[
           styles.tileText,
           { fontSize, lineHeight: fontSize + 7 },
-          visibleScore && styles.tileTextScored
+          visibleScore && styles.tileTextScored,
         ]}
       >
         {letter}

@@ -6,7 +6,7 @@ export const WORDLE_EPOCH = new Date(Date.UTC(2026, 0, 1));
 const scoreRank: Record<LetterScore, number> = {
   absent: 0,
   present: 1,
-  correct: 2
+  correct: 2,
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -49,10 +49,7 @@ export function scoreGuess(guess: string, answer: string): LetterScore[] {
   return scores;
 }
 
-export function mergeLetterScores(
-  current: LetterScore | undefined,
-  next: LetterScore | undefined
-) {
+export function mergeLetterScores(current: LetterScore | undefined, next: LetterScore | undefined) {
   if (!next) {
     return current ?? "absent";
   }

@@ -57,7 +57,7 @@ const lightColors: AppColors = {
   shadow: "#17352d",
   tile: "#fbfcfd",
   tileBorder: "#cad5dc",
-  tileFilled: "#ffffff"
+  tileFilled: "#ffffff",
 };
 
 const darkColors: AppColors = {
@@ -80,7 +80,7 @@ const darkColors: AppColors = {
   shadow: "#000000",
   tile: "#101820",
   tileBorder: "#334451",
-  tileFilled: "#17232e"
+  tileFilled: "#17232e",
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -98,7 +98,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {});
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const setMode = useCallback((nextMode: ThemeMode) => {
@@ -125,7 +127,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       isDark: resolvedDark,
       mode,
       setMode,
-      toggleTheme
+      toggleTheme,
     }),
     [resolvedDark, mode, setMode, toggleTheme]
   );

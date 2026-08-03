@@ -40,7 +40,12 @@ export type GuessResultPayload = {
   guess?: string;
   isCorrect?: boolean;
   playerId: string;
-  result?: unknown;
+  result?: {
+    attempts?: number;
+    answer?: string;
+    winnerId?: string;
+    [key: string]: string | number | boolean | null | undefined | GuessResultPayload["result"] | TileScore[];
+  };
   tiles?: TileScore[];
 };
 

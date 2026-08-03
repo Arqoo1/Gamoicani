@@ -1,0 +1,75 @@
+import { StyleSheet } from "react-native";
+import { AppColors } from "@/application/providers/theme";
+
+export function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    myGrid: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 16 },
+    andazebiContainer: { flex: 1, width: "100%", justifyContent: "center", gap: 20 },
+    promptCard: {
+      backgroundColor: colors.card,
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+    },
+    promptText: {
+      fontSize: 20,
+      color: colors.primaryText,
+      fontWeight: "800",
+      textAlign: "center",
+      lineHeight: 28,
+    },
+    hintText: {
+      fontSize: 14,
+      color: colors.secondaryText,
+      fontWeight: "600",
+      textAlign: "center",
+      marginTop: 12,
+    },
+    historyContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
+    historyBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    historyCorrect: { backgroundColor: colors.correct, borderColor: colors.correct },
+    historyWrong: { backgroundColor: colors.absent, borderColor: colors.absent },
+    historyText: { color: colors.primaryText, fontSize: 14, fontWeight: "700" },
+    cellLetterWhite: { color: "#ffffff" },
+    andazebiInputContainer: {
+      flexDirection: "row",
+      gap: 10,
+      justifyContent: "center",
+      flexWrap: "wrap",
+      marginVertical: 8,
+    },
+    andazebiInputBox: {
+      backgroundColor: colors.background,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      minWidth: 60,
+      alignItems: "center",
+    },
+    andazebiInputBoxActive: { borderColor: colors.accent },
+    andazebiInputBoxText: { fontSize: 20, color: colors.secondaryText, fontWeight: "700" },
+    andazebiInputBoxTextActive: { color: colors.primaryText, fontWeight: "900" },
+    primaryBtn: {
+      alignItems: "center",
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      paddingVertical: 14,
+    },
+    primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "900" },
+    pressed: { opacity: 0.65 },
+  });
+}

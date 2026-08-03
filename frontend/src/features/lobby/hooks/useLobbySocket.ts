@@ -3,6 +3,9 @@ import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useSocket } from "@/application/providers/socket";
 import { ChatMessage, LobbyTab } from "@/features/lobby/model/types";
+import { ServerToClientEvents } from "@/shared/api/socket.types";
+
+type GameStartPayload = Parameters<ServerToClientEvents["game-start"]>[0];
 
 export type { ChatMessage, LobbyTab };
 
@@ -37,7 +40,7 @@ export function useLobbySocket(activeTab: LobbyTab) {
       setStatus("private-hosting");
     }
 
-    function onGameStart({ gameType, puzzle, roomId, activePlayerId }: any) {
+    function onGameStart({ gameType, puzzle, roomId, activePlayerId }: GameStartPayload) {
       router.push({
         pathname: "/multiplayer",
         params: { roomId, gameType, puzzle: JSON.stringify(puzzle), activePlayerId: activePlayerId ?? "" },

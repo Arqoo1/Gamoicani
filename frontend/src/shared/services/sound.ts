@@ -13,7 +13,11 @@ function getAudioCtx(): AudioContext | null {
   if (Platform.OS !== "web") return null;
   try {
     if (!_audioCtx) {
-      _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const WebAudioContext =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!WebAudioContext) return null;
+      _audioCtx = new WebAudioContext();
     }
     return _audioCtx;
   } catch {
@@ -39,7 +43,11 @@ function playTone(frequency: number, duration: number, type: OscillatorType = "s
   } catch {}
 }
 
-function playSequenceWeb(notes: Array<{ freq: number; dur: number; delay: number }>, type: OscillatorType = "sine", gain = 0.3) {
+function playSequenceWeb(
+  notes: Array<{ freq: number; dur: number; delay: number }>,
+  type: OscillatorType = "sine",
+  gain = 0.3
+) {
   if (!_soundEnabled) return;
   const ctx = getAudioCtx();
   if (!ctx) return;
@@ -78,13 +86,13 @@ function buildWav(samples: Float32Array, sampleRate = 22050): string {
   view.setUint32(4, byteLength - 8, true);
   writeStr(8, "WAVE");
   writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);          
-  view.setUint16(20, 1, true);           
-  view.setUint16(22, 1, true);           
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); 
-  view.setUint16(32, 2, true);           
-  view.setUint16(34, 16, true);          
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
   writeStr(36, "data");
   view.setUint32(40, numSamples * 2, true);
 
@@ -105,7 +113,7 @@ function generateSine(freq: number, durationSec: number, gain = 0.3, sampleRate 
   const samples = new Float32Array(numSamples);
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const env = Math.min(1, (numSamples - i) / (0.02 * sampleRate)); 
+    const env = Math.min(1, (numSamples - i) / (0.02 * sampleRate));
     samples[i] = gain * env * Math.sin(2 * Math.PI * freq * t);
   }
   return samples;
@@ -122,7 +130,10 @@ function generateSawtooth(freq: number, durationSec: number, gain = 0.2, sampleR
   return samples;
 }
 
-function mixSamples(parts: Array<{ samples: Float32Array; offset: number }>, sampleRate = 22050): Float32Array {
+function mixSamples(
+  parts: Array<{ samples: Float32Array; offset: number }>,
+  sampleRate = 22050
+): Float32Array {
   let totalLen = 0;
   for (const { samples, offset } of parts) {
     totalLen = Math.max(totalLen, offset + samples.length);
@@ -137,76 +148,70 @@ function mixSamples(parts: Array<{ samples: Float32Array; offset: number }>, sam
 }
 
 const SR = 22050;
-
-function makePop(): string {
-  return buildWav(generateSine(800, 0.06, 0.15, SR), SR);
-}
-function makeChime(): string {
-  const parts = [
-    { samples: generateSine(523, 0.12, 0.25, SR), offset: 0 },
-    { samples: generateSine(659, 0.12, 0.25, SR), offset: Math.floor(0.1 * SR) },
-    { samples: generateSine(784, 0.2, 0.25, SR),  offset: Math.floor(0.2 * SR) },
-  ];
-  return buildWav(mixSamples(parts, SR), SR);
-}
-function makeBuzz(): string {
-  return buildWav(generateSawtooth(120, 0.18, 0.2, SR), SR);
-}
-function makeWin(): string {
-  const parts = [
-    { samples: generateSine(523,  0.1, 0.3, SR), offset: 0 },
-    { samples: generateSine(659,  0.1, 0.3, SR), offset: Math.floor(0.12 * SR) },
-    { samples: generateSine(784,  0.1, 0.3, SR), offset: Math.floor(0.24 * SR) },
-    { samples: generateSine(1047, 0.35, 0.3, SR), offset: Math.floor(0.36 * SR) },
-  ];
-  return buildWav(mixSamples(parts, SR), SR);
-}
-function makeReveal(): string {
-  return buildWav(generateSine(440, 0.08, 0.12, SR), SR);
-}
-function makeLoss(): string {
-  const parts = [
-    { samples: generateSawtooth(392, 0.15, 0.2, SR), offset: 0 },
-    { samples: generateSawtooth(330, 0.15, 0.2, SR), offset: Math.floor(0.18 * SR) },
-    { samples: generateSawtooth(262, 0.3, 0.2, SR),  offset: Math.floor(0.36 * SR) },
-  ];
-  return buildWav(mixSamples(parts, SR), SR);
-}
-
-
 type SoundKey = "pop" | "chime" | "buzz" | "win" | "reveal" | "loss";
 
+const _soundFactories: Record<SoundKey, () => string> = {
+  pop: () => buildWav(generateSine(800, 0.06, 0.15, SR), SR),
+  chime: () => {
+    const parts = [
+      { samples: generateSine(523, 0.12, 0.25, SR), offset: 0 },
+      { samples: generateSine(659, 0.12, 0.25, SR), offset: Math.floor(0.1 * SR) },
+      { samples: generateSine(784, 0.2, 0.25, SR), offset: Math.floor(0.2 * SR) },
+    ];
+    return buildWav(mixSamples(parts, SR), SR);
+  },
+  buzz: () => buildWav(generateSawtooth(120, 0.18, 0.2, SR), SR),
+  win: () => {
+    const parts = [
+      { samples: generateSine(523, 0.1, 0.3, SR), offset: 0 },
+      { samples: generateSine(659, 0.1, 0.3, SR), offset: Math.floor(0.12 * SR) },
+      { samples: generateSine(784, 0.1, 0.3, SR), offset: Math.floor(0.24 * SR) },
+      { samples: generateSine(1047, 0.35, 0.3, SR), offset: Math.floor(0.36 * SR) },
+    ];
+    return buildWav(mixSamples(parts, SR), SR);
+  },
+  reveal: () => buildWav(generateSine(440, 0.08, 0.12, SR), SR),
+  loss: () => {
+    const parts = [
+      { samples: generateSawtooth(392, 0.15, 0.2, SR), offset: 0 },
+      { samples: generateSawtooth(330, 0.15, 0.2, SR), offset: Math.floor(0.18 * SR) },
+      { samples: generateSawtooth(262, 0.3, 0.2, SR), offset: Math.floor(0.36 * SR) },
+    ];
+    return buildWav(mixSamples(parts, SR), SR);
+  },
+};
+
 const _pool = new Map<SoundKey, AudioPlayer>();
-let _poolReady = false;
+let _audioModeReady = false;
+
 
 export async function initAudioPool(): Promise<void> {
-  if (Platform.OS === "web" || _poolReady) return;
+  if (Platform.OS === "web" || _audioModeReady) return;
   try {
     await setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-
-    const entries: Array<[SoundKey, string]> = [
-      ["pop",    makePop()],
-      ["chime",  makeChime()],
-      ["buzz",   makeBuzz()],
-      ["win",    makeWin()],
-      ["reveal", makeReveal()],
-      ["loss",   makeLoss()],
-    ];
-
-    for (const [key, uri] of entries) {
-      const player = createAudioPlayer(uri);
-      _pool.set(key, player);
-    }
-    _poolReady = true;
+    _audioModeReady = true;
   } catch (e) {
     console.warn("[sound] initAudioPool failed:", e);
   }
 }
 
+function getPlayer(key: SoundKey): AudioPlayer | null {
+  if (Platform.OS === "web") return null;
+  if (!_pool.has(key)) {
+    try {
+      const uri = _soundFactories[key]();
+      _pool.set(key, createAudioPlayer(uri));
+    } catch {
+      return null;
+    }
+  }
+  return _pool.get(key) ?? null;
+}
+
 async function playPooled(key: SoundKey): Promise<void> {
   if (!_soundEnabled) return;
   try {
-    const player = _pool.get(key);
+    const player = getPlayer(key);
     if (!player) return;
     await player.seekTo(0).catch(() => {});
     player.play();
@@ -223,11 +228,15 @@ export function playPop() {
 
 export function playChime() {
   if (Platform.OS === "web") {
-    playSequenceWeb([
-      { freq: 523, dur: 0.12, delay: 0 },
-      { freq: 659, dur: 0.12, delay: 0.1 },
-      { freq: 784, dur: 0.2,  delay: 0.2 },
-    ], "sine", 0.25);
+    playSequenceWeb(
+      [
+        { freq: 523, dur: 0.12, delay: 0 },
+        { freq: 659, dur: 0.12, delay: 0.1 },
+        { freq: 784, dur: 0.2, delay: 0.2 },
+      ],
+      "sine",
+      0.25
+    );
   } else {
     playPooled("chime");
   }
@@ -243,12 +252,16 @@ export function playBuzz() {
 
 export function playWin() {
   if (Platform.OS === "web") {
-    playSequenceWeb([
-      { freq: 523, dur: 0.1, delay: 0 },
-      { freq: 659, dur: 0.1, delay: 0.12 },
-      { freq: 784, dur: 0.1, delay: 0.24 },
-      { freq: 1047, dur: 0.35, delay: 0.36 },
-    ], "sine", 0.3);
+    playSequenceWeb(
+      [
+        { freq: 523, dur: 0.1, delay: 0 },
+        { freq: 659, dur: 0.1, delay: 0.12 },
+        { freq: 784, dur: 0.1, delay: 0.24 },
+        { freq: 1047, dur: 0.35, delay: 0.36 },
+      ],
+      "sine",
+      0.3
+    );
   } else {
     playPooled("win");
   }
@@ -264,13 +277,16 @@ export function playReveal() {
 
 export function playLoss() {
   if (Platform.OS === "web") {
-    playSequenceWeb([
-      { freq: 392, dur: 0.15, delay: 0 },
-      { freq: 330, dur: 0.15, delay: 0.18 },
-      { freq: 262, dur: 0.3,  delay: 0.36 },
-    ], "sawtooth", 0.2);
+    playSequenceWeb(
+      [
+        { freq: 392, dur: 0.15, delay: 0 },
+        { freq: 330, dur: 0.15, delay: 0.18 },
+        { freq: 262, dur: 0.3, delay: 0.36 },
+      ],
+      "sawtooth",
+      0.2
+    );
   } else {
     playPooled("loss");
   }
 }
-

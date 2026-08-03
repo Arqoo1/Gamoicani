@@ -339,12 +339,9 @@ test("Wordle content payload is cached between validations", async () => {
   assert.equal(score.won, true);
 });
 
-test("game content endpoint falls back to bundled content when database pack is missing", async () => {
+test("game content endpoint returns 503 when database pack is missing", async () => {
   clearContentPayloadCache();
   await ContentPack.deleteOne({ gameId: "wordle" });
 
-  const response = await request(app).get("/api/games/wordle/content").expect(200);
-
-  assert.ok(response.body.data.answers.length > 0);
-  assert.ok(response.body.data.validWords.length > 0);
+  await request(app).get("/api/games/wordle/content").expect(503);
 });

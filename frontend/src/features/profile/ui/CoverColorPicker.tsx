@@ -2,12 +2,13 @@ import { memo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COVER_GRADIENTS, SHOP_ITEMS_META } from "@/features/profile/model/profileMeta";
 import { AuthUser } from "@/entities/user/types";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type CoverColorPickerProps = {
   user: AuthUser;
   coverIndex: number;
   equippedBannerId: string | null;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   onSelectColor: (index: number) => void;
   onEquipShopItem: (id: string) => void;
   onUnequipShopItem: (category: "banner" | "avatar") => void;
@@ -20,7 +21,7 @@ export const CoverColorPicker = memo(function CoverColorPicker({
   styles,
   onSelectColor,
   onEquipShopItem,
-  onUnequipShopItem
+  onUnequipShopItem,
 }: CoverColorPickerProps) {
   const ownedBanners = Object.entries(SHOP_ITEMS_META).filter(
     ([id]) => SHOP_ITEMS_META[id].category === "banner" && (user?.inventory ?? []).includes(id)
@@ -36,7 +37,7 @@ export const CoverColorPicker = memo(function CoverColorPicker({
             style={[
               styles.colorSwatch,
               !equippedBannerId && index === coverIndex && styles.colorSwatchActive,
-              { overflow: "hidden" }
+              { overflow: "hidden" },
             ]}
             onPress={() => onSelectColor(index)}
           >

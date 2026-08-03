@@ -3,12 +3,13 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AVATAR_COLORS, SHOP_ITEMS_META } from "@/features/profile/model/profileMeta";
 import { AuthUser } from "@/entities/user/types";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type AvatarColorPickerProps = {
   user: AuthUser;
   avatarColor: string;
   equippedAvatarId: string | null;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   colors: AppColors;
   onSelectColor: (color: string) => void;
   onEquipShopItem: (id: string) => void;
@@ -23,7 +24,7 @@ export const AvatarColorPicker = memo(function AvatarColorPicker({
   colors,
   onSelectColor,
   onEquipShopItem,
-  onUnequipShopItem
+  onUnequipShopItem,
 }: AvatarColorPickerProps) {
   const ownedAvatars = Object.entries(SHOP_ITEMS_META).filter(
     ([id]) => SHOP_ITEMS_META[id].category === "avatar" && (user?.inventory ?? []).includes(id)
@@ -39,7 +40,7 @@ export const AvatarColorPicker = memo(function AvatarColorPicker({
             style={[
               styles.colorSwatch,
               { backgroundColor: c },
-              !equippedAvatarId && c === avatarColor && styles.colorSwatchActive
+              !equippedAvatarId && c === avatarColor && styles.colorSwatchActive,
             ]}
             onPress={() => onSelectColor(c)}
           />
@@ -53,7 +54,7 @@ export const AvatarColorPicker = memo(function AvatarColorPicker({
                 styles.colorSwatch,
                 styles.colorSwatchEmoji,
                 isEquipped && styles.colorSwatchActive,
-                { backgroundColor: colors.card }
+                { backgroundColor: colors.card },
               ]}
               onPress={() => (isEquipped ? onUnequipShopItem("avatar") : onEquipShopItem(id))}
             >

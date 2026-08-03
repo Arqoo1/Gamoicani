@@ -17,32 +17,22 @@ export type RepairResult = {
   user: AuthUser;
 };
 
-export async function submitScore(payload: ScorePayload) {
-  try {
-    const response = await requestJson<ScoreResult>("/scores", {
-      body: JSON.stringify(payload),
-      method: "POST"
-    });
+export async function submitScore(payload: ScorePayload): Promise<ScoreResult> {
+  const response = await requestJson<ScoreResult>("/scores", {
+    body: JSON.stringify(payload),
+    method: "POST",
+  });
 
-    return response.data;
-  } catch (err) {
-    console.warn("[submitScore] failed:", err instanceof Error ? err.message : err);
-    return null;
-  }
+  return response.data;
 }
 
-export async function repairStats(completions: RepairCompletion[]) {
-  try {
-    const response = await requestJson<RepairResult>("/scores/repair", {
-      body: JSON.stringify({ completions }),
-      method: "POST"
-    });
+export async function repairStats(completions: RepairCompletion[]): Promise<RepairResult> {
+  const response = await requestJson<RepairResult>("/scores/repair", {
+    body: JSON.stringify({ completions }),
+    method: "POST",
+  });
 
-    return response.data;
-  } catch (err) {
-    console.warn("[repairStats] failed:", err instanceof Error ? err.message : err);
-    return null;
-  }
+  return response.data;
 }
 
 export async function fetchMyGameSummary(gameId: string) {

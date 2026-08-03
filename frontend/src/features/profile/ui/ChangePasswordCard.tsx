@@ -1,9 +1,10 @@
 import { memo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type ChangePasswordCardProps = {
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   colors: AppColors;
   changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
 };
@@ -11,7 +12,7 @@ type ChangePasswordCardProps = {
 export const ChangePasswordCard = memo(function ChangePasswordCard({
   styles,
   colors,
-  changePassword
+  changePassword,
 }: ChangePasswordCardProps) {
   const [showPwSection, setShowPwSection] = useState(false);
   const [currentPw, setCurrentPw] = useState("");

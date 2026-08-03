@@ -6,18 +6,23 @@ export async function fetchShopData(): Promise<ShopData> {
   return response.data;
 }
 
-export async function buyItem(itemId: string): Promise<{ message: string; totalPoints: number; items: ShopItem[] }> {
-  const response = await requestJson<{ message: string; totalPoints: number; items: ShopItem[] }>("/shop/buy", {
-    body: JSON.stringify({ itemId }),
-    method: "POST"
-  });
+export async function buyItem(
+  itemId: string
+): Promise<{ message: string; totalPoints: number; items: ShopItem[] }> {
+  const response = await requestJson<{ message: string; totalPoints: number; items: ShopItem[] }>(
+    "/shop/buy",
+    {
+      body: JSON.stringify({ itemId }),
+      method: "POST",
+    }
+  );
   return response.data;
 }
 
 export async function equipItem(itemId: string): Promise<{ equippedItems: ShopData["equippedItems"] }> {
   const response = await requestJson<{ equippedItems: ShopData["equippedItems"] }>("/shop/equip", {
     body: JSON.stringify({ itemId }),
-    method: "POST"
+    method: "POST",
   });
   return response.data;
 }
@@ -25,7 +30,7 @@ export async function equipItem(itemId: string): Promise<{ equippedItems: ShopDa
 export async function unequipItem(category: string): Promise<{ equippedItems: ShopData["equippedItems"] }> {
   const response = await requestJson<{ equippedItems: ShopData["equippedItems"] }>("/shop/unequip", {
     body: JSON.stringify({ category }),
-    method: "POST"
+    method: "POST",
   });
   return response.data;
 }

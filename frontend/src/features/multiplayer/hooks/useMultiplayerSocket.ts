@@ -17,26 +17,46 @@ function getTiles(data: unknown): string[] {
   return Array.isArray(d?.tiles) ? (d.tiles as string[]) : [];
 }
 
-export function useMultiplayerSocket(gameType: string, roomId: string) {
+type GuessResultPayload = {
+  isCorrect?: boolean;
+  tiles?: string[];
+};
+
+export interface MultiplayerSocketCallbacks {
+  onActivePlayerChanged?: (activePlayerId: string | null) => void;
+  onTurnTimeout?: (wordLength: number) => void;
+}
+
+export function useMultiplayerSocket(
+  gameType: string,
+  roomId: string,
+  wordLength: number,
+  callbacks: MultiplayerSocketCallbacks = {}
+) {
   const { socket } = useSocket();
 
-  const [guessResults, setGuessResults] = useState<any[]>([]);
-  const [opponentProgress, setOpponentProgress] = useState<any[]>([]);
-  const [gameOver, setGameOver] = useState(false);
-  const [results, setResults] = useState<Record<string, unknown> | null>(null);
+  const [guessResults,     setGuessResults]     = useState<Array<string[] | "correct" | "wrong">>([]);
+  const [opponentProgress, setOpponentProgress] = useState<Array<string[] | "correct" | "wrong">>([]);
+  const [gameOver,         setGameOver]         = useState(false);
+  const [results,          setResults]          = useState<Record<string, unknown> | null>(null);
 
   const [oppEmote, setOppEmote] = useState<string | null>(null);
-  const oppY = useRef(new Animated.Value(0)).current;
+  const oppY  = useRef(new Animated.Value(0)).current;
   const oppOp = useRef(new Animated.Value(0)).current;
 
   const [myEmote, setMyEmote] = useState<string | null>(null);
-  const myY = useRef(new Animated.Value(0)).current;
+  const myY  = useRef(new Animated.Value(0)).current;
   const myOp = useRef(new Animated.Value(0)).current;
+
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  });
 
   useEffect(() => {
     if (!socket) return;
 
-    const onGuessResult = (data: any) => {
+    const onGuessResult = (data: GuessResultPayload) => {
       if (gameType === "wordle") {
         setGuessResults((prev) => [...prev, getTiles(data)]);
       } else {
@@ -44,7 +64,7 @@ export function useMultiplayerSocket(gameType: string, roomId: string) {
       }
     };
 
-    const onOpponentGuess = (data: any) => {
+    const onOpponentGuess = (data: GuessResultPayload) => {
       if (gameType === "wordle") {
         setOpponentProgress((prev) => [...prev, getTiles(data)]);
       } else {
@@ -62,18 +82,42 @@ export function useMultiplayerSocket(gameType: string, roomId: string) {
       triggerFloat(oppY, oppOp, () => setOppEmote(null));
     };
 
-    socket.on("guess-result", onGuessResult);
+    const onGameStart = (data: { activePlayerId?: string }) => {
+      const id = data.activePlayerId ?? null;
+      callbacksRef.current.onActivePlayerChanged?.(id);
+    };
+
+    const onTurnChanged = (data: { activePlayerId: string }) => {
+      callbacksRef.current.onActivePlayerChanged?.(data.activePlayerId);
+    };
+
+    const onTurnTimeout = () => {
+      callbacksRef.current.onTurnTimeout?.(wordLength);
+      if (gameType === "wordle") {
+        setGuessResults((prev) => [...prev, Array(wordLength).fill("absent")]);
+      } else {
+        setGuessResults((prev) => [...prev, "wrong"]);
+      }
+    };
+
+    socket.on("guess-result",   onGuessResult);
     socket.on("opponent-guess", onOpponentGuess);
-    socket.on("game-over", onGameOver);
-    socket.on("receive-emote", onReceiveEmote);
+    socket.on("game-over",      onGameOver);
+    socket.on("receive-emote",  onReceiveEmote);
+    socket.on("game-start",     onGameStart);
+    socket.on("turn-changed",   onTurnChanged);
+    socket.on("turn-timeout",   onTurnTimeout);
 
     return () => {
-      socket.off("guess-result", onGuessResult);
+      socket.off("guess-result",   onGuessResult);
       socket.off("opponent-guess", onOpponentGuess);
-      socket.off("game-over", onGameOver);
-      socket.off("receive-emote", onReceiveEmote);
+      socket.off("game-over",      onGameOver);
+      socket.off("receive-emote",  onReceiveEmote);
+      socket.off("game-start",     onGameStart);
+      socket.off("turn-changed",   onTurnChanged);
+      socket.off("turn-timeout",   onTurnTimeout);
     };
-  }, [socket, gameType, oppY, oppOp]);
+  }, [socket, gameType, wordLength, oppY, oppOp]);
 
   const sendEmote = useCallback(
     (emote: string) => {

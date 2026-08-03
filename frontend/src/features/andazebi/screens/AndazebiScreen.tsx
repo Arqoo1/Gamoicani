@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import {
+  ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +15,7 @@ import {
   Modal
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
-import ViewShot from "react-native-view-shot";
+import ViewShot, { type ViewShotRef } from "react-native-view-shot";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/application/providers/auth";
@@ -24,6 +25,7 @@ import { useAndazebiGame } from "@/features/andazebi/hooks/useAndazebiGame";
 import { getHintButtonText } from "@/features/andazebi/model/screenModel";
 import { BACKSPACE_KEY, ENTER_KEY, SHIFT_KEY } from "@/shared/constants/georgianKeyboard";
 import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
+
 
 type AndazebiStyles = ReturnType<typeof createStyles>;
 
@@ -46,8 +48,8 @@ export default function AndazebiScreen() {
   const { updateUser, user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const confettiRef = useRef<any>(null);
-  const viewShotRef = useRef<any>(null);
+  const confettiRef = useRef<ConfettiCannon | null>(null);
+  const viewShotRef = useRef<ViewShotRef | null>(null);
 
   const {
     isDailyDone,
@@ -101,6 +103,17 @@ export default function AndazebiScreen() {
     isPracticeMode
   } = useAndazebiGame(user, updateUser, () => confettiRef.current?.start(), width);
   const isDailyLocked = !isHydrated || isDailyDone;
+  const isLoading = !isHydrated || items.length === 0;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color={colors.accent} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const shareResult = useCallback(async () => {
     if (Platform.OS === "web") {

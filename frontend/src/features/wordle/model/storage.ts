@@ -43,7 +43,7 @@ export function createEmptyStats(): WordleStats {
     lastCompletedPuzzleNumber: null,
     maxStreak: 0,
     played: 0,
-    wins: 0
+    wins: 0,
   };
 }
 
@@ -108,15 +108,15 @@ export async function recordWordleCompletion(
       [puzzleKey]: {
         completedAt: new Date().toISOString(),
         guesses,
-        won
-      }
+        won,
+      },
     },
     currentStreak,
     guessDistribution,
     lastCompletedPuzzleNumber: puzzleNumber,
     maxStreak: Math.max(stats.maxStreak, currentStreak),
     played: stats.played + 1,
-    wins: stats.wins + (won ? 1 : 0)
+    wins: stats.wins + (won ? 1 : 0),
   };
 
   await AsyncStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
@@ -137,31 +137,31 @@ async function syncWordleScore(
     return;
   }
 
-  const result = await submitScore({
-    attempts: guesses,
-    gameId: "wordle",
-    guesses: submittedGuesses,
-    completionMethod: won ? "solved" : "lost",
-    mode: "daily",
-    puzzleKey,
-    won
-  });
+  try {
+    const result = await submitScore({
+      attempts: guesses,
+      gameId: "wordle",
+      guesses: submittedGuesses,
+      completionMethod: won ? "solved" : "lost",
+      mode: "daily",
+      puzzleKey,
+      won,
+    });
 
-  if (!result) {
-    return;
-  }
-
-  if (result.user && onScoreResult) {
-    onScoreResult(result.user);
+    if (result.user && onScoreResult) {
+      onScoreResult(result.user);
+    }
+  } catch (err) {
+    console.warn("[syncWordleScore] failed to submit score:", err instanceof Error ? err.message : err);
   }
 }
 
 export async function getRepairCompletions(): Promise<RepairCompletion[]> {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    const progressKeys = keys.filter(k => k.startsWith("wordle:progress:v1:"));
+    const progressKeys = keys.filter((k) => k.startsWith("wordle:progress:v1:"));
     const completions: RepairCompletion[] = [];
-    
+
     for (const key of progressKeys) {
       const progress = await loadWordleProgress(key);
       if (progress && (progress.gameStatus === "won" || progress.gameStatus === "lost")) {
@@ -170,11 +170,11 @@ export async function getRepairCompletions(): Promise<RepairCompletion[]> {
           completedAt: progress.savedAt,
           guesses: progress.guesses,
           puzzleKey: String(progress.puzzleNumber),
-          won: progress.gameStatus === "won"
+          won: progress.gameStatus === "won",
         });
       }
     }
-    
+
     return completions.sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
   } catch {
     return [];

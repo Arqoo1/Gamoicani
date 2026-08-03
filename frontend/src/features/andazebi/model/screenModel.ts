@@ -1,7 +1,6 @@
 import { Platform } from "react-native";
 import { AuthUser } from "@/entities/user/types";
 import { submitScore } from "@/features/scores/api/scoresApi";
-import proverbs from "@data/content/andazebi.json";
 
 export type Level = "easy" | "medium" | "hard";
 
@@ -43,10 +42,9 @@ export type DailyProgress = {
 export type AndazebiStats = {
   completedDates: string[];
   currentStreak: number;
-  lastCompletedDate: string | null;
+  lastCompletedKey: string | null;
   maxStreak: number;
 };
-export const fallbackProverbData = proverbs as ProverbsJson;
 export const DAILY_LIMIT = 5;
 export const DEFAULT_FEEDBACK = "შეავსე გამოტოვებული სიტყვები";
 export const PROGRESS_STORAGE_KEY = "andazebi:daily-progress:v3";
@@ -78,7 +76,7 @@ export function createEmptyStats(): AndazebiStats {
   return {
     completedDates: [],
     currentStreak: 0,
-    lastCompletedDate: null,
+    lastCompletedKey: null,
     maxStreak: 0
   };
 }
@@ -187,31 +185,33 @@ export function getHintButtonText(hintLevel: number) {
 
 
 
-export function reportProverbCompletion(
+export async function reportProverbCompletion(
   item: ProverbItem,
   dateKey: string,
   attempts: number,
   method: CompletionMethod,
   onScoreResult?: (freshUser: AuthUser) => void
 ) {
-  submitScore({
-    attempts,
-    completionMethod: method,
-    gameId: "andazebi",
-    itemId: item.id,
-    level: item.level,
-    metadata: {
-      itemId: item.id
-    },
-    mode: "daily",
-    puzzleKey: `${dateKey}:${item.id}`,
-    streakKey: dateKey,
-    won: method === "solved"
-  })
-    .then((result) => {
-      if (result?.user && onScoreResult) {
-        onScoreResult(result.user);
-      }
-    })
-    .catch(() => {});
+  try {
+    const result = await submitScore({
+      attempts,
+      completionMethod: method,
+      gameId: "andazebi",
+      itemId: item.id,
+      level: item.level,
+      metadata: {
+        itemId: item.id
+      },
+      mode: "daily",
+      puzzleKey: `${dateKey}:${item.id}`,
+      streakKey: dateKey,
+      won: method === "solved"
+    });
+
+    if (result.user && onScoreResult) {
+      onScoreResult(result.user);
+    }
+  } catch (err) {
+    console.warn("[reportProverbCompletion] failed to submit score:", err instanceof Error ? err.message : err);
+  }
 }

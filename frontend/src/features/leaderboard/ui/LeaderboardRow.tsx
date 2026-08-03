@@ -53,4 +53,4 @@ export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
       </View>
     </View>
   );
-}
+});

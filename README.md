@@ -103,7 +103,7 @@ npm run dev
 
 ## 📥 Download
 
-👉 [Download the latest APK](https://github.com/USERNAME/REPOSITORY/releases/latest)
+👉 [Download the latest APK](https://github.com/Arqoo1/Gamoicani/releases/latest)
 
 ---
 
@@ -169,10 +169,6 @@ Contributions, bug reports, and feature requests are welcome.
 5. Open a Pull Request.
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License.
 
 ---
 

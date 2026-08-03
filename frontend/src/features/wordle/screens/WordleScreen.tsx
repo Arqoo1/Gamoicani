@@ -54,13 +54,10 @@ type WordsJson = {
 };
 
 export default function WordleScreen() {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
-  const { updateUser, user } = useAuth();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
+  const styles = createStyles(colors);
   const [gameMode, setGameMode] = useState<"daily" | "practice" | "tutorial" | null>(null);
   const [wordData, setWordData] = useState<WordsJson | null>(null);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
@@ -175,13 +172,6 @@ export default function WordleScreen() {
 
   return (
     <SafeAreaView edges={["top", "right", "left"]} style={styles.safe}>
-      <ConfettiCannon
-        ref={confettiRef}
-        count={180}
-        origin={{ x: width / 2, y: -10 }}
-        autoStart={false}
-        fadeOut
-      />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
 
       <Modal
@@ -361,8 +351,52 @@ export default function WordleScreen() {
           setIsResultModalVisible(false);
           startRandomPuzzle();
         }}
-        puzzleNumber={puzzleNumber}
         styles={styles}
+      />
+
+      <WordleTopBar
+        styles={styles}
+        onBack={() => router.back()}
+        onRefresh={model.startRandomPuzzle}
+        onStats={() => router.push("/stats")}
+        showStats={gameMode !== "practice" && gameMode !== "tutorial"}
+      />
+
+      <WordleBoardSection
+        styles={styles}
+        answer={model.answer}
+        currentLetters={model.currentLetters}
+        guesses={model.guesses}
+        isOffline={model.isOffline}
+        message={model.message}
+        puzzleNumber={model.puzzleNumber}
+        shakeTranslateX={model.shakeTranslateX}
+        tileFontSize={model.tileFontSize}
+        tileGap={model.tileGap}
+        tileSize={model.tileSize}
+        boardWidth={model.boardWidth}
+      />
+
+      <WordleFooter
+        styles={styles}
+        disabled={model.gameStatus !== "playing"}
+        isShifted={model.isShifted}
+        letterScores={model.letterScores}
+        onKeyPress={model.handleKeyPress}
+      />
+
+      <WordleBoardSection.ResultModalWrapper
+        styles={styles}
+        answer={model.answer}
+        gameStatus={model.gameStatus}
+        guesses={model.guesses}
+        isVisible={model.isResultModalVisible}
+        onClose={() => model.setIsResultModalVisible(false)}
+        onNextPuzzle={() => {
+          model.setIsResultModalVisible(false);
+          model.startRandomPuzzle();
+        }}
+        puzzleNumber={model.puzzleNumber}
       />
     </SafeAreaView>
   );

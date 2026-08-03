@@ -3,6 +3,7 @@ import { Animated, Easing, Platform, StyleSheet, Text, View } from "react-native
 
 import { LetterScore } from "@/features/wordle/model/wordle";
 import { playReveal } from "@/shared/services/sound";
+import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
 
 const USE_NATIVE_ANIMATION_DRIVER = Platform.OS !== "web";
 

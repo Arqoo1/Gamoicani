@@ -1,15 +1,9 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { AuthUser } from "@/entities/user/types";
-import {
-  changePassword as apiChangePassword,
-  fetchMe,
-  loginAccount,
-  loginWithGoogleAPI,
-  registerAccount,
-  updateMyProfile
-} from "@/features/auth/api/authApi";
+import { fetchMe } from "@/features/auth/api/authApi";
 import { runAuthBootstrap } from "@/features/auth/services/authBootstrap";
 import {
   uploadCoverPhoto as apiUploadCoverPhoto,
@@ -20,31 +14,11 @@ import { clearAuthToken, getAuthToken, hasTokenExpired, isAuthFailure } from "@/
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
-  changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
-  error: string | null;
-  login: (input: { email: string; password: string }) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (input: {
-    displayName: string;
-    email: string;
-    password: string;
-    username: string;
-  }) => Promise<void>;
   refreshUser: () => Promise<void>;
-    updateUser: (nextUser: AuthUser) => void;
+  setSessionUser: (user: AuthUser | null) => void;
   status: AuthStatus;
-  updateProfile: (input: {
-    avatarColor?: string;
-    bio?: string;
-    coverGradient?: number;
-    coverPhotoUrl?: string | null;
-    displayName?: string;
-    profilePhotoUrl?: string | null;
-    username?: string;
-  }) => Promise<void>;
-  uploadCoverPhoto: (uri: string) => Promise<void>;
-  uploadProfilePhoto: (uri: string) => Promise<void>;
+  updateUser: (nextUser: AuthUser) => void;
   user: AuthUser | null;
 };
 
@@ -134,10 +108,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const message = caughtError instanceof Error ? caughtError.message : "Unable to create account.";
         setError(message);
         throw caughtError;
+  const queryClient = useQueryClient();
+  const [tokenExists, setTokenExists] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getAuthToken().then((t) => setTokenExists(Boolean(t)));
+  }, []);
+
+  const { data: user, isLoading, refetch } = useQuery({
+    queryKey: queryKeys.auth.me(),
+    queryFn: async () => {
+      const token = await getAuthToken();
+      if (!token) return null;
+      try {
+        const nextUser = await fetchMe();
+        runAuthBootstrap(nextUser, (repaired) => {
+          queryClient.setQueryData(queryKeys.auth.me(), repaired);
+        }).catch(() => {});
+        return nextUser;
+      } catch (err) {
+        await clearAuthToken();
+        throw err;
       }
     },
-    []
-  );
+    enabled: tokenExists === true,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   const updateProfile = useCallback(async (input: {
     avatarColor?: string;
@@ -215,38 +212,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
     setError(null);
   }, []);
+  useEffect(() => {
+    crashReporter.setUser(user ? { id: user.id, email: user.email, username: user.username } : null);
+  }, [user]);
+
+  const status: AuthStatus = tokenExists === null || (tokenExists && isLoading)
+    ? "loading"
+    : user
+    ? "authenticated"
+    : "unauthenticated";
+
+  const setSessionUser = useCallback((nextUser: AuthUser | null) => {
+    queryClient.setQueryData(queryKeys.auth.me(), nextUser);
+    setTokenExists(Boolean(nextUser));
+  }, [queryClient]);
+
+  const refreshUser = useCallback(async () => {
+    const t = await getAuthToken();
+    setTokenExists(Boolean(t));
+    if (t) {
+      await refetch();
+    }
+  }, [refetch]);
+
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    queryClient.setQueryData(queryKeys.auth.me(), nextUser);
+  }, [queryClient]);
+
+  const logout = useCallback(async () => {
+    await clearAuthToken();
+    queryClient.setQueryData(queryKeys.auth.me(), null);
+    setTokenExists(false);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      changePassword,
-      error,
-      login,
-      loginWithGoogle,
       logout,
       refreshUser,
-      register,
+      setSessionUser,
       status,
-      updateProfile,
       updateUser,
-      uploadCoverPhoto,
-      uploadProfilePhoto,
-      user
+      user: user ?? null,
     }),
-    [
-      changePassword,
-      error,
-      login,
-      loginWithGoogle,
-      logout,
-      refreshUser,
-      register,
-      status,
-      updateProfile,
-      updateUser,
-      uploadCoverPhoto,
-      uploadProfilePhoto,
-      user
-    ]
+    [logout, refreshUser, setSessionUser, status, updateUser, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

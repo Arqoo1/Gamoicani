@@ -4,6 +4,8 @@ import ViewShot, { ViewShotRef } from "react-native-view-shot";
 import { GameStatus, scoreGuess } from "@/features/wordle/model/wordle";
 import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
 
+type WordleStyles = ReturnType<typeof createStyles>;
+
 type WordleResultModalProps = {
   answer: string;
   gameStatus: GameStatus;

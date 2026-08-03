@@ -43,15 +43,8 @@ const KB_GAP = 5;
 const GRID_ROWS = 6;
 
 export default function MultiplayerScreen() {
-  const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const { activePlayerId: initialActivePlayer, gameType, puzzle, roomId } = useMultiplayerRouteParams();
-  const wordLength = Math.max(1, Math.min(12, Number(puzzle?.wordLength) || 5));
-
   const { colors, isDark } = useAppTheme();
-  const { socket, opponentProfile } = useSocket();
-  const { user } = useAuth();
-  const { top: safeTop } = useSafeAreaInsets();
+  const model = useMultiplayerScreenModel();
 
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
@@ -263,18 +256,16 @@ export default function MultiplayerScreen() {
   }, [isShifted]);
 
   return (
-    <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "right", "bottom", "left"]} style={model.styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-      {}
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="უკან"
-          onPress={handleBackPress}
-          style={({ pressed }) => [styles.hBtn, pressed && styles.pressed]}
-        >
-          <Feather color={colors.primaryText} name="chevron-left" size={26} />
-        </Pressable>
+      <MultiplayerHeader
+        colors={colors}
+        gameTitle={model.gameTitle}
+        onBackPress={model.handleBackPress}
+        onToggleEmotes={() => model.setEmotePickerOpen((value) => !value)}
+        styles={model.styles}
+      />
 
         <Text style={styles.title}>{gameTitle}</Text>
 
@@ -303,6 +294,50 @@ export default function MultiplayerScreen() {
             ))}
           </View>
         </>
+      ) : null}
+
+      <OpponentStrip
+        andazebiAttempts={model.ANDAZEBI_ATTEMPTS}
+        avatarIcon={model.avatarIcon}
+        colors={colors}
+        gameType={model.gameType}
+        myEmote={model.myEmote}
+        myOp={model.myOp}
+        myY={model.myY}
+        oppEmote={model.oppEmote}
+        oppOp={model.oppOp}
+        oppY={model.oppY}
+        opponentName={opponentName}
+        opponentProgress={model.opponentProgress}
+        styles={model.styles}
+        wordLength={model.wordLength}
+      />
+
+      {!model.gameOver ? <TurnBanner styles={model.styles} waitingForOpponent={model.waitingForOpponent} timeLeft={model.timeLeft} /> : null}
+
+      {model.gameType === "wordle" ? (
+        <WordleMatchBoard
+          colors={colors}
+          currentGuess={model.currentGuess}
+          gameOver={model.gameOver}
+          guessResults={model.guessResults}
+          guesses={model.guesses}
+          styles={model.styles}
+          wordLength={model.wordLength}
+        />
+      ) : (
+        <AndazebiMatchPanel
+          activeInputIndex={model.activeInputIndex}
+          andazebiAnswers={model.andazebiAnswers}
+          colors={colors}
+          gameOver={model.gameOver}
+          hint={hint}
+          history={andazebiHistory}
+          onPressInput={model.setActiveInputIndex}
+          onSubmit={model.submitGuess}
+          prompt={prompt}
+          styles={model.styles}
+        />
       )}
 
       <OpponentProgressStrip
@@ -354,11 +389,11 @@ export default function MultiplayerScreen() {
       )}
 
       <GeorgianKeyboard
-        isShifted={isShifted}
+        isShifted={model.isShifted}
         onKeyPress={(key) => {
-          if (key === SHIFT_KEY) handleKey("SHIFT");
-          else if (key === ENTER_KEY) handleKey("ENTER");
-          else handleKey(key);
+          if (key === SHIFT_KEY) model.handleKey("SHIFT");
+          else if (key === ENTER_KEY) model.handleKey("ENTER");
+          else model.handleKey(key);
         }}
       />
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { Animated, Easing, Platform } from "react-native";
+import { Animated, Easing } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   triggerSelectionHaptic,
@@ -8,15 +8,14 @@ import {
 } from "@/shared/services/haptics";
 import { playBuzz, playChime, playLoss, playPop, playReveal } from "@/shared/services/sound";
 import { fetchGameContent } from "@/features/games/api/gamesApi";
+import { getAndazebiJson } from "@/shared/services/lazyData";
 import { cacheGameContent, getCachedGameContent } from "@/shared/storage/contentCache";
 import {
   BACKSPACE_KEY,
   ENTER_KEY,
   GEORGIAN_LETTERS,
-  QWERTY_TO_GEORGIAN,
   SHIFT_KEY,
   SHIFTED_GEORGIAN_KEYS,
-  SHIFTED_QWERTY_TO_GEORGIAN,
 } from "@/shared/constants/georgianKeyboard";
 import {
   AndazebiStats,
@@ -28,7 +27,6 @@ import {
   getDailyItems,
   getDailyNumber,
   getHintText,
-  getLocalDateKey,
   getPreviousDateKey,
   getRandomPracticeItem,
   Level,
@@ -45,6 +43,8 @@ import {
   WordStatus,
   createEmptyStats,
 } from "@/features/andazebi/model/screenModel";
+import { getLocalDateKey } from "@/shared/lib/date";
+import { useGeorgianWebKeyboard } from "@/shared/hooks/useGeorgianWebKeyboard";
 import { AuthUser } from "@/entities/user/types";
 import { GameStat } from "@/entities/user/types";
 
@@ -379,6 +379,9 @@ export function useAndazebiGame(
         const cached = await getCachedGameContent<ProverbsJson>("andazebi").catch(() => null);
         if (active && cached?.items?.length) {
           dispatch({ type: "SET_PROVERB_DATA", payload: cached });
+        } else if (active) {
+          const fallback = await getAndazebiJson();
+          dispatch({ type: "SET_PROVERB_DATA", payload: fallback as ProverbsJson });
         }
       });
     return () => {

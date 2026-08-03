@@ -6,12 +6,40 @@ import { styles } from "./ErrorBoundary.styles";
 type Props = {
   children: ReactNode;
   fallback?: ReactNode;
+  route?: string;
 };
 
 type State = {
   hasError: boolean;
   error: Error | null;
 };
+
+function ErrorFallbackView({ error, onReset }: { error: Error | null; onReset: () => void }) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={styles.emoji}>💥</Text>
+      <Text style={[styles.title, { color: colors.primaryText }]}>რაღაც შეცდომა მოხდა</Text>
+      <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
+        აპლიკაციაში მოხდა მოულოდნელი შეცდომა. გთხოვთ სცადეთ ხელახლა.
+      </Text>
+      {__DEV__ && error && (
+        <View style={[styles.devBox, { backgroundColor: colors.card, borderColor: "#e63946" }]}>
+          <Text style={[styles.devText, { color: "#e63946" }]} numberOfLines={6}>
+            {error.message}
+          </Text>
+        </View>
+      )}
+      <Pressable
+        style={({ pressed }) => [styles.btn, { backgroundColor: colors.accent }, pressed && styles.btnPressed]}
+        onPress={onReset}
+      >
+        <Text style={styles.btnText}>ხელახლა ცდა</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -25,6 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary] Uncaught error:", error, info.componentStack);
+    crashReporter.reportError(error, this.props.route, { componentStack: info.componentStack });
   }
 
   handleReset = () => {

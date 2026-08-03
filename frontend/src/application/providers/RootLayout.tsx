@@ -22,9 +22,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  useEffect(() => {
-    initAudioPool().catch(() => {});
-  }, []);
+  useAudioBootstrap();
 
   return (
     <ErrorBoundary>

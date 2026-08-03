@@ -25,6 +25,8 @@ import { useAndazebiGame } from "@/features/andazebi/hooks/useAndazebiGame";
 import { getHintButtonText } from "@/features/andazebi/model/screenModel";
 import { BACKSPACE_KEY, ENTER_KEY, SHIFT_KEY } from "@/shared/constants/georgianKeyboard";
 import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
+import { GameModePicker } from "@/shared/ui/GameModePicker";
+import { ContentLoadStateBanner } from "@/shared/ui/ContentLoadStateBanner";
 
 
 type AndazebiStyles = ReturnType<typeof createStyles>;
@@ -143,87 +145,38 @@ export default function AndazebiScreen() {
       />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
 
-      <Modal
-        animationType="fade"
-        transparent
+      <GameModePicker
         visible={gameMode === null}
-        onRequestClose={handleGoBack}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modePickerModal}>
-            <Text style={styles.modePickerKicker}>ანდაზები</Text>
-            <Text style={styles.modePickerTitle}>აირჩიე რეჟიმი</Text>
-
-            <Pressable
-              disabled={isDailyLocked}
-              style={({ pressed }) => [
-                styles.modePickerOption,
-                isDailyLocked && styles.modePickerOptionDisabled,
-                !isDailyLocked && pressed && styles.pressed
-              ]}
-              onPress={() => setGameMode("daily")}
-            >
-              <View style={styles.modePickerIconWrap}>
-                <Text style={styles.modePickerIcon}>📅</Text>
-              </View>
-              <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, isDailyLocked && styles.modePickerDisabledText]}>
-                  დღის ანდაზები
-                </Text>
-                <Text style={[styles.modePickerOptionSub, isDailyLocked && styles.modePickerDisabledText]}>
-                  {isDailyLocked
-                    ? "✓ დღეს უკვე ითამაშე"
-                    : "5 ახალი ანდაზა ყოველდღე"}
-                </Text>
-              </View>
-              {isDailyLocked ? (
-                <Text style={styles.modePickerDoneCheck}>✓</Text>
-              ) : (
-                <Text style={styles.modePickerArrow}>›</Text>
-              )}
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
-              onPress={() => setGameMode("practice")}
-            >
-              <View style={styles.modePickerIconWrap}>
-                <Text style={styles.modePickerIcon}>🔁</Text>
-              </View>
-              <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>ვარჯიში</Text>
-                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>უსასრულო რეჟიმი</Text>
-              </View>
-              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.modePickerOption, styles.modePickerOptionSecondary, pressed && styles.pressed]}
-              onPress={() => setGameMode("tutorial")}
-            >
-              <View style={styles.modePickerIconWrap}>
-                <Text style={styles.modePickerIcon}>🎓</Text>
-              </View>
-              <View style={styles.modePickerText}>
-                <Text style={[styles.modePickerOptionTitle, styles.modePickerOptionTitleSecondary]}>
-                  როგორ ვითამაშოთ
-                </Text>
-                <Text style={[styles.modePickerOptionSub, styles.modePickerOptionSubSecondary]}>
-                  ინტერაქტიული გაკვეთილი
-                </Text>
-              </View>
-              <Text style={[styles.modePickerArrow, styles.modePickerArrowSecondary]}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.modePickerBack, pressed && styles.pressed]}
-              onPress={handleGoBack}
-            >
-              <Text style={styles.modePickerBackText}>← უკან</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        kicker="ანდაზები"
+        title="აირჩიე რეჟიმი"
+        onClose={handleGoBack}
+        options={[
+          {
+            id: "daily",
+            title: "დღის ანდაზები",
+            subtitle: "5 ახალი ანდაზა ყოველდღე",
+            disabledSubtitle: "✓ დღეს უკვე ითამაშე",
+            icon: "📅",
+            disabled: isDailyLocked,
+            isDone: isDailyLocked,
+            onSelect: () => setGameMode("daily")
+          },
+          {
+            id: "practice",
+            title: "ვარჯიში",
+            subtitle: "უსასრულო რეჟიმი",
+            icon: "🔁",
+            onSelect: () => setGameMode("practice")
+          },
+          {
+            id: "tutorial",
+            title: "როგორ ვითამაშოთ",
+            subtitle: "ინტერაქტიული გაკვეთილი",
+            icon: "🎓",
+            onSelect: () => setGameMode("tutorial")
+          }
+        ]}
+      />
 
       <View style={styles.header}>
         <Pressable
@@ -246,6 +199,7 @@ export default function AndazebiScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <ContentLoadStateBanner isOffline={isOffline} />
           {!isOffline && (
             <View style={styles.modeRow}>
               <Pressable

@@ -7,16 +7,15 @@ import {
   ScrollView,
   StatusBar,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { useAuth } from "@/application/providers/auth";
 import { useAppTheme } from "@/application/providers/theme";
 import { WordleTiles } from "@/features/auth/ui/AuthBrand";
+import { loginAccount, loginWithGoogleAPI, registerAccount } from "@/features/auth/api/authApi";
 import { MoonIcon, SunIcon } from "@/shared/ui/ThemeGlyphs";
 import { getFriendlyErrorMessage } from "@/shared/utils/errorMessages";
 import { createStyles } from "@/features/auth/screens/LoginScreen.styles";
@@ -25,7 +24,7 @@ type AuthMode = "login" | "register";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, register, loginWithGoogle } = useAuth();
+  const { setSessionUser } = useAuth();
   const { colors, isDark, toggleTheme } = useAppTheme();
   const [mode, setMode] = useState<AuthMode>("login");
   const styles = useMemo(() => createStyles(colors, isDark, mode), [colors, isDark, mode]);
@@ -47,11 +46,13 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     setMessage("");
     try {
+      let result;
       if (mode === "login") {
-        await login({ email, password });
+        result = await loginAccount({ email, password });
       } else {
-        await register({ displayName, email, password, username });
+        result = await registerAccount({ displayName, email, password, username });
       }
+      setSessionUser(result.user);
       router.replace("/");
     } catch {
       setMessage("ან უცნობი შეცდომა მოხდა");
@@ -68,7 +69,8 @@ export default function LoginScreen() {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
       if (response.data?.idToken) {
-        await loginWithGoogle(response.data.idToken);
+        const result = await loginWithGoogleAPI(response.data.idToken);
+        setSessionUser(result.user);
         router.replace("/");
       } else {
         setMessage("Google Sign-In failed (no token)");
@@ -127,65 +129,33 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {mode === "register" && (
-            <>
-              <View style={styles.fieldWrap}>
-                <Text style={styles.fieldLabel}>სახელი</Text>
-                <TextInput
-                  autoCapitalize="words"
-                  placeholder="შენი სახელი"
-                  placeholderTextColor={colors.secondaryText}
-                  style={inputStyle("displayName")}
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  onFocus={() => setFocusedField("displayName")}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-              <View style={styles.fieldWrap}>
-                <Text style={styles.fieldLabel}>მომხმარებელი</Text>
-                <TextInput
-                  autoCapitalize="none"
-                  placeholder="მომხმარებლის სახელი"
-                  placeholderTextColor={colors.secondaryText}
-                  style={inputStyle("username")}
-                  value={username}
-                  onChangeText={setUsername}
-                  onFocus={() => setFocusedField("username")}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-            </>
+          {mode === "register" ? (
+            <RegisterForm
+              colors={colors}
+              displayName={displayName}
+              email={email}
+              focusedField={focusedField}
+              password={password}
+              setDisplayName={setDisplayName}
+              setEmail={setEmail}
+              setFocusedField={setFocusedField}
+              setPassword={setPassword}
+              setUsername={setUsername}
+              styles={styles}
+              username={username}
+            />
+          ) : (
+            <LoginForm
+              colors={colors}
+              email={email}
+              focusedField={focusedField}
+              password={password}
+              setEmail={setEmail}
+              setFocusedField={setFocusedField}
+              setPassword={setPassword}
+              styles={styles}
+            />
           )}
-
-          <View style={styles.fieldWrap}>
-            <Text style={styles.fieldLabel}>ელ-ფოსტა</Text>
-            <TextInput
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder="შენი ელ-ფოსტა"
-              placeholderTextColor={colors.secondaryText}
-              style={inputStyle("email")}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setFocusedField("email")}
-              onBlur={() => setFocusedField(null)}
-            />
-          </View>
-
-          <View style={styles.fieldWrap}>
-            <Text style={styles.fieldLabel}>პაროლი</Text>
-            <TextInput
-              placeholder="შენი პაროლი"
-              placeholderTextColor={colors.secondaryText}
-              secureTextEntry
-              style={inputStyle("password")}
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setFocusedField("password")}
-              onBlur={() => setFocusedField(null)}
-            />
-          </View>
 
           {message ? (
             <View style={styles.errorBubble}>
@@ -213,15 +183,9 @@ export default function LoginScreen() {
             style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
             onPress={handleGoogleSignIn}
             disabled={isSubmitting}
-          >
-            <Image
-              source={{
-                uri: "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg",
-              }}
-              style={{ width: 20, height: 20, marginRight: 12 }}
-            />
-            <Text style={styles.googleText}>Google-ით შესვლა</Text>
-          </Pressable>
+            onPress={handleGoogleSignIn}
+            styles={styles}
+          />
 
           <Pressable
             style={styles.switchRow}

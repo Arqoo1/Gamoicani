@@ -278,8 +278,7 @@ export default function MultiplayerScreen() {
         </Pressable>
       </View>
 
-      {}
-      {emotePickerOpen && !gameOver && (
+      {model.emotePickerOpen && !model.gameOver ? (
         <>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setEmotePickerOpen(false)} />
           <View style={styles.emotePicker}>

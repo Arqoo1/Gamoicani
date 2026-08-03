@@ -311,45 +311,47 @@ export default function WordleScreen() {
           <Text style={styles.message}>{message}</Text>
         </View>
 
-        <WordleGrid
-          answer={answer}
-          currentLetters={currentLetters}
-          guesses={guesses}
-          maxGuesses={MAX_GUESSES}
-          shakeAnim={shakeTranslateX}
-          styles={styles}
-          tileFontSize={tileFontSize}
-          tileSize={tileSize}
-          wordLength={WORD_LENGTH}
-          tileGap={tileGap}
-          boardWidth={boardWidth}
-        />
+      <WordleTopBar
+        styles={styles}
+        onBack={() => router.back()}
+        onRefresh={model.startRandomPuzzle}
+        onStats={() => router.push("/stats")}
+        showStats={gameMode !== "practice" && gameMode !== "tutorial"}
+      />
 
-        {toast && (
-          <View style={styles.toast}>
-            <Text style={styles.toastText}>{toast}</Text>
-          </View>
-        )}
-      </View>
+      <WordleBoardSection
+        styles={styles}
+        answer={model.answer}
+        currentLetters={model.currentLetters}
+        guesses={model.guesses}
+        isOffline={model.isOffline}
+        message={model.message}
+        puzzleNumber={model.puzzleNumber}
+        shakeTranslateX={model.shakeTranslateX}
+        tileFontSize={model.tileFontSize}
+        tileGap={model.tileGap}
+        tileSize={model.tileSize}
+        boardWidth={model.boardWidth}
+      />
 
-      <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
-        <GeorgianKeyboard
-          disabled={gameStatus !== "playing"}
-          isShifted={isShifted}
-          letterScores={letterScores}
-          onKeyPress={handleKeyPress}
-        />
-      </View>
+      <WordleFooter
+        styles={styles}
+        disabled={model.gameStatus !== "playing"}
+        isShifted={model.isShifted}
+        letterScores={model.letterScores}
+        onKeyPress={model.handleKeyPress}
+      />
 
-      <WordleResultModal
-        answer={answer}
-        gameStatus={gameStatus}
-        guesses={guesses}
-        isVisible={isResultModalVisible}
-        onClose={() => setIsResultModalVisible(false)}
+      <WordleBoardSection.ResultModalWrapper
+        styles={styles}
+        answer={model.answer}
+        gameStatus={model.gameStatus}
+        guesses={model.guesses}
+        isVisible={model.isResultModalVisible}
+        onClose={() => model.setIsResultModalVisible(false)}
         onNextPuzzle={() => {
-          setIsResultModalVisible(false);
-          startRandomPuzzle();
+          model.setIsResultModalVisible(false);
+          model.startRandomPuzzle();
         }}
         styles={styles}
       />

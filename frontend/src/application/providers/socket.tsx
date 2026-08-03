@@ -111,9 +111,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       setSocket(nextSocket);
     }
+  }, [status]);
 
-    initSocket();
+  useEffect(() => {
+    if (status !== "authenticated") {
+      disconnect();
+    }
+  }, [disconnect, status]);
 
+  useEffect(() => {
     return () => {
       cancelled = true;
       if (activeSocket) {
@@ -122,7 +128,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(false);
       setSocket(null);
     };
-  }, [status]);
+  }, [disconnect]);
 
   useEffect(() => {
     if (status !== "authenticated") {

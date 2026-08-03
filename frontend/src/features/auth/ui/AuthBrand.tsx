@@ -8,7 +8,7 @@ export function WordleTiles({ colors, compact }: { colors: AppColors; compact?: 
     { letter: "ა", color: colors.present },
     { letter: "ხ", color: colors.correct },
     { letter: "ლ", color: colors.absent },
-    { letter: "ი", color: colors.present }
+    { letter: "ი", color: colors.present },
   ];
   const size = compact ? 34 : 44;
   const fontSize = compact ? 14 : 18;
@@ -29,7 +29,7 @@ export function WordleTiles({ colors, compact }: { colors: AppColors; compact?: 
             shadowOffset: { width: 0, height: compact ? 3 : 6 },
             shadowOpacity: 0.45,
             shadowRadius: compact ? 6 : 10,
-            elevation: compact ? 4 : 8
+            elevation: compact ? 4 : 8,
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "900", fontSize }}>{t.letter}</Text>

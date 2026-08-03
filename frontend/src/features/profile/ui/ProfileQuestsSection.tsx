@@ -1,11 +1,12 @@
 import { Text, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   bonusClaimed: boolean;
   colors: AppColors;
   dailyQuestsData: Array<{ title: string; progress: number; target: number; completed: boolean }>;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileQuestsSection({ colors, styles, dailyQuestsData, bonusClaimed }: Props) {

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { getInitials } from "@/features/profile/model/profileMeta";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 export type FriendListUser = {
   avatarColor?: string;
@@ -32,7 +33,7 @@ type ProfileFriendsSectionProps = {
   safeRequests: FriendRequestItem[];
   searchQuery: string;
   searchResults: FriendListUser[];
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileFriendsSection({

@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "rea
 import { AppColors } from "@/application/providers/theme";
 import { FriendUser } from "@/entities/user/types";
 import { getInitials, getUserColor } from "@/shared/utils/avatar";
-import { createStyles } from "@/features/lobby/components/UserProfileModal.styles";
+import { createStyles } from "@/features/lobby/ui/UserProfileModal.styles";
 
 interface UserProfileModalProps {
   selectedUser: { id: string; displayName: string; username: string } | null;

@@ -17,16 +17,19 @@ type Params = {
   wordLength: number;
 };
 
-export function useMultiplayerActions(params: Params, deps: {
-  setActiveInputIndex: (index: number) => void;
-  setAndazebiAnswers: (updater: (prev: string[]) => string[]) => void;
-  setCurrentGuess: (updater: (prev: string) => string) => void;
-  setGameOverState?: never;
-  setGuesses: (updater: (prev: string[]) => string[]) => void;
-  setIsShifted: (updater: (prev: boolean) => boolean) => void;
-  setLeaveModalOpen: (value: boolean) => void;
-  resetAndazebiAnswers: () => void;
-}) {
+export function useMultiplayerActions(
+  params: Params,
+  deps: {
+    setActiveInputIndex: (index: number) => void;
+    setAndazebiAnswers: (updater: (prev: string[]) => string[]) => void;
+    setCurrentGuess: (updater: (prev: string) => string) => void;
+    setGameOverState?: never;
+    setGuesses: (updater: (prev: string[]) => string[]) => void;
+    setIsShifted: (updater: (prev: boolean) => boolean) => void;
+    setLeaveModalOpen: (value: boolean) => void;
+    resetAndazebiAnswers: () => void;
+  }
+) {
   const submitGuess = () => {
     if (params.gameOver || params.waitingForOpponent) return;
 

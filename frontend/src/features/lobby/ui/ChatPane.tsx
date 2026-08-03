@@ -13,7 +13,7 @@ import {
 import { AppColors } from "@/application/providers/theme";
 import { AuthUser } from "@/entities/user/types";
 import { getInitials, getUserColor } from "@/shared/utils/avatar";
-import { createStyles } from "@/features/lobby/components/ChatPane.styles";
+import { createStyles } from "@/features/lobby/ui/ChatPane.styles";
 
 type ChatMessage = {
   id: string;

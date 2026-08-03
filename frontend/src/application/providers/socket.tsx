@@ -1,4 +1,13 @@
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { io, Socket } from "socket.io-client";
 
 import { useAuth } from "@/application/providers/auth";
@@ -33,37 +42,13 @@ const SocketContext = createContext<SocketContextType>({
 });
 
 function createAppSocket(token: string): AppSocket {
-  return io(SOCKET_URL, {
+  return io(getApiOrigin(), {
     auth: { token },
     transports: ["websocket"],
   }) as AppSocket;
 }
 
-function bindSocketEvents(
-  socket: AppSocket,
-  handlers: {
-    onConnected: () => void;
-    onDisconnected: () => void;
-    onErrorMessage: (err: { message: string }) => void;
-    onOpponentProfile: (profile: OpponentProfile) => void;
-  }
-) {
-  const { onConnected, onDisconnected, onErrorMessage, onOpponentProfile } = handlers;
-
-  socket.on("connect", onConnected);
-  socket.on("disconnect", onDisconnected);
-  socket.on("error-message", onErrorMessage);
-  socket.on("opponent-profile", onOpponentProfile);
-
-  return () => {
-    socket.off("connect", onConnected);
-    socket.off("disconnect", onDisconnected);
-    socket.off("error-message", onErrorMessage);
-    socket.off("opponent-profile", onOpponentProfile);
-  };
-}
-
-export function SocketProvider({ children }: { children: React.ReactNode }) {
+export function SocketProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const [socket, setSocket] = useState<AppSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -71,57 +56,35 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<AppSocket | null>(null);
   const connectingRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    let activeSocket: AppSocket | null = null;
+  const disconnect = useCallback(() => {
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    connectingRef.current = false;
+    setSocket(null);
+    setIsConnected(false);
+  }, []);
 
   const connect = useCallback(async () => {
     if (status !== "authenticated") return;
     if (socketRef.current?.connected || connectingRef.current) return;
 
     connectingRef.current = true;
-
     try {
       const token = await getAuthToken();
-      if (cancelled || !token) return;
+      if (!token) return;
 
       const nextSocket = createAppSocket(token);
-      activeSocket = nextSocket;
+      socketRef.current = nextSocket;
 
-      const unbind = bindSocketEvents(nextSocket, {
-        onConnected: () => {
-          setIsConnected(true);
-        },
-        onDisconnected: () => {
-          setIsConnected(false);
-        },
-        onErrorMessage: (err) => {
-          console.error("[Socket Error]", err.message);
-        },
-        onOpponentProfile: (profile) => {
-          setOpponentProfile(profile);
-        },
-      });
-
-      if (cancelled) {
-        unbind();
-        nextSocket.disconnect();
-        return;
-      }
+      nextSocket.on("connect", () => setIsConnected(true));
+      nextSocket.on("disconnect", () => setIsConnected(false));
+      nextSocket.on("error-message", (err) => console.error("[Socket Error]", err.message));
+      nextSocket.on("opponent-profile", (profile) => setOpponentProfile(profile));
 
       setSocket(nextSocket);
+    } finally {
+      connectingRef.current = false;
     }
-
-    initSocket();
-
-    return () => {
-      cancelled = true;
-      if (activeSocket) {
-        activeSocket.disconnect();
-      }
-      setIsConnected(false);
-      setSocket(null);
-    };
   }, [status]);
 
   useEffect(() => {
@@ -130,28 +93,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [disconnect, status]);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
+  useEffect(() => () => disconnect(), [disconnect]);
 
-  const emitProfileUpdate = useCallback(
-    (equippedItems: ShopData["equippedItems"]) => {
-      socketRef.current?.emit("profile-update", { equippedItems });
-    },
-    []
-  );
+  const emitProfileUpdate = useCallback((equippedItems: ShopData["equippedItems"]) => {
+    socketRef.current?.emit("profile-update", { equippedItems });
+  }, []);
 
   const value = useMemo(
-    () => ({
-      connect,
-      disconnect,
-      emitProfileUpdate,
-      isConnected,
-      opponentProfile,
-      socket,
-    }),
+    () => ({ connect, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket }),
     [connect, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket]
   );
 

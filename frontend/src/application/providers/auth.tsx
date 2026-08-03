@@ -3,111 +3,56 @@ import { useRouter } from "expo-router";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { AuthUser } from "@/entities/user/types";
-import { fetchMe } from "@/features/auth/api/authApi";
+import { fetchMe, changePassword as apiChangePassword } from "@/features/auth/api/authApi";
 import { runAuthBootstrap } from "@/features/auth/services/authBootstrap";
 import {
+  loginAccount,
+  loginWithGoogleAPI,
+  registerAccount,
+  updateMyProfile,
+} from "@/features/auth/api/authApi";
+import {
   uploadCoverPhoto as apiUploadCoverPhoto,
-  uploadProfilePhoto as apiUploadProfilePhoto
+  uploadProfilePhoto as apiUploadProfilePhoto,
 } from "@/features/profile/api/profileApi";
 import { clearAuthToken, getAuthToken, hasTokenExpired, isAuthFailure } from "@/shared/api/client";
+import { crashReporter } from "@/shared/services/crashReporter";
+import { queryKeys } from "@/shared/api/queryKeys";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
+  login: (input: { email: string; password: string }) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  register: (input: {
+    displayName: string;
+    email: string;
+    password: string;
+    username: string;
+  }) => Promise<void>;
   setSessionUser: (user: AuthUser | null) => void;
   status: AuthStatus;
   updateUser: (nextUser: AuthUser) => void;
+  updateProfile: (input: {
+    avatarColor?: string;
+    bio?: string;
+    coverGradient?: number;
+    coverPhotoUrl?: string | null;
+    displayName?: string;
+    profilePhotoUrl?: string | null;
+    username?: string;
+  }) => Promise<void>;
+  changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
+  uploadProfilePhoto: (uri: string) => Promise<void>;
+  uploadCoverPhoto: (uri: string) => Promise<void>;
   user: AuthUser | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>("loading");
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const resetAuthState = useCallback(async (message: string | null = null) => {
-    await clearAuthToken();
-    setUser(null);
-    setStatus("unauthenticated");
-    setError(message);
-  }, []);
-
-  const refreshUser = useCallback(async () => {
-    const token = await getAuthToken();
-
-    if (!token || hasTokenExpired(token)) {
-      await resetAuthState("Your session has expired. Please sign in again.");
-      return;
-    }
-
-    try {
-      const nextUser = await fetchMe();
-      setUser(nextUser);
-      setStatus("authenticated");
-      setError(null);
-      runAuthBootstrap(nextUser, (repaired) => setUser(repaired)).catch(() => {});
-    } catch (caughtError) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.warn("[Auth] Failed to refresh user:", caughtError);
-      }
-
-      if (isAuthFailure(caughtError)) {
-        await resetAuthState("Your session has expired. Please sign in again.");
-        return;
-      }
-
-      await resetAuthState("We could not refresh your session. Please sign in again.");
-    }
-  }, [resetAuthState]);
-
-  useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
-
-  const login = useCallback(async (input: { email: string; password: string }) => {
-    setError(null);
-    try {
-      const response = await loginAccount(input);
-      setUser(response.user);
-      setStatus("authenticated");
-      setError(null);
-    } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : "Unable to log in.";
-      setError(message);
-      throw caughtError;
-    }
-  }, []);
-
-  const loginWithGoogle = useCallback(async (idToken: string) => {
-    setError(null);
-    try {
-      const response = await loginWithGoogleAPI(idToken);
-      setUser(response.user);
-      setStatus("authenticated");
-      setError(null);
-    } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : "Google sign-in failed.";
-      setError(message);
-      throw caughtError;
-    }
-  }, []);
-
-  const register = useCallback(
-    async (input: { displayName: string; email: string; password: string; username: string }) => {
-      setError(null);
-      try {
-        const response = await registerAccount(input);
-        setUser(response.user);
-        setStatus("authenticated");
-        setError(null);
-      } catch (caughtError) {
-        const message = caughtError instanceof Error ? caughtError.message : "Unable to create account.";
-        setError(message);
-        throw caughtError;
   const queryClient = useQueryClient();
   const [tokenExists, setTokenExists] = useState<boolean | null>(null);
 
@@ -115,11 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getAuthToken().then((t) => setTokenExists(Boolean(t)));
   }, []);
 
-  const { data: user, isLoading, refetch } = useQuery({
+  const {
+    data: user,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: queryKeys.auth.me(),
     queryFn: async () => {
       const token = await getAuthToken();
-      if (!token) return null;
+      if (!token || hasTokenExpired(token)) return null;
       try {
         const nextUser = await fetchMe();
         runAuthBootstrap(nextUser, (repaired) => {
@@ -127,7 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
         return nextUser;
       } catch (err) {
-        await clearAuthToken();
+        if (isAuthFailure(err)) {
+          await clearAuthToken();
+        }
         throw err;
       }
     },
@@ -136,96 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
-  const updateProfile = useCallback(async (input: {
-    avatarColor?: string;
-    bio?: string;
-    coverGradient?: number;
-    coverPhotoUrl?: string | null;
-    displayName?: string;
-    profilePhotoUrl?: string | null;
-    username?: string;
-  }) => {
-    setError(null);
-    try {
-      const response = await updateMyProfile(input);
-      setUser(response.user);
-      setStatus("authenticated");
-      setError(null);
-    } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : "Unable to update profile.";
-      setError(message);
-      throw caughtError;
-    }
-  }, []);
-
-  const changePassword = useCallback(
-    async (input: { currentPassword: string; newPassword: string }) => {
-      setError(null);
-      try {
-        await apiChangePassword(input);
-      } catch (caughtError) {
-        const message = caughtError instanceof Error ? caughtError.message : "Unable to change password.";
-        setError(message);
-        throw caughtError;
-      }
-    },
-    []
-  );
-
-  const uploadProfilePhoto = useCallback(async (uri: string) => {
-    setError(null);
-    try {
-      const response = await apiUploadProfilePhoto(uri);
-      setUser(response.user);
-      setStatus("authenticated");
-      setError(null);
-    } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : "Unable to upload profile photo.";
-      setError(message);
-      throw caughtError;
-    }
-  }, []);
-
-  const uploadCoverPhoto = useCallback(async (uri: string) => {
-    setError(null);
-    try {
-      const response = await apiUploadCoverPhoto(uri);
-      setUser(response.user);
-      setStatus("authenticated");
-      setError(null);
-    } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : "Unable to upload cover photo.";
-      setError(message);
-      throw caughtError;
-    }
-  }, []);
-
-  const updateUser = useCallback((nextUser: AuthUser) => {
-    setUser(nextUser);
-    setStatus("authenticated");
-    setError(null);
-  }, []);
-
-  const logout = useCallback(async () => {
-    await clearAuthToken();
-    setUser(null);
-    setStatus("unauthenticated");
-    setError(null);
-  }, []);
   useEffect(() => {
     crashReporter.setUser(user ? { id: user.id, email: user.email, username: user.username } : null);
   }, [user]);
-
-  const status: AuthStatus = tokenExists === null || (tokenExists && isLoading)
-    ? "loading"
-    : user
-    ? "authenticated"
-    : "unauthenticated";
-
-  const setSessionUser = useCallback((nextUser: AuthUser | null) => {
-    queryClient.setQueryData(queryKeys.auth.me(), nextUser);
-    setTokenExists(Boolean(nextUser));
-  }, [queryClient]);
 
   const refreshUser = useCallback(async () => {
     const t = await getAuthToken();
@@ -235,9 +99,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refetch]);
 
-  const updateUser = useCallback((nextUser: AuthUser) => {
-    queryClient.setQueryData(queryKeys.auth.me(), nextUser);
-  }, [queryClient]);
+  const setSessionUser = useCallback(
+    (nextUser: AuthUser | null) => {
+      queryClient.setQueryData(queryKeys.auth.me(), nextUser);
+      setTokenExists(Boolean(nextUser));
+    },
+    [queryClient]
+  );
+
+  const updateUser = useCallback(
+    (nextUser: AuthUser) => {
+      queryClient.setQueryData(queryKeys.auth.me(), nextUser);
+    },
+    [queryClient]
+  );
 
   const logout = useCallback(async () => {
     await clearAuthToken();
@@ -245,16 +120,104 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenExists(false);
   }, [queryClient]);
 
+  const login = useCallback(
+    async (input: { email: string; password: string }) => {
+      const response = await loginAccount(input);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      const response = await loginWithGoogleAPI(idToken);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const register = useCallback(
+    async (input: { displayName: string; email: string; password: string; username: string }) => {
+      const response = await registerAccount(input);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const updateProfile = useCallback(
+    async (input: {
+      avatarColor?: string;
+      bio?: string;
+      coverGradient?: number;
+      coverPhotoUrl?: string | null;
+      displayName?: string;
+      profilePhotoUrl?: string | null;
+      username?: string;
+    }) => {
+      const response = await updateMyProfile(input);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const changePassword = useCallback(async (input: { currentPassword: string; newPassword: string }) => {
+    await apiChangePassword(input);
+  }, []);
+
+  const uploadProfilePhoto = useCallback(
+    async (uri: string) => {
+      const response = await apiUploadProfilePhoto(uri);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const uploadCoverPhoto = useCallback(
+    async (uri: string) => {
+      const response = await apiUploadCoverPhoto(uri);
+      setSessionUser(response.user);
+    },
+    [setSessionUser]
+  );
+
+  const status: AuthStatus =
+    tokenExists === null || (tokenExists && isLoading)
+      ? "loading"
+      : user
+        ? "authenticated"
+        : "unauthenticated";
+
   const value = useMemo<AuthContextValue>(
     () => ({
+      login,
+      loginWithGoogle,
       logout,
       refreshUser,
+      register,
       setSessionUser,
       status,
+      updateProfile,
       updateUser,
+      changePassword,
+      uploadCoverPhoto,
+      uploadProfilePhoto,
       user: user ?? null,
     }),
-    [logout, refreshUser, setSessionUser, status, updateUser, user]
+    [
+      changePassword,
+      login,
+      loginWithGoogle,
+      logout,
+      refreshUser,
+      register,
+      setSessionUser,
+      status,
+      updateProfile,
+      updateUser,
+      uploadCoverPhoto,
+      uploadProfilePhoto,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -262,18 +225,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const value = useContext(AuthContext);
-
-  if (!value) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
-
+  if (!value) throw new Error("useAuth must be used inside AuthProvider");
   return value;
 }
 
 export function useLogoutAndGoLogin() {
   const router = useRouter();
   const { logout } = useAuth();
-
   return useCallback(async () => {
     await logout();
     router.replace("/login");

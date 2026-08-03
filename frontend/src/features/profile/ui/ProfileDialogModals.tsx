@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type ProfileDialogModalsProps = {
   errorMsg: string;
@@ -7,7 +8,7 @@ type ProfileDialogModalsProps = {
   onCloseError: () => void;
   onCloseLogout: () => void;
   showLogoutConfirm: boolean;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileDialogModals({

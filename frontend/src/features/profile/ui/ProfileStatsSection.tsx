@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   bestStreak: number;
@@ -7,7 +8,7 @@ type Props = {
   gameEntries: Array<{ emoji: string; gameId: string; label: string; stat: { plays: number; wins: number; points: number; currentStreak: number; maxStreak: number } }>;
   guessDistribution: number[];
   maxDist: number;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   totalPlays: number;
   totalPoints: number;
   winPct: number;

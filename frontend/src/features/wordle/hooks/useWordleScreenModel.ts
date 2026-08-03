@@ -4,7 +4,14 @@ import ConfettiCannon from "react-native-confetti-cannon";
 
 import { useAuth } from "@/application/providers/auth";
 import { useWordleGame } from "@/features/wordle/hooks/useWordleGame";
-import { LetterScore, getDailyPuzzleNumber, mergeLetterScores, scoreGuess, splitWord, WORDLE_EPOCH } from "@/features/wordle/model/wordle";
+import {
+  LetterScore,
+  getDailyPuzzleNumber,
+  mergeLetterScores,
+  scoreGuess,
+  splitWord,
+  WORDLE_EPOCH,
+} from "@/features/wordle/model/wordle";
 import { useWordleContent } from "@/features/wordle/hooks/useWordleContent";
 import { useWordleLayout } from "@/features/wordle/hooks/useWordleLayout";
 
@@ -12,7 +19,11 @@ const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
 const USE_NATIVE_ANIMATION_DRIVER = Platform.OS !== "web";
 
-export function useWordleScreenModel(gameMode: "daily" | "practice" | "tutorial" | null, width: number, height: number) {
+export function useWordleScreenModel(
+  gameMode: "daily" | "practice" | "tutorial" | null,
+  width: number,
+  height: number
+) {
   const { updateUser, user } = useAuth();
   const [isResultModalVisible, setIsResultModalVisible] = useState(false);
   const dailyPuzzleNumber = getDailyPuzzleNumber(WORDLE_EPOCH);
@@ -39,21 +50,15 @@ export function useWordleScreenModel(gameMode: "daily" | "practice" | "tutorial"
     setIsResultModalVisible(true);
   }, []);
 
-  const game = useWordleGame(
-    gameMode,
-    wordData,
-    user,
-    updateUser,
-    onResultModal,
-    shakeCurrentRow,
-    () => confettiRef.current?.start()
+  const game = useWordleGame(gameMode, wordData, user, updateUser, onResultModal, shakeCurrentRow, () =>
+    confettiRef.current?.start()
   );
 
   const layout = useWordleLayout(width, height);
 
   const shakeTranslateX = shake.interpolate({
     inputRange: [0, 1, 2, 3, 4, 5, 6],
-    outputRange: [0, -10, 10, -8, 8, -4, 0]
+    outputRange: [0, -10, 10, -8, 8, -4, 0],
   });
 
   const letterScores = useMemo(() => {

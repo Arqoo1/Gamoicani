@@ -1,5 +1,6 @@
 import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
 import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
+import type { LetterScore } from "@/features/wordle/model/wordle";
 
 type WordleStyles = ReturnType<typeof createStyles>;
 
@@ -13,7 +14,7 @@ export function WordleFooter({
   styles: WordleStyles;
   disabled: boolean;
   isShifted: boolean;
-  letterScores: Record<string, any>;
+  letterScores: Record<string, LetterScore>;
   onKeyPress: (key: string) => void;
 }) {
   return (

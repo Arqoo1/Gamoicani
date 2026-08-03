@@ -54,22 +54,22 @@ export const USE_NATIVE_ANIMATION_DRIVER = Platform.OS !== "web";
 export const levelCopy: Record<Level, { label: string; words: string }> = {
   easy: {
     label: "მარტივი",
-    words: "1 სიტყვა"
+    words: "1 სიტყვა",
   },
   medium: {
     label: "საშუალო",
-    words: "2 სიტყვა"
+    words: "2 სიტყვა",
   },
   hard: {
     label: "რთული",
-    words: "3 სიტყვა"
-  }
+    words: "3 სიტყვა",
+  },
 };
 
 export const levelEmoji: Record<Level, string> = {
   easy: "🟩",
   medium: "🟨",
-  hard: "🟥"
+  hard: "🟥",
 };
 
 export function createEmptyStats(): AndazebiStats {
@@ -77,7 +77,7 @@ export function createEmptyStats(): AndazebiStats {
     completedDates: [],
     currentStreak: 0,
     lastCompletedKey: null,
-    maxStreak: 0
+    maxStreak: 0,
   };
 }
 
@@ -148,8 +148,7 @@ export function getRandomPracticeItem(sourceItems: ProverbItem[], excludeId?: st
   let nextItem = sourceItems[Math.floor(Math.random() * sourceItems.length)] ?? sourceItems[0];
 
   if (nextItem?.id === excludeId) {
-    nextItem =
-      sourceItems[(sourceItems.findIndex((item) => item.id === excludeId) + 1) % sourceItems.length];
+    nextItem = sourceItems[(sourceItems.findIndex((item) => item.id === excludeId) + 1) % sourceItems.length];
   }
 
   return nextItem ?? null;
@@ -166,9 +165,7 @@ export function getHintText(item: ProverbItem, hintLevel: number) {
     return hints[0] ?? item.hint;
   }
 
-  return `სიტყვები იწყება: ${item.missingWords
-    .map((word) => Array.from(word)[0])
-    .join(", ")}`;
+  return `სიტყვები იწყება: ${item.missingWords.map((word) => Array.from(word)[0]).join(", ")}`;
 }
 
 export function getHintButtonText(hintLevel: number) {
@@ -182,8 +179,6 @@ export function getHintButtonText(hintLevel: number) {
 
   return "მინიშნების დამალვა";
 }
-
-
 
 export async function reportProverbCompletion(
   item: ProverbItem,
@@ -200,18 +195,21 @@ export async function reportProverbCompletion(
       itemId: item.id,
       level: item.level,
       metadata: {
-        itemId: item.id
+        itemId: item.id,
       },
       mode: "daily",
       puzzleKey: `${dateKey}:${item.id}`,
       streakKey: dateKey,
-      won: method === "solved"
+      won: method === "solved",
     });
 
     if (result.user && onScoreResult) {
       onScoreResult(result.user);
     }
   } catch (err) {
-    console.warn("[reportProverbCompletion] failed to submit score:", err instanceof Error ? err.message : err);
+    console.warn(
+      "[reportProverbCompletion] failed to submit score:",
+      err instanceof Error ? err.message : err
+    );
   }
 }

@@ -2,12 +2,8 @@ import React from "react";
 import { Text, TextInput, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
 
-interface RegisterFormProps {
+interface LoginFormProps {
   colors: AppColors;
-  displayName: string;
-  setDisplayName: (val: string) => void;
-  username: string;
-  setUsername: (val: string) => void;
   email: string;
   setEmail: (val: string) => void;
   password: string;
@@ -17,12 +13,8 @@ interface RegisterFormProps {
   styles: any;
 }
 
-export function RegisterForm({
+export function LoginForm({
   colors,
-  displayName,
-  setDisplayName,
-  username,
-  setUsername,
   email,
   setEmail,
   password,
@@ -30,40 +22,11 @@ export function RegisterForm({
   focusedField,
   setFocusedField,
   styles,
-}: RegisterFormProps) {
-  const inputStyle = (field: string) => [
-    styles.input,
-    focusedField === field && styles.inputFocused,
-  ];
+}: LoginFormProps) {
+  const inputStyle = (field: string) => [styles.input, focusedField === field && styles.inputFocused];
 
   return (
     <>
-      <View style={styles.fieldWrap}>
-        <Text style={styles.fieldLabel}>სახელი</Text>
-        <TextInput
-          autoCapitalize="words"
-          placeholder="შენი სახელი"
-          placeholderTextColor={colors.secondaryText}
-          style={inputStyle("displayName")}
-          value={displayName}
-          onChangeText={setDisplayName}
-          onFocus={() => setFocusedField("displayName")}
-          onBlur={() => setFocusedField(null)}
-        />
-      </View>
-      <View style={styles.fieldWrap}>
-        <Text style={styles.fieldLabel}>მომხმარებელი</Text>
-        <TextInput
-          autoCapitalize="none"
-          placeholder="მომხმარებლის სახელი"
-          placeholderTextColor={colors.secondaryText}
-          style={inputStyle("username")}
-          value={username}
-          onChangeText={setUsername}
-          onFocus={() => setFocusedField("username")}
-          onBlur={() => setFocusedField(null)}
-        />
-      </View>
       <View style={styles.fieldWrap}>
         <Text style={styles.fieldLabel}>ელ-ფოსტა</Text>
         <TextInput
@@ -78,6 +41,7 @@ export function RegisterForm({
           onBlur={() => setFocusedField(null)}
         />
       </View>
+
       <View style={styles.fieldWrap}>
         <Text style={styles.fieldLabel}>პაროლი</Text>
         <TextInput

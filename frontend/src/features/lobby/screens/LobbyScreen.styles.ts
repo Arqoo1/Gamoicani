@@ -173,7 +173,13 @@ export function createStyles(colors: AppColors) {
     msgName: { color: colors.accent, fontSize: 11, fontWeight: "800", marginBottom: 2 },
     msgText: { color: colors.primaryText, fontSize: 14, fontWeight: "600" },
     msgTextMe: { color: colors.primaryText },
-    msgTime: { color: colors.secondaryText, fontSize: 10, fontWeight: "600", marginTop: 4, textAlign: "left" },
+    msgTime: {
+      color: colors.secondaryText,
+      fontSize: 10,
+      fontWeight: "600",
+      marginTop: 4,
+      textAlign: "left",
+    },
     msgTimeMe: { textAlign: "right" },
     chatInputRow: {
       flexDirection: "row",

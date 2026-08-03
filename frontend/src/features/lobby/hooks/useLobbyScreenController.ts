@@ -18,7 +18,9 @@ export function useLobbyScreenController() {
   const [activeTab, setActiveTab] = useState<LobbyTab>("match");
   const [gameType, setGameType] = useState<"wordle" | "andazebi" | "mix">("wordle");
   const [selectedUser, setSelectedUser] = useState<SelectedUser>(null);
-  const [friendRequestStatus, setFriendRequestStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [friendRequestStatus, setFriendRequestStatus] = useState<"idle" | "loading" | "sent" | "error">(
+    "idle"
+  );
 
   const socketState = useLobbySocket(activeTab);
 

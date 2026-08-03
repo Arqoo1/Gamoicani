@@ -13,7 +13,9 @@ export function useLobbySocket(activeTab: LobbyTab) {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
 
-  const [status, setStatus] = useState<"idle" | "public-queue" | "private-hosting" | "private-joining">("idle");
+  const [status, setStatus] = useState<"idle" | "public-queue" | "private-hosting" | "private-joining">(
+    "idle"
+  );
   const [passcode, setPasscode] = useState("");
   const [inputPasscode, setInputPasscode] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);

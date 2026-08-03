@@ -7,6 +7,7 @@ import { AvatarColorPicker } from "@/features/profile/ui/AvatarColorPicker";
 import { AchievementsCard } from "@/features/profile/ui/AchievementsCard";
 import { ChangePasswordCard } from "@/features/profile/ui/ChangePasswordCard";
 import { updateMyProfile } from "@/features/auth/api/authApi";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   colors: AppColors;
@@ -20,7 +21,7 @@ type Props = {
   onUnequipShopItem: (category: "banner" | "avatar") => void;
   showColorPicker: boolean;
   showCoverPicker: boolean;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   updateProfile: (input: Parameters<typeof updateMyProfile>[0]) => Promise<void>;
   changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   user: AuthUser;
@@ -46,20 +47,65 @@ export function ProfileInfoSection({
   return (
     <>
       {showCoverPicker && (
-        <CoverColorPicker user={user} coverIndex={coverIndex} equippedBannerId={equippedBannerId} styles={styles} onSelectColor={onSelectCoverColor} onEquipShopItem={onEquipShopItem} onUnequipShopItem={onUnequipShopItem} />
+        <CoverColorPicker
+          user={user}
+          coverIndex={coverIndex}
+          equippedBannerId={equippedBannerId}
+          styles={styles}
+          onSelectColor={onSelectCoverColor}
+          onEquipShopItem={onEquipShopItem}
+          onUnequipShopItem={onUnequipShopItem}
+        />
       )}
       {showColorPicker && (
-        <AvatarColorPicker user={user} avatarColor={user.avatarColor} equippedAvatarId={equippedAvatarId} styles={styles} colors={colors} onSelectColor={onSelectAvatarColor} onEquipShopItem={onEquipShopItem} onUnequipShopItem={onUnequipShopItem} />
+        <AvatarColorPicker
+          user={user}
+          avatarColor={user.avatarColor}
+          equippedAvatarId={equippedAvatarId}
+          styles={styles}
+          colors={colors}
+          onSelectColor={onSelectAvatarColor}
+          onEquipShopItem={onEquipShopItem}
+          onUnequipShopItem={onUnequipShopItem}
+        />
       )}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>პროფილის ინფორმაცია</Text>
-        <EditRow colors={colors} label="სახელი" styles={styles} value={user.displayName} onSave={(v) => updateProfile({ displayName: v })} />
+        <EditRow
+          colors={colors}
+          label="სახელი"
+          styles={styles}
+          value={user.displayName}
+          onSave={(v) => updateProfile({ displayName: v })}
+        />
         <View style={styles.divider} />
-        <EditRow colors={colors} icon="at-sign" label="მომხმარებლის სახელი" limit={15} styles={styles} value={user.username} placeholder="მომხმარებლის სახელი" onSave={(v) => updateProfile({ username: v })} />
+        <EditRow
+          colors={colors}
+          icon="at-sign"
+          label="მომხმარებლის სახელი"
+          limit={15}
+          styles={styles}
+          value={user.username}
+          placeholder="მომხმარებლის სახელი"
+          onSave={(v) => updateProfile({ username: v })}
+        />
         <View style={styles.divider} />
-        <EditRow colors={colors} label="ბიო" multiline styles={styles} value={user.bio ?? ""} placeholder="მოკლე აღწერა..." onSave={(v) => updateProfile({ bio: v })} />
+        <EditRow
+          colors={colors}
+          label="ბიო"
+          multiline
+          styles={styles}
+          value={user.bio ?? ""}
+          placeholder="მოკლე აღწერა..."
+          onSave={(v) => updateProfile({ bio: v })}
+        />
         <View style={styles.divider} />
-        <View style={styles.fieldRow}><View style={styles.fieldContent}><Text style={styles.fieldLabel}>ელ-ფოსტა</Text><Text style={styles.fieldValue}>{user.email ?? "—"}</Text></View></View>
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldContent}>
+            <Text style={styles.fieldLabel}>ელ-ფოსტა</Text>
+            <Text style={styles.fieldValue}>{user.email ?? "—"}</Text>
+          </View>
+        </View>
       </View>
       <AchievementsCard user={user} styles={styles} colors={colors} />
       <ChangePasswordCard styles={styles} colors={colors} changePassword={changePassword} />

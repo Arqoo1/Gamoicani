@@ -4,9 +4,9 @@ import { StatusBar, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/application/providers/theme";
-import { HomeHeader } from "@/features/home/components/HomeHeader";
-import { GameList } from "@/features/home/components/GameList";
-import { GameGuideModal } from "@/features/home/components/GameGuideModal";
+import { HomeHeader } from "@/features/home/ui/HomeHeader";
+import { GameList } from "@/features/home/ui/GameList";
+import { GameGuideModal } from "@/features/home/ui/GameGuideModal";
 import { homeRoutes, useHomeGames } from "@/features/home/hooks/useHomeScreen";
 import { createStyles } from "@/features/home/screens/HomeScreen.styles";
 

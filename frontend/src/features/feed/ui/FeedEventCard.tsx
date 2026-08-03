@@ -23,7 +23,7 @@ export const FeedEventCard = React.memo(function FeedEventCard({
   gameDescription,
   styles,
   timeLabel,
-  winText
+  winText,
 }: FeedEventCardProps) {
   return (
     <View style={styles.card}>

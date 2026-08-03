@@ -3,11 +3,11 @@ import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/application/providers/theme";
-import { LobbyChatTab } from "@/features/lobby/components/LobbyChatTab";
-import { LobbyHeader } from "@/features/lobby/components/LobbyHeader";
-import { LobbyMatchTab } from "@/features/lobby/components/LobbyMatchTab";
-import { LobbyTabs } from "@/features/lobby/components/LobbyTabs";
-import { LobbyUserProfileSheet } from "@/features/lobby/components/LobbyUserProfileSheet";
+import { LobbyChatTab } from "@/features/lobby/ui/LobbyChatTab";
+import { LobbyHeader } from "@/features/lobby/ui/LobbyHeader";
+import { LobbyMatchTab } from "@/features/lobby/ui/LobbyMatchTab";
+import { LobbyTabs } from "@/features/lobby/ui/LobbyTabs";
+import { LobbyUserProfileSheet } from "@/features/lobby/ui/LobbyUserProfileSheet";
 import { useLobbyScreenController } from "@/features/lobby/hooks/useLobbyScreenController";
 import { createStyles } from "@/features/lobby/screens/LobbyScreen.styles";
 

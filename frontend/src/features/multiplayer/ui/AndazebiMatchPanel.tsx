@@ -42,7 +42,10 @@ export function AndazebiMatchPanel({
       </View>
       <View style={styles.historyContainer}>
         {history.map((entry, i) => (
-          <View key={i} style={[styles.historyBadge, entry.isCorrect ? styles.historyCorrect : styles.historyWrong]}>
+          <View
+            key={i}
+            style={[styles.historyBadge, entry.isCorrect ? styles.historyCorrect : styles.historyWrong]}
+          >
             <Text style={[styles.historyText, entry.isCorrect && styles.cellLetterWhite]}>
               {entry.guess} {entry.isCorrect ? "✓" : "✗"}
             </Text>
@@ -56,13 +59,27 @@ export function AndazebiMatchPanel({
               <Pressable
                 key={index}
                 onPress={() => onPressInput(index)}
-                style={[styles.andazebiInputBox, activeInputIndex === index && styles.andazebiInputBoxActive, { backgroundColor: colors.background }]}
+                style={[
+                  styles.andazebiInputBox,
+                  activeInputIndex === index && styles.andazebiInputBoxActive,
+                  { backgroundColor: colors.background },
+                ]}
               >
-                <Text style={[styles.andazebiInputBoxText, activeInputIndex === index && styles.andazebiInputBoxTextActive]}>{answer || "_"}</Text>
+                <Text
+                  style={[
+                    styles.andazebiInputBoxText,
+                    activeInputIndex === index && styles.andazebiInputBoxTextActive,
+                  ]}
+                >
+                  {answer || "_"}
+                </Text>
               </Pressable>
             ))}
           </View>
-          <Pressable onPress={onSubmit} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+          <Pressable
+            onPress={onSubmit}
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          >
             <Text style={styles.primaryBtnText}>შეამოწმე</Text>
           </Pressable>
         </>

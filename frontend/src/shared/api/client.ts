@@ -1,5 +1,7 @@
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 import { resolveApiBaseUrl } from "@/shared/config/env";
 
@@ -14,6 +16,8 @@ type ApiErrorBody = {
 };
 
 const TOKEN_STORAGE_KEY = "auth-token-v1";
+const LEGACY_TOKEN_STORAGE_KEY = "auth-token";
+const TOKEN_MIGRATED_KEY = "auth-token-migrated-v1";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 export const API_BASE_URL = resolveApiBaseUrl();
@@ -55,7 +59,9 @@ export function hasTokenExpired(token: string | null | undefined): boolean {
 
 export function isAuthFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return /401|unauthorized|authentication required|token expired|invalid token|expired session/i.test(message);
+  return /401|unauthorized|authentication required|token expired|invalid token|expired session/i.test(
+    message
+  );
 }
 
 export async function getAuthToken() {
@@ -142,17 +148,24 @@ export async function fetchWithTimeout(
   }
 }
 
-export async function requestJson<T>(path: string, init?: RequestInit & { auth?: boolean; timeoutMs?: number }) {
+export async function requestJson<T>(
+  path: string,
+  init?: RequestInit & { auth?: boolean; timeoutMs?: number }
+) {
   const { auth, timeoutMs, headers, ...fetchInit } = init ?? {};
   const token = auth === false ? null : await getAuthToken();
-  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
-    ...fetchInit,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers ?? {}),
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}${path}`,
+    {
+      ...fetchInit,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers ?? {}),
+      },
     },
-  }, timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
+    timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  );
 
   const rawBody = await response.text();
   if (!rawBody) {

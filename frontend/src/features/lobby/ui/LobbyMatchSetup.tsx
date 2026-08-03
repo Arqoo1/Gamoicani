@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
-import { createStyles } from "@/features/lobby/components/LobbyMatchSetup.styles";
+import { createStyles } from "@/features/lobby/ui/LobbyMatchSetup.styles";
 
 interface LobbyMatchSetupProps {
   isConnected: boolean;

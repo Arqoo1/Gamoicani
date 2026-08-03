@@ -1,5 +1,6 @@
 import { Text, TouchableOpacity, View, Modal } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   colors: AppColors;
@@ -9,7 +10,7 @@ type Props = {
   onCloseLogout: () => void;
   onConfirmLogout: () => void;
   showLogoutConfirm: boolean;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileDialogs({ colors, errorMsg, logout, onCloseError, onCloseLogout, onConfirmLogout, showLogoutConfirm, styles }: Props) {

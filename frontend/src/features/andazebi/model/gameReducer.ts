@@ -2,7 +2,6 @@ import {
   AndazebiStats,
   CompletedItem,
   DEFAULT_FEEDBACK,
-  fallbackProverbData,
   GameMode,
   getRandomPracticeItem,
   getPreviousDateKey,
@@ -114,7 +113,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const isEmpty = (state.answers[activeInputIndex] ?? "").length === 0;
       const targetIndex = isEmpty && activeInputIndex > 0 ? activeInputIndex - 1 : activeInputIndex;
       const nextAnswers = [...state.answers];
-      nextAnswers[targetIndex] = Array.from(nextAnswers[targetIndex] ?? "").slice(0, -1).join("");
+      nextAnswers[targetIndex] = Array.from(nextAnswers[targetIndex] ?? "")
+        .slice(0, -1)
+        .join("");
       const nextStatuses = [...state.wordStatuses];
       nextStatuses[targetIndex] = undefined;
       return {
@@ -176,12 +177,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "RECORD_COMPLETION": {
       const dateKey = action.payload;
       if (state.stats.completedDates.includes(dateKey)) return state;
-      const continuesStreak = state.stats.lastCompletedDate === getPreviousDateKey(dateKey);
+      const continuesStreak = state.stats.lastCompletedKey === getPreviousDateKey(dateKey);
       const currentStreak = continuesStreak ? state.stats.currentStreak + 1 : 1;
       const nextStats: AndazebiStats = {
         completedDates: [...state.stats.completedDates, dateKey],
         currentStreak,
-        lastCompletedDate: dateKey,
+        lastCompletedKey: dateKey,
         maxStreak: Math.max(state.stats.maxStreak, currentStreak),
       };
       AsyncStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(nextStats)).catch(() => {});
@@ -207,8 +208,8 @@ export const initialState: GameState = {
   isOffline: false,
   isShifted: false,
   itemIndex: 0,
-  practiceItem: getRandomPracticeItem(fallbackProverbData.items),
-  proverbData: fallbackProverbData,
+  practiceItem: null,
+  proverbData: { gameId: "andazebi", items: [], title: "ანდაზები", version: 1 },
   result: "idle",
   stats: createEmptyStats(),
   wordStatuses: [],

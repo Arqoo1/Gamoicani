@@ -37,30 +37,25 @@ export async function submitScoreToServer(payload: ScorePayload): Promise<ScoreR
   return response.data;
 }
 
-export async function submitScore(payload: ScorePayload): Promise<ScoreResult | null> {
+export async function submitScore(payload: ScorePayload): Promise<ScoreResult> {
   try {
     return await submitScoreToServer(payload);
   } catch (err) {
     await enqueueScore(payload);
-    throw new ScoreSyncError(
-      err instanceof Error ? err.message : "Score sync failed",
-      { cause: err }
-    );
+    throw new ScoreSyncError(err instanceof Error ? err.message : "Score sync failed", { cause: err });
   }
 }
 
 export async function repairStats(completions: RepairCompletion[]) {
-  try {
-    const response = await requestJson<RepairResult>("/scores/repair", {
-      body: JSON.stringify({ completions }),
-      method: "POST",
-    });
+  const response = await requestJson<RepairResult>("/scores/repair", {
+    body: JSON.stringify({ completions }),
+    method: "POST",
+  });
 
   return response.data;
 }
 
 export async function fetchMyGameSummary(gameId: string) {
   const response = await requestJson<GameSummary>(`/scores/me/${gameId}`);
-
   return response.data;
 }

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { FriendItem } from "@/features/profile/ui/FriendItem";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   colors: AppColors;
@@ -15,7 +16,7 @@ type Props = {
   safeRequests: Array<{ from: { id: string; displayName: string; username: string; avatarColor?: string }; createdAt: string }>;
   searchQuery: string;
   searchResults: Array<{ id: string; displayName: string; username: string; avatarColor: string }>;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileFriendsSection({ colors, friends, handleAcceptRequest, handleRejectRequest, handleRemoveFriend, handleSearch, handleSendRequest, isSearching, safeRequests, searchQuery, searchResults, styles }: Props) {

@@ -2,8 +2,9 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
-type Props = { colors: AppColors; styles: Record<string, any> };
+type Props = { colors: AppColors; styles: ReturnType<typeof createStyles> };
 
 export function ProfileHeader({ colors, styles }: Props) {
   const router = useRouter();

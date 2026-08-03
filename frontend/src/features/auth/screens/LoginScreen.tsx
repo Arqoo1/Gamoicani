@@ -14,6 +14,9 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { useAuth } from "@/application/providers/auth";
 import { useAppTheme } from "@/application/providers/theme";
+import { GoogleSignInButton } from "@/features/auth/ui/GoogleSignInButton";
+import { LoginForm } from "@/features/auth/ui/LoginForm";
+import { RegisterForm } from "@/features/auth/ui/RegisterForm";
 import { WordleTiles } from "@/features/auth/ui/AuthBrand";
 import { loginAccount, loginWithGoogleAPI, registerAccount } from "@/features/auth/api/authApi";
 import { MoonIcon, SunIcon } from "@/shared/ui/ThemeGlyphs";
@@ -179,13 +182,7 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <Pressable
-            style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
-            onPress={handleGoogleSignIn}
-            disabled={isSubmitting}
-            onPress={handleGoogleSignIn}
-            styles={styles}
-          />
+          <GoogleSignInButton onPress={handleGoogleSignIn} disabled={isSubmitting} styles={styles} />
 
           <Pressable
             style={styles.switchRow}

@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
-import { Pressable, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getMediaUrl } from "@/features/profile/model/profileMeta";
 import { AuthUser } from "@/entities/user/types";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   avatarColor: string;
@@ -13,7 +14,7 @@ type Props = {
   handleAvatarTap: () => void;
   handleCoverTap: () => void;
   rank: { color: string; icon: string; label: string; next: number | null };
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   user: AuthUser;
 };
 
@@ -23,7 +24,7 @@ export function ProfileHeroSection(props: Props) {
     <View>
       <TouchableOpacity activeOpacity={0.85} onPress={handleCoverTap} style={styles.cover}>
         {user.coverPhotoUrl ? (
-          <Image contentFit="cover" source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={styles.coverImage} />
+          <Image contentFit="cover" source={{ uri: getMediaUrl(user.coverPhotoUrl) }} style={StyleSheet.absoluteFill} />
         ) : (
           <>
             <View style={[styles.coverGradientTop, { backgroundColor: coverColors[0] }]} />

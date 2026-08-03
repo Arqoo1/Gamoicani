@@ -12,7 +12,7 @@ import {
   Text,
   useWindowDimensions,
   View,
-  Modal
+  Modal,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import ViewShot, { type ViewShotRef } from "react-native-view-shot";
@@ -27,7 +27,6 @@ import { BACKSPACE_KEY, ENTER_KEY, SHIFT_KEY } from "@/shared/constants/georgian
 import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
 import { GameModePicker } from "@/shared/ui/GameModePicker";
 import { ContentLoadStateBanner } from "@/shared/ui/ContentLoadStateBanner";
-
 
 type AndazebiStyles = ReturnType<typeof createStyles>;
 
@@ -102,7 +101,7 @@ export default function AndazebiScreen() {
     isOffline,
     dateKey,
     isDailyComplete,
-    isPracticeMode
+    isPracticeMode,
   } = useAndazebiGame(user, updateUser, () => confettiRef.current?.start(), width);
   const isDailyLocked = !isHydrated || isDailyDone;
   const isLoading = !isHydrated || items.length === 0;
@@ -159,22 +158,22 @@ export default function AndazebiScreen() {
             icon: "📅",
             disabled: isDailyLocked,
             isDone: isDailyLocked,
-            onSelect: () => setGameMode("daily")
+            onSelect: () => setGameMode("daily"),
           },
           {
             id: "practice",
             title: "ვარჯიში",
             subtitle: "უსასრულო რეჟიმი",
             icon: "🔁",
-            onSelect: () => setGameMode("practice")
+            onSelect: () => setGameMode("practice"),
           },
           {
             id: "tutorial",
             title: "როგორ ვითამაშოთ",
             subtitle: "ინტერაქტიული გაკვეთილი",
             icon: "🎓",
-            onSelect: () => setGameMode("tutorial")
-          }
+            onSelect: () => setGameMode("tutorial"),
+          },
         ]}
       />
 
@@ -206,16 +205,11 @@ export default function AndazebiScreen() {
                 style={({ pressed }) => [
                   styles.modeButton,
                   gameMode === "daily" && styles.modeButtonActive,
-                  pressed && styles.pressed
+                  pressed && styles.pressed,
                 ]}
                 onPress={() => switchGameMode("daily")}
               >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    gameMode === "daily" && styles.modeButtonTextActive
-                  ]}
-                >
+                <Text style={[styles.modeButtonText, gameMode === "daily" && styles.modeButtonTextActive]}>
                   დღიური
                 </Text>
               </Pressable>
@@ -223,16 +217,11 @@ export default function AndazebiScreen() {
                 style={({ pressed }) => [
                   styles.modeButton,
                   gameMode === "practice" && styles.modeButtonActive,
-                  pressed && styles.pressed
+                  pressed && styles.pressed,
                 ]}
                 onPress={() => switchGameMode("practice")}
               >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    gameMode === "practice" && styles.modeButtonTextActive
-                  ]}
-                >
+                <Text style={[styles.modeButtonText, gameMode === "practice" && styles.modeButtonTextActive]}>
                   ვარჯიში
                 </Text>
               </Pressable>
@@ -255,7 +244,9 @@ export default function AndazebiScreen() {
                     style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
                     onPress={shareResult}
                   >
-                    <Text numberOfLines={1} style={styles.primaryButtonText}>გაზიარება</Text>
+                    <Text numberOfLines={1} style={styles.primaryButtonText}>
+                      გაზიარება
+                    </Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
@@ -285,7 +276,7 @@ export default function AndazebiScreen() {
               <Animated.View
                 style={[
                   styles.gameCard,
-                  { transform: [{ translateX: shakeTranslateX }, { scale: successScale }] }
+                  { transform: [{ translateX: shakeTranslateX }, { scale: successScale }] },
                 ]}
               >
                 <Text style={styles.prompt}>{currentItem.prompt}</Text>
@@ -293,7 +284,7 @@ export default function AndazebiScreen() {
                   style={[
                     styles.feedback,
                     result === "wrong" && styles.feedbackWrong,
-                    result === "correct" && styles.feedbackCorrect
+                    result === "correct" && styles.feedbackCorrect,
                   ]}
                 >
                   {feedback}
@@ -313,7 +304,7 @@ export default function AndazebiScreen() {
                         wordStatuses[index] === "wrong" && styles.inputWrong,
                         wordStatuses[index] === "correct" && styles.inputCorrect,
                         result === "correct" && styles.inputCorrect,
-                        result !== "correct" && index === activeInputIndex && styles.inputPressed
+                        result !== "correct" && index === activeInputIndex && styles.inputPressed,
                       ]}
                     >
                       <Text
@@ -322,7 +313,7 @@ export default function AndazebiScreen() {
                           !answers[index] && styles.inputPlaceholder,
                           wordStatuses[index] === "wrong" && styles.inputTextWrong,
                           wordStatuses[index] === "correct" && styles.inputTextCorrect,
-                          result === "correct" && styles.inputTextCorrect
+                          result === "correct" && styles.inputTextCorrect,
                         ]}
                       >
                         {answers[index] || `სიტყვა ${index + 1}`}
@@ -336,7 +327,7 @@ export default function AndazebiScreen() {
                     style={({ pressed }) => [
                       styles.primaryButton,
                       result === "correct" && styles.primaryButtonComplete,
-                      pressed && styles.pressed
+                      pressed && styles.pressed,
                     ]}
                     onPress={submitAnswer}
                   >
@@ -356,9 +347,7 @@ export default function AndazebiScreen() {
                   style={({ pressed }) => [styles.hintButton, pressed && styles.pressed]}
                   onPress={setHintToNextLevel}
                 >
-                  <Text style={styles.hintButtonText}>
-                    {getHintButtonText(hintLevel)}
-                  </Text>
+                  <Text style={styles.hintButtonText}>{getHintButtonText(hintLevel)}</Text>
                 </Pressable>
 
                 {hintLevel > 0 && <Text style={styles.hintText}>{currentHintText}</Text>}
@@ -381,7 +370,7 @@ export default function AndazebiScreen() {
                       style={({ pressed }) => [
                         styles.helpButton,
                         styles.skipButton,
-                        pressed && styles.pressed
+                        pressed && styles.pressed,
                       ]}
                       onPress={skipCurrent}
                     >
@@ -415,10 +404,7 @@ export default function AndazebiScreen() {
 
         {!isDailyComplete && currentItem && (
           <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
-            <GeorgianKeyboard
-              isShifted={isShifted}
-              onKeyPress={handleKeyPress}
-            />
+            <GeorgianKeyboard isShifted={isShifted} onKeyPress={handleKeyPress} />
           </View>
         )}
       </KeyboardAvoidingView>

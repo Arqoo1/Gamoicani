@@ -28,16 +28,9 @@ export function MultiplayerSessionProvider({ children }: { children: ReactNode }
     setSessionState(null);
   }, []);
 
-  const value = useMemo(
-    () => ({ clearSession, session, setSession }),
-    [clearSession, session, setSession]
-  );
+  const value = useMemo(() => ({ clearSession, session, setSession }), [clearSession, session, setSession]);
 
-  return (
-    <MultiplayerSessionContext.Provider value={value}>
-      {children}
-    </MultiplayerSessionContext.Provider>
-  );
+  return <MultiplayerSessionContext.Provider value={value}>{children}</MultiplayerSessionContext.Provider>;
 }
 
 export function useMultiplayerSession() {

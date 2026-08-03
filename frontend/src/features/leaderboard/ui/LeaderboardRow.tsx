@@ -1,7 +1,6 @@
+import { LeaderboardEntry } from "@/entities/score/types";
 import { createStyles } from "@/features/leaderboard/ui/LeaderboardScreen.styles";
 import { Text, View } from "react-native";
-
-import { LeaderboardEntry } from "@/entities/score/types";
 
 type BoardMode = "global" | "wordle" | "andazebi" | "friends";
 
@@ -53,4 +52,4 @@ export function LeaderboardRow({ entry, mode, styles }: LeaderboardRowProps) {
       </View>
     </View>
   );
-});
+}

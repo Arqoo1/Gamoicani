@@ -1,11 +1,12 @@
 import * as ImagePicker from "expo-image-picker";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { AppColors } from "@/application/providers/theme";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type Props = {
   actionSheet: "none" | "cover" | "avatar";
   colors: AppColors;
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
   onClose: () => void;
   onPickAvatarColor: () => void;
   onPickCoverColor: () => void;

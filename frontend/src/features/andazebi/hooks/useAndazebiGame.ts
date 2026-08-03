@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { Animated, Easing } from "react-native";
+import { Animated, Easing, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   triggerSelectionHaptic,
@@ -16,6 +16,8 @@ import {
   GEORGIAN_LETTERS,
   SHIFT_KEY,
   SHIFTED_GEORGIAN_KEYS,
+  QWERTY_TO_GEORGIAN,
+  SHIFTED_QWERTY_TO_GEORGIAN,
 } from "@/shared/constants/georgianKeyboard";
 import {
   AndazebiStats,

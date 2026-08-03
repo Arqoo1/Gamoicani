@@ -8,17 +8,10 @@ interface GoogleSignInButtonProps {
   styles: any;
 }
 
-export function GoogleSignInButton({
-  onPress,
-  disabled,
-  styles,
-}: GoogleSignInButtonProps) {
+export function GoogleSignInButton({ onPress, disabled, styles }: GoogleSignInButtonProps) {
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.googleBtn,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
       onPress={onPress}
       disabled={disabled}
     >

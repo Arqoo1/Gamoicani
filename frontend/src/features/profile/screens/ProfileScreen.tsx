@@ -2,14 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, ScrollView, StatusBar, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ProfileActionSheet } from "@/features/profile/components/ProfileActionSheet";
-import { ProfileActivitySections } from "@/features/profile/components/ProfileActivitySections";
-import { ProfileDialogModals } from "@/features/profile/components/ProfileDialogModals";
-import { ProfileFriendsSection } from "@/features/profile/components/ProfileFriendsSection";
-import { ProfileHeader } from "@/features/profile/components/ProfileHeader";
-import { ProfileHero } from "@/features/profile/components/ProfileHero";
-import { ProfileInfoCard } from "@/features/profile/components/ProfileInfoCard";
-import { ProfileStatsBar } from "@/features/profile/components/ProfileStatsBar";
+import { ProfileActionSheet } from "@/features/profile/ui/ProfileActionSheet";
+import { ProfileActivitySections } from "@/features/profile/ui/ProfileActivitySections";
+import { ProfileDialogModals } from "@/features/profile/ui/ProfileDialogModals";
+import { ProfileFriendsSection } from "@/features/profile/ui/ProfileFriendsSection";
+import { ProfileHeader } from "@/features/profile/ui/ProfileHeader";
+import { ProfileHero } from "@/features/profile/ui/ProfileHero";
+import { ProfileInfoCard } from "@/features/profile/ui/ProfileInfoCard";
+import { ProfileStatsBar } from "@/features/profile/ui/ProfileStatsBar";
 import { useProfileController } from "@/features/profile/hooks/useProfileController";
 import { AvatarColorPicker } from "@/features/profile/ui/AvatarColorPicker";
 import { CoverColorPicker } from "@/features/profile/ui/CoverColorPicker";
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
     <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={coverColors[0]} />
 
-      <ProfileHeader styles={styles} onBack={() => router.push("/")} />
+      <ProfileHeader colors={colors} styles={styles} />
 
       <ScrollView
         style={styles.scroll}
@@ -160,11 +160,11 @@ export default function ProfileScreen() {
           colors={colors}
           friends={friends}
           isSearching={isSearching}
-          onAcceptRequest={handleAcceptRequest}
-          onRemoveFriend={handleRemoveFriend}
-          onRejectRequest={handleRejectRequest}
-          onSearch={handleSearch}
-          onSendRequest={handleSendRequest}
+          handleAcceptRequest={handleAcceptRequest}
+          handleRemoveFriend={handleRemoveFriend}
+          handleRejectRequest={handleRejectRequest}
+          handleSearch={handleSearch}
+          handleSendRequest={handleSendRequest}
           safeRequests={safeRequests}
           searchQuery={searchQuery}
           searchResults={searchResults}

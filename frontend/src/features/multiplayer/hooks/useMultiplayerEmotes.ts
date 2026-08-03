@@ -7,7 +7,12 @@ function triggerFloat(animY: Animated.Value, animOp: Animated.Value, onDone: () 
   animY.setValue(0);
   animOp.setValue(1);
   Animated.parallel([
-    Animated.timing(animY, { toValue: -60, duration: 1700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    Animated.timing(animY, {
+      toValue: -60,
+      duration: 1700,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }),
     Animated.timing(animOp, { toValue: 0, duration: 1700, delay: 700, useNativeDriver: true }),
   ]).start(onDone);
 }

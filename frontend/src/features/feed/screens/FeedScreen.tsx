@@ -1,7 +1,16 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, Text, View } from "react-native";
+import {
+  Platform,
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StatusBar,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppColors, useAppTheme } from "@/application/providers/theme";
@@ -12,9 +21,9 @@ import { getMediaUrl } from "@/features/profile/model/profileMeta";
 import { getInitials } from "@/shared/utils/avatar";
 
 const GAME_META: Record<string, { label: string; emoji: string }> = {
-  wordle:   { label: "სიტყვობანა", emoji: "🟩" },
-  andazebi: { label: "ანდაზები",   emoji: "🎯" },
-  trivia:   { label: "ვიქტორინა",  emoji: "🧠" },
+  wordle: { label: "სიტყვობანა", emoji: "🟩" },
+  andazebi: { label: "ანდაზები", emoji: "🎯" },
+  trivia: { label: "ვიქტორინა", emoji: "🧠" },
 };
 
 function timeAgo(isoDate: string): string {
@@ -28,7 +37,6 @@ function timeAgo(isoDate: string): string {
   return `${days} დღის წინ`;
 }
 
-
 export default function FeedScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
@@ -40,7 +48,8 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     setErrorMessage("");
     try {
       const data = await fetchSocialFeed();
@@ -53,7 +62,9 @@ export default function FeedScreen() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const getGameDescription = (ev: FeedEvent) => {
     const meta = GAME_META[ev.gameId] ?? { label: ev.gameId, emoji: "🎮" };
@@ -130,4 +141,3 @@ export default function FeedScreen() {
     </SafeAreaView>
   );
 }
-

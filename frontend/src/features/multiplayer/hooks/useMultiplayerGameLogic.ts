@@ -17,7 +17,10 @@ export function useMultiplayerGameLogic() {
   const router = useRouter();
   const { activePlayerId: initialActivePlayer, gameType, puzzle, roomId } = useMultiplayerRouteParams();
   const wordLength = Math.max(1, Math.min(12, Number((puzzle as { wordLength?: number })?.wordLength) || 5));
-  const missingWordsCount = Math.max(1, Number((puzzle as { missingWordsCount?: number })?.missingWordsCount) || 1);
+  const missingWordsCount = Math.max(
+    1,
+    Number((puzzle as { missingWordsCount?: number })?.missingWordsCount) || 1
+  );
   const { socket, opponentProfile } = useSocket();
   const { user } = useAuth();
 
@@ -94,7 +97,10 @@ export function useMultiplayerGameLogic() {
 
   const didWin = results?.result === "won";
   const didDraw = results?.result === "draw";
-  const gameTitle = useMemo(() => (gameType === "wordle" ? "სიტყვობანა" : gameType === "andazebi" ? "ანდაზები" : "მატჩი"), [gameType]);
+  const gameTitle = useMemo(
+    () => (gameType === "wordle" ? "სიტყვობანა" : gameType === "andazebi" ? "ანდაზები" : "მატჩი"),
+    [gameType]
+  );
 
   return {
     activeInputIndex: wordState.activeInputIndex,

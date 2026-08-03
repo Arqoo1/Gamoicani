@@ -8,7 +8,7 @@ import { SettingsProvider } from "@/application/providers/settings";
 import { SocketProvider } from "@/application/providers/socket";
 import { ThemeProvider } from "@/application/providers/theme";
 import { AppBootstrap } from "@/application/bootstrap/AppBootstrap";
-import { initAudioPool } from "@/shared/services/sound";
+import { useAudioBootstrap } from "@/application/providers/useAudioBootstrap";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 

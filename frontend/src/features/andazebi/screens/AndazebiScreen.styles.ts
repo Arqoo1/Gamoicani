@@ -25,11 +25,11 @@ export function createStyles(colors: AppColors) {
   const dynamic = StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: colors.card
-     },
+      backgroundColor: colors.card,
+    },
     keyboardArea: {
       flex: 1,
-      backgroundColor: colors.background
+      backgroundColor: colors.background,
     },
     header: {
       alignItems: "center",
@@ -44,7 +44,7 @@ export function createStyles(colors: AppColors) {
       shadowColor: colors.shadow,
       shadowOffset: { height: 2, width: 0 },
       shadowOpacity: 0.08,
-      shadowRadius: 8
+      shadowRadius: 8,
     },
     headerButton: {
       alignItems: "center",
@@ -52,11 +52,11 @@ export function createStyles(colors: AppColors) {
       borderRadius: 8,
       height: 42,
       justifyContent: "center",
-      width: 42
+      width: 42,
     },
     headerSpacer: {
       height: 42,
-      width: 42
+      width: 42,
     },
     doneBadge: {
       alignItems: "center",
@@ -64,32 +64,32 @@ export function createStyles(colors: AppColors) {
       borderRadius: 8,
       height: 42,
       justifyContent: "center",
-      width: 42
+      width: 42,
     },
     doneBadgeText: {
       color: "#ffffff",
       fontSize: 20,
       fontWeight: "900",
-      lineHeight: 24
+      lineHeight: 24,
     },
     headerIcon: {
       color: colors.primaryText,
       fontSize: 30,
       fontWeight: "700",
-      lineHeight: 36
+      lineHeight: 36,
     },
     logo: {
       color: colors.primaryText,
       fontSize: 24,
       fontWeight: "900",
-      letterSpacing: 0
+      letterSpacing: 0,
     },
     content: {
       flexGrow: 1,
       justifyContent: "center",
       paddingBottom: 16,
       paddingHorizontal: 20,
-      paddingTop: 24
+      paddingTop: 24,
     },
     modeRow: {
       alignSelf: "center",
@@ -100,65 +100,65 @@ export function createStyles(colors: AppColors) {
       marginBottom: 14,
       maxWidth: 360,
       padding: 4,
-      width: "100%"
+      width: "100%",
     },
     modeButton: {
       alignItems: "center",
       borderRadius: 7,
       flex: 1,
       justifyContent: "center",
-      minHeight: 38
+      minHeight: 38,
     },
     modeButtonActive: {
-      backgroundColor: colors.card
+      backgroundColor: colors.card,
     },
     modeButtonText: {
       color: colors.secondaryText,
       fontSize: 14,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     modeButtonTextActive: {
-      color: colors.primaryText
+      color: colors.primaryText,
     },
     modePickerOptionTitleSecondary: {
-      color: colors.primaryText
+      color: colors.primaryText,
     },
     modePickerOptionSubSecondary: {
-      color: colors.secondaryText
+      color: colors.secondaryText,
     },
     modePickerArrowSecondary: {
-      color: colors.secondaryText
+      color: colors.secondaryText,
     },
     metaRow: {
       alignItems: "center",
       alignSelf: "center",
       flexDirection: "row",
       gap: 8,
-      marginBottom: 14
+      marginBottom: 14,
     },
     progressText: {
       color: colors.secondaryText,
       fontSize: 13,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     levelPill: {
       borderRadius: 8,
       paddingHorizontal: 10,
-      paddingVertical: 7
+      paddingVertical: 7,
     },
     easyLevel: {
-      backgroundColor: colors.correct
+      backgroundColor: colors.correct,
     },
     mediumLevel: {
-      backgroundColor: colors.present
+      backgroundColor: colors.present,
     },
     hardLevel: {
-      backgroundColor: HARD_RED
+      backgroundColor: HARD_RED,
     },
     wordsText: {
       color: colors.primaryText,
       fontSize: 13,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     gameCard: {
       alignSelf: "center",
@@ -173,7 +173,7 @@ export function createStyles(colors: AppColors) {
       shadowOffset: { height: 3, width: 0 },
       shadowOpacity: 0.08,
       shadowRadius: 10,
-      width: "100%"
+      width: "100%",
     },
     doneCard: {
       alignItems: "center",
@@ -189,7 +189,7 @@ export function createStyles(colors: AppColors) {
       shadowOffset: { height: 3, width: 0 },
       shadowOpacity: 0.08,
       shadowRadius: 10,
-      width: "100%"
+      width: "100%",
     },
     doneTitle: {
       color: colors.primaryText,
@@ -197,43 +197,43 @@ export function createStyles(colors: AppColors) {
       fontWeight: "900",
       letterSpacing: 0,
       marginBottom: 10,
-      textAlign: "center"
+      textAlign: "center",
     },
     doneText: {
       color: colors.secondaryText,
       fontSize: 15,
       fontWeight: "800",
       lineHeight: 22,
-      textAlign: "center"
+      textAlign: "center",
     },
     doneCount: {
       color: colors.accent,
       fontSize: 34,
       fontWeight: "900",
-      marginTop: 16
+      marginTop: 16,
     },
     resultStats: {
       flexDirection: "row",
       gap: 24,
       justifyContent: "center",
       marginTop: 18,
-      width: "100%"
+      width: "100%",
     },
     resultStatBox: {
       alignItems: "center",
-      minWidth: 92
+      minWidth: 92,
     },
     resultStatNumber: {
       color: colors.primaryText,
       fontSize: 30,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     resultStatLabel: {
       color: colors.secondaryText,
       fontSize: 12,
       fontWeight: "800",
       marginTop: 3,
-      textAlign: "center"
+      textAlign: "center",
     },
     levelSummary: {
       flexDirection: "row",
@@ -241,18 +241,18 @@ export function createStyles(colors: AppColors) {
       gap: 8,
       justifyContent: "center",
       marginBottom: 12,
-      marginTop: 18
+      marginTop: 18,
     },
     summaryPill: {
       borderRadius: 8,
       paddingHorizontal: 10,
-      paddingVertical: 7
+      paddingVertical: 7,
     },
     resultActions: {
       flexDirection: "row",
       gap: 10,
       marginTop: 16,
-      width: "100%"
+      width: "100%",
     },
     resultButton: {
       alignItems: "center",
@@ -261,13 +261,13 @@ export function createStyles(colors: AppColors) {
       flex: 1,
       justifyContent: "center",
       minHeight: 46,
-      paddingHorizontal: 8
+      paddingHorizontal: 8,
     },
     secondaryResultButton: {
-      backgroundColor: colors.button
+      backgroundColor: colors.button,
     },
     secondaryResultButtonText: {
-      color: colors.primaryText
+      color: colors.primaryText,
     },
     prompt: {
       color: colors.primaryText,
@@ -276,21 +276,21 @@ export function createStyles(colors: AppColors) {
       letterSpacing: 0,
       lineHeight: 36,
       marginBottom: 12,
-      textAlign: "center"
+      textAlign: "center",
     },
     feedback: {
       color: colors.secondaryText,
       fontSize: 14,
       fontWeight: "800",
       marginBottom: 16,
-      textAlign: "center"
+      textAlign: "center",
     },
     feedbackCorrect: {
-      color: colors.correct
+      color: colors.correct,
     },
     inputs: {
       gap: 10,
-      marginBottom: 16
+      marginBottom: 16,
     },
     input: {
       backgroundColor: colors.tile,
@@ -300,36 +300,36 @@ export function createStyles(colors: AppColors) {
       justifyContent: "center",
       minHeight: 52,
       paddingHorizontal: 14,
-      transform: [{ scale: 1 }]
+      transform: [{ scale: 1 }],
     },
     inputActive: {
-      borderColor: colors.accent
+      borderColor: colors.accent,
     },
     inputPressed: {
-      backgroundColor: colors.tileFilled
+      backgroundColor: colors.tileFilled,
     },
     inputWrong: {
-      borderColor: HARD_RED
+      borderColor: HARD_RED,
     },
     inputCorrect: {
-      borderColor: colors.correct
+      borderColor: colors.correct,
     },
     inputText: {
       color: colors.primaryText,
       fontSize: 20,
       fontWeight: "900",
-      textAlign: "center"
+      textAlign: "center",
     },
     inputPlaceholder: {
-      color: colors.secondaryText
+      color: colors.secondaryText,
     },
     inputTextCorrect: {
-      color: colors.primaryText
+      color: colors.primaryText,
     },
     actions: {
       flexDirection: "row",
       gap: 10,
-      marginBottom: 10
+      marginBottom: 10,
     },
     primaryButton: {
       alignItems: "center",
@@ -338,10 +338,10 @@ export function createStyles(colors: AppColors) {
       flex: 1,
       justifyContent: "center",
       minHeight: 48,
-      paddingHorizontal: 12
+      paddingHorizontal: 12,
     },
     primaryButtonComplete: {
-      backgroundColor: colors.correct
+      backgroundColor: colors.correct,
     },
     secondaryButton: {
       alignItems: "center",
@@ -350,12 +350,12 @@ export function createStyles(colors: AppColors) {
       flex: 1,
       justifyContent: "center",
       minHeight: 48,
-      paddingHorizontal: 12
+      paddingHorizontal: 12,
     },
     secondaryButtonText: {
       color: colors.primaryText,
       fontSize: 15,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     hintButton: {
       alignItems: "center",
@@ -365,13 +365,13 @@ export function createStyles(colors: AppColors) {
       borderWidth: 1,
       marginTop: 2,
       minHeight: 42,
-      paddingHorizontal: 16
+      paddingHorizontal: 16,
     },
     hintButtonText: {
       color: colors.primaryText,
       fontSize: 14,
       fontWeight: "900",
-      lineHeight: 40
+      lineHeight: 40,
     },
     hintText: {
       color: colors.secondaryText,
@@ -379,14 +379,14 @@ export function createStyles(colors: AppColors) {
       fontWeight: "800",
       lineHeight: 20,
       marginTop: 12,
-      textAlign: "center"
+      textAlign: "center",
     },
     helpActions: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 8,
       justifyContent: "center",
-      marginTop: 12
+      marginTop: 12,
     },
     helpButton: {
       alignItems: "center",
@@ -394,21 +394,21 @@ export function createStyles(colors: AppColors) {
       borderRadius: 8,
       justifyContent: "center",
       minHeight: 40,
-      paddingHorizontal: 12
+      paddingHorizontal: 12,
     },
     helpButtonText: {
       color: colors.primaryText,
       fontSize: 13,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     skipButton: {
-      backgroundColor: SKIPPED_GRAY
+      backgroundColor: SKIPPED_GRAY,
     },
     completeBox: {
       borderTopColor: colors.border,
       borderTopWidth: 1,
       marginTop: 16,
-      paddingTop: 16
+      paddingTop: 16,
     },
     fullText: {
       color: colors.primaryText,
@@ -416,7 +416,7 @@ export function createStyles(colors: AppColors) {
       fontWeight: "900",
       lineHeight: 24,
       marginBottom: 14,
-      textAlign: "center"
+      textAlign: "center",
     },
     nextButton: {
       alignItems: "center",
@@ -426,18 +426,18 @@ export function createStyles(colors: AppColors) {
       justifyContent: "center",
       minHeight: 46,
       minWidth: 150,
-      paddingHorizontal: 18
+      paddingHorizontal: 18,
     },
     nextButtonText: {
       color: colors.card,
       fontSize: 15,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     footer: {
       backgroundColor: colors.background,
       paddingBottom: 10,
       paddingHorizontal: 7,
-      paddingTop: 4
+      paddingTop: 4,
     },
     keyboard: {
       alignSelf: "center",
@@ -453,11 +453,11 @@ export function createStyles(colors: AppColors) {
       shadowOffset: { height: 3, width: 0 },
       shadowOpacity: 0.08,
       shadowRadius: 10,
-      width: "100%"
+      width: "100%",
     },
     keyboardRow: {
       flexDirection: "row",
-      justifyContent: "center"
+      justifyContent: "center",
     },
     key: {
       alignItems: "center",
@@ -470,37 +470,37 @@ export function createStyles(colors: AppColors) {
       shadowColor: colors.shadow,
       shadowOffset: { height: 1, width: 0 },
       shadowOpacity: 0.08,
-      shadowRadius: 2
+      shadowRadius: 2,
     },
     actionKey: {
-      flex: 1.55
+      flex: 1.55,
     },
     shiftKey: {
-      backgroundColor: colors.button
+      backgroundColor: colors.button,
     },
     shiftKeyActive: {
-      backgroundColor: colors.keyActive
+      backgroundColor: colors.keyActive,
     },
     keyText: {
       color: colors.primaryText,
       fontSize: 17,
-      fontWeight: "900"
+      fontWeight: "900",
     },
     keyTextActive: {
-      color: "#ffffff"
+      color: "#ffffff",
     },
     shiftKeyText: {
       color: colors.primaryText,
       fontSize: 22,
       fontWeight: "900",
-      lineHeight: 26
+      lineHeight: 26,
     },
     modalBackdrop: {
       alignItems: "center",
       backgroundColor: colors.overlay,
       flex: 1,
       justifyContent: "center",
-      padding: 24
+      padding: 24,
     },
     modePickerModal: {
       backgroundColor: colors.card,
@@ -509,7 +509,7 @@ export function createStyles(colors: AppColors) {
       borderWidth: 1,
       maxWidth: 420,
       padding: 24,
-      width: "100%"
+      width: "100%",
     },
     modePickerKicker: {
       color: colors.accent,
@@ -518,7 +518,7 @@ export function createStyles(colors: AppColors) {
       letterSpacing: 2,
       marginBottom: 4,
       textAlign: "center",
-      textTransform: "uppercase"
+      textTransform: "uppercase",
     },
     modePickerTitle: {
       color: colors.primaryText,
@@ -526,7 +526,7 @@ export function createStyles(colors: AppColors) {
       fontWeight: "900",
       letterSpacing: -0.5,
       marginBottom: 24,
-      textAlign: "center"
+      textAlign: "center",
     },
     modePickerOption: {
       alignItems: "center",
@@ -535,47 +535,47 @@ export function createStyles(colors: AppColors) {
       flexDirection: "row",
       marginBottom: 12,
       paddingHorizontal: 16,
-      paddingVertical: 16
+      paddingVertical: 16,
     },
     modePickerOptionSecondary: {
       backgroundColor: colors.button,
       borderColor: colors.border,
-      borderWidth: 1
+      borderWidth: 1,
     },
     modePickerOptionDisabled: {
       backgroundColor: colors.button,
       borderColor: colors.border,
       borderWidth: 1,
-      opacity: 0.7
+      opacity: 0.7,
     },
     modePickerIconWrap: {
-      marginRight: 14
+      marginRight: 14,
     },
     modePickerIcon: {
-      fontSize: 28
+      fontSize: 28,
     },
     modePickerText: {
-      flex: 1
+      flex: 1,
     },
     modePickerDisabledText: {
-      color: colors.disabled
+      color: colors.disabled,
     },
     modePickerDoneCheck: {
       color: colors.disabled,
       fontSize: 24,
       fontWeight: "900",
-      paddingLeft: 8
+      paddingLeft: 8,
     },
     modePickerBack: {
       alignItems: "center",
       marginTop: 8,
-      paddingVertical: 10
+      paddingVertical: 10,
     },
     modePickerBackText: {
       color: colors.secondaryText,
       fontSize: 14,
-      fontWeight: "700"
-    }
+      fontWeight: "700",
+    },
   });
   return { ...dynamic, ...staticStyles };
 }

@@ -1,4 +1,5 @@
 import { Modal, Text, TouchableOpacity, View } from "react-native";
+import { createStyles } from "@/features/profile/screens/ProfileScreen.styles";
 
 type ActionSheetKind = "none" | "cover" | "avatar";
 
@@ -7,8 +8,7 @@ type ProfileActionSheetProps = {
   onClose: () => void;
   onImageSelect: (kind: "cover" | "avatar") => Promise<void>;
   onOpenColorPicker: (kind: "cover" | "avatar") => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  styles: Record<string, any>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 export function ProfileActionSheet({

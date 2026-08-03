@@ -19,14 +19,22 @@ export function LobbyTabs({ colors, activeTab, onChangeTab, unread, styles }: Lo
         style={[styles.tabBtn, activeTab === "match" && styles.tabBtnActive]}
         onPress={() => onChangeTab("match")}
       >
-        <Feather name="crosshair" size={16} color={activeTab === "match" ? colors.accent : colors.secondaryText} />
+        <Feather
+          name="crosshair"
+          size={16}
+          color={activeTab === "match" ? colors.accent : colors.secondaryText}
+        />
         <Text style={[styles.tabBtnText, activeTab === "match" && styles.tabBtnTextActive]}>მატჩი</Text>
       </Pressable>
       <Pressable
         style={[styles.tabBtn, activeTab === "chat" && styles.tabBtnActive]}
         onPress={() => onChangeTab("chat")}
       >
-        <Feather name="message-circle" size={16} color={activeTab === "chat" ? colors.accent : colors.secondaryText} />
+        <Feather
+          name="message-circle"
+          size={16}
+          color={activeTab === "chat" ? colors.accent : colors.secondaryText}
+        />
         <Text style={[styles.tabBtnText, activeTab === "chat" && styles.tabBtnTextActive]}>ჩათი</Text>
         {unread > 0 && (
           <View style={styles.badge}>

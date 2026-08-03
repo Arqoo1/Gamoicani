@@ -1,6 +1,8 @@
 import React, { Component, ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { useAppTheme } from "@/application/providers/theme";
+import { crashReporter } from "@/shared/services/crashReporter";
 import { styles } from "./ErrorBoundary.styles";
 
 type Props = {
@@ -32,7 +34,11 @@ function ErrorFallbackView({ error, onReset }: { error: Error | null; onReset: (
         </View>
       )}
       <Pressable
-        style={({ pressed }) => [styles.btn, { backgroundColor: colors.accent }, pressed && styles.btnPressed]}
+        style={({ pressed }) => [
+          styles.btn,
+          { backgroundColor: colors.accent },
+          pressed && styles.btnPressed,
+        ]}
         onPress={onReset}
       >
         <Text style={styles.btnText}>ხელახლა ცდა</Text>

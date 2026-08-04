@@ -21,7 +21,7 @@ interface OpponentProgressStripProps {
 const GRID_ROWS = 6;
 const ANDAZEBI_ATTEMPTS = 5;
 
-export function OpponentProgressStrip({
+function OpponentProgressStripBase({
   opponentProfile,
   opponentProgress,
   gameType,
@@ -109,3 +109,5 @@ export function OpponentProgressStrip({
     </View>
   );
 }
+
+export const OpponentProgressStrip = React.memo(OpponentProgressStripBase);

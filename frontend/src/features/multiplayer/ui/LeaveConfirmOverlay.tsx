@@ -3,12 +3,15 @@ import { Pressable, Text, View } from "react-native";
 import type { MultiplayerScreenStyles } from "@/features/multiplayer/hooks/useMultiplayerScreenModel";
 
 type Props = {
+  visible: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   styles: MultiplayerScreenStyles;
 };
 
-export function LeaveConfirmOverlay({ onCancel, onConfirm, styles }: Props) {
+export function LeaveConfirmOverlay({ visible, onCancel, onConfirm, styles }: Props) {
+  if (!visible) return null;
+
   return (
     <View style={styles.overlay}>
       <View style={styles.resultCard}>

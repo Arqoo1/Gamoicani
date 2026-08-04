@@ -14,6 +14,7 @@ import { MultiplayerHeader } from "../ui/MultiplayerHeader";
 import { AndazebiMatchPanel } from "../ui/AndazebiMatchPanel";
 import { TurnBanner } from "../ui/TurnBanner";
 import { WordleMatchBoard } from "../ui/WordleMatchBoard";
+import { EmotePicker } from "../ui/EmotePicker";
 
 export default function MultiplayerScreen() {
   const router = useRouter();
@@ -35,6 +36,27 @@ export default function MultiplayerScreen() {
         styles={model.styles}
       />
 
+            <EmotePicker
+        onSelect={(emote) => {
+          model.sendEmote(emote);
+          model.setEmotePickerOpen(false);
+        }}
+        styles={model.styles}
+        visible={model.emotePickerOpen}
+      />
+      <OpponentProgressStrip
+        opponentProfile={model.opponentProfile}
+        opponentProgress={model.opponentProgress}
+        gameType={model.gameType}
+        wordLength={model.wordLength}
+        oppEmote={model.oppEmote}
+        oppY={model.oppY}
+        oppOp={model.oppOp}
+        myEmote={model.myEmote}
+        myY={model.myY}
+        myOp={model.myOp}
+        colors={colors}
+      />
       <TurnBanner
         styles={model.styles}
         waitingForOpponent={model.waitingForOpponent}
@@ -69,19 +91,7 @@ export default function MultiplayerScreen() {
         />
       )}
 
-      <OpponentProgressStrip
-        opponentProfile={model.opponentProfile}
-        opponentProgress={model.opponentProgress}
-        gameType={model.gameType}
-        wordLength={model.wordLength}
-        oppEmote={model.oppEmote}
-        oppY={model.oppY}
-        oppOp={model.oppOp}
-        myEmote={model.myEmote}
-        myY={model.myY}
-        myOp={model.myOp}
-        colors={colors}
-      />
+
 
       <GeorgianKeyboard
         isShifted={model.isShifted}
@@ -96,12 +106,14 @@ export default function MultiplayerScreen() {
         answer={(model.puzzle as { answer?: string } | null)?.answer}
         didDraw={didDraw}
         didWin={didWin}
+        gameOver={model.gameOver}
         onPrimary={() => router.replace("/lobby")}
         onSecondary={() => router.replace("/")}
         styles={model.styles}
       />
 
       <LeaveConfirmOverlay
+        visible={model.leaveModalOpen}
         onCancel={() => model.setLeaveModalOpen(false)}
         onConfirm={model.confirmLeave}
         styles={model.styles}

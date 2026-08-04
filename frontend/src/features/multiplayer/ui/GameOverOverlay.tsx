@@ -6,12 +6,15 @@ type Props = {
   answer?: string | null;
   didDraw: boolean;
   didWin: boolean;
+  gameOver: boolean;
   onPrimary: () => void;
   onSecondary: () => void;
   styles: MultiplayerScreenStyles;
 };
 
-export function GameOverOverlay({ answer, didDraw, didWin, onPrimary, onSecondary, styles }: Props) {
+export function GameOverOverlay({ answer, didDraw, didWin, gameOver, onPrimary, onSecondary, styles }: Props) {
+  if (!gameOver) return null;
+
   return (
     <View style={styles.overlay}>
       <View style={styles.resultCard}>

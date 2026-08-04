@@ -12,8 +12,15 @@ function triggerFloat(animY: Animated.Value, animOp: Animated.Value, onDone: () 
       duration: 1700,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
+      isInteraction: false,
     }),
-    Animated.timing(animOp, { toValue: 0, duration: 1700, delay: 700, useNativeDriver: true }),
+    Animated.timing(animOp, {
+      toValue: 0,
+      duration: 1700,
+      delay: 700,
+      useNativeDriver: true,
+      isInteraction: false,
+    }),
   ]).start(onDone);
 }
 
@@ -27,7 +34,7 @@ export function useMultiplayerEmotes(roomId: string, socket: AppSocket | null) {
   const myOp = useRef(new Animated.Value(0)).current;
 
   const sendEmote = (emote: string) => {
-    socket?.emit("send-emote", { emoteId: emote, roomId });
+    socket?.emit("send-emote", { emote, roomId });
     setEmotePickerOpen(false);
     setMyEmote(emote);
     triggerFloat(myY, myOp, () => setMyEmote(null));

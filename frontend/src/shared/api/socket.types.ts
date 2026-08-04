@@ -75,7 +75,12 @@ export interface ServerToClientEvents {
   "queue-joined": () => void;
   "room-created": (data: { roomId: string; passcode: string }) => void;
   "room-joined": (data: { roomId: string; players: SocketPlayer[] }) => void;
-  "game-start": (data: { gameType: string; puzzle: MultiplayerPuzzle; roomId: string; activePlayerId?: string }) => void;
+  "game-start": (data: {
+    gameType: string;
+    puzzle: MultiplayerPuzzle;
+    roomId: string;
+    activePlayerId?: string;
+  }) => void;
   "error-message": (error: { message: string }) => void;
   "chat-history": (data: { messages: ChatMessage[] }) => void;
   "chat-message": (message: ChatMessage) => void;
@@ -86,7 +91,11 @@ export interface ServerToClientEvents {
   "opponent-guess": (data: OpponentGuessPayload) => void;
   "game-over": (data: GameOverPayload) => void;
   "receive-emote": (data: { playerId: string; emote: string }) => void;
-  "opponent-profile": (profile: { equippedItems: ShopData["equippedItems"] | null; displayName?: string; username?: string }) => void;
+  "opponent-profile": (profile: {
+    equippedItems: ShopData["equippedItems"] | null;
+    displayName?: string;
+    username?: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -97,8 +106,8 @@ export interface ClientToServerEvents {
   "request-chat-history": () => void;
   "update-profile": (data: { equippedItems: ShopData["equippedItems"] | null }) => void;
   "profile-update": (data: { equippedItems: ShopData["equippedItems"] | null }) => void;
-  "forfeit": () => void;
-  "send-emote": (data: { emoteId: string; roomId?: string }) => void;
+  forfeit: () => void;
+  "send-emote": (data: { emote: string; roomId?: string }) => void;
   "submit-guess": (data: { guess: string; roomId?: string }) => void;
   "chat-send": (data: { text: string }) => void;
 }

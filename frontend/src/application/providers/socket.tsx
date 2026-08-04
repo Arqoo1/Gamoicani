@@ -25,6 +25,7 @@ export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 type SocketContextType = {
   connect: () => Promise<void>;
+  connectError: string | null;
   disconnect: () => void;
   emitProfileUpdate: (equippedItems: ShopData["equippedItems"]) => void;
   isConnected: boolean;
@@ -34,6 +35,7 @@ type SocketContextType = {
 
 const SocketContext = createContext<SocketContextType>({
   connect: async () => {},
+  connectError: null,
   disconnect: () => {},
   emitProfileUpdate: () => {},
   isConnected: false,
@@ -52,6 +54,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const [socket, setSocket] = useState<AppSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [opponentProfile, setOpponentProfile] = useState<OpponentProfile | null>(null);
   const socketRef = useRef<AppSocket | null>(null);
   const connectingRef = useRef(false);
@@ -62,6 +65,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     connectingRef.current = false;
     setSocket(null);
     setIsConnected(false);
+    setConnectError(null);
   }, []);
 
   const connect = useCallback(async () => {
@@ -69,6 +73,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     if (socketRef.current?.connected || connectingRef.current) return;
 
     connectingRef.current = true;
+    setConnectError(null);
     try {
       const token = await getAuthToken();
       if (!token) return;
@@ -76,8 +81,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       const nextSocket = createAppSocket(token);
       socketRef.current = nextSocket;
 
-      nextSocket.on("connect", () => setIsConnected(true));
+      nextSocket.on("connect", () => {
+        setIsConnected(true);
+        setConnectError(null);
+      });
       nextSocket.on("disconnect", () => setIsConnected(false));
+      nextSocket.on("connect_error", (err) => {
+        console.error("[Socket] connect_error:", err.message);
+        setConnectError(err.message || "Connection failed");
+      });
       nextSocket.on("error-message", (err) => console.error("[Socket Error]", err.message));
       nextSocket.on("opponent-profile", (profile) => setOpponentProfile(profile));
 
@@ -100,8 +112,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ connect, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket }),
-    [connect, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket]
+    () => ({ connect, connectError, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket }),
+    [connect, connectError, disconnect, emitProfileUpdate, isConnected, opponentProfile, socket]
   );
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
@@ -113,7 +125,7 @@ export function useSocket() {
 
 export function useEnsureSocket() {
   const { status } = useAuth();
-  const { connect: connectSocket, isConnected, socket } = useSocket();
+  const { connect: connectSocket, connectError, isConnected, socket } = useSocket();
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -121,5 +133,5 @@ export function useEnsureSocket() {
     }
   }, [connectSocket, status]);
 
-  return { isConnected, socket };
+  return { connectError, isConnected, socket };
 }

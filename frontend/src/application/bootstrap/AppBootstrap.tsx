@@ -8,14 +8,20 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { useAuth } from "@/application/providers/auth";
 import { useAppTheme } from "@/application/providers/theme";
+import { useEnsureSocket } from "@/application/providers/socket";
 import { savePushTokenAPI } from "@/features/auth/api/authApi";
-import { registerForPushNotificationsAsync, scheduleInactivityReminder } from "@/shared/services/notifications";
+import {
+  registerForPushNotificationsAsync,
+  scheduleInactivityReminder,
+} from "@/shared/services/notifications";
 
 function AppLoadingState() {
   const { colors } = useAppTheme();
 
   return (
-    <View style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}>
+    <View
+      style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}
+    >
       <ActivityIndicator color={colors.accent} />
     </View>
   );
@@ -27,6 +33,8 @@ export function AppBootstrap() {
   const pathname = usePathname();
   const router = useRouter();
   const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  useEnsureSocket();
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -44,7 +52,19 @@ export function AppBootstrap() {
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       const screen = response.notification.request.content.data?.screen as string | undefined;
       if (screen) {
-        router.replace(screen as "/" | "/login" | "/shop" | "/feed" | "/profile" | "/stats" | "/lobby" | "/settings" | "/leaderboard" | "/multiplayer");
+        router.replace(
+          screen as
+            | "/"
+            | "/login"
+            | "/shop"
+            | "/feed"
+            | "/profile"
+            | "/stats"
+            | "/lobby"
+            | "/settings"
+            | "/leaderboard"
+            | "/multiplayer"
+        );
       }
     });
 

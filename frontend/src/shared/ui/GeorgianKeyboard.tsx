@@ -11,7 +11,7 @@ import {
 import { AppColors, useAppTheme } from "@/application/providers/theme";
 import { styles } from "@/shared/ui/GeorgianKeyboard.styles";
 
-type LetterScore = "correct" | "present" | "absent" | undefined;
+export type LetterScore = "correct" | "present" | "absent" | undefined;
 
 type GeorgianKeyboardProps = {
   onKeyPress: (key: string) => void;

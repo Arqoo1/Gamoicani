@@ -1,5 +1,5 @@
 import { AppColors } from "@/application/providers/theme";
-import { LobbyChatPane } from "@/features/lobby/components/LobbyChatPane";
+import { LobbyChatPane } from "@/features/lobby/ui/LobbyChatPane";
 import { AuthUser } from "@/entities/user/types";
 
 type SelectedUser = { id: string; displayName: string; username: string };

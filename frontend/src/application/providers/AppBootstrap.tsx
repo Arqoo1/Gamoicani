@@ -8,6 +8,7 @@ import { useGoogleSigninBootstrap } from "@/application/providers/useGoogleSigni
 import { useAppTheme } from "@/application/providers/theme";
 import { useInactivityReminder } from "@/application/providers/useInactivityReminder";
 import { usePushNotificationsBootstrap } from "@/application/providers/usePushNotificationsBootstrap";
+import { useEnsureSocket } from "@/application/providers/socket";
 
 export function AppBootstrap() {
   const { colors, isDark } = useAppTheme();
@@ -16,10 +17,17 @@ export function AppBootstrap() {
   useGoogleSigninBootstrap();
   usePushNotificationsBootstrap();
   useInactivityReminder();
-
+  useEnsureSocket();
   if (status === "loading" || status === "unauthenticated") {
     return (
-      <View style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}>
+      <View
+        style={{
+          alignItems: "center",
+          backgroundColor: colors.background,
+          flex: 1,
+          justifyContent: "center",
+        }}
+      >
         <ActivityIndicator color={colors.accent} />
       </View>
     );

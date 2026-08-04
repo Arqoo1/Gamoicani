@@ -25,7 +25,7 @@ export function createStyles(colors: AppColors) {
   const dynamic = StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: colors.card,
+      backgroundColor: colors.background,
     },
     keyboardArea: {
       flex: 1,
@@ -33,7 +33,8 @@ export function createStyles(colors: AppColors) {
     },
     header: {
       alignItems: "center",
-      backgroundColor: colors.card,
+      backgroundColor: colors.background,
+      borderTopWidth: 0,
       borderBottomColor: colors.border,
       borderBottomWidth: 1,
       elevation: 2,

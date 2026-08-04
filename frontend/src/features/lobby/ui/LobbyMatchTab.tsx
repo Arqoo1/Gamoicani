@@ -1,5 +1,5 @@
 import { AppColors } from "@/application/providers/theme";
-import { LobbyMatchSetup } from "@/features/lobby/components/LobbyMatchSetup";
+import { LobbyMatchSetup } from "@/features/lobby/ui/LobbyMatchSetup";
 
 type LobbyMatchTabProps = {
   colors: AppColors;

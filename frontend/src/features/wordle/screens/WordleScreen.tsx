@@ -31,7 +31,7 @@ export default function WordleScreen() {
   }
 
   return (
-    <SafeAreaView edges={["top", "right", "left"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "right", "left", "bottom"]} style={styles.safe}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
 
       <WordleTopBar

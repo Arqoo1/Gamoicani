@@ -1,6 +1,6 @@
-import { GeorgianKeyboard } from "@/shared/ui/GeorgianKeyboard";
+import { View } from "react-native";
+import { GeorgianKeyboard, type LetterScore } from "@/shared/ui/GeorgianKeyboard";
 import { createStyles } from "@/features/wordle/screens/WordleScreen.styles";
-import type { LetterScore } from "@/features/wordle/model/wordle";
 
 type WordleStyles = ReturnType<typeof createStyles>;
 
@@ -18,11 +18,13 @@ export function WordleFooter({
   onKeyPress: (key: string) => void;
 }) {
   return (
-    <GeorgianKeyboard
-      disabled={disabled}
-      isShifted={isShifted}
-      letterScores={letterScores}
-      onKeyPress={onKeyPress}
-    />
+    <View style={styles.footer}>
+      <GeorgianKeyboard
+        disabled={disabled}
+        isShifted={isShifted}
+        letterScores={letterScores}
+        onKeyPress={onKeyPress}
+      />
+    </View>
   );
 }

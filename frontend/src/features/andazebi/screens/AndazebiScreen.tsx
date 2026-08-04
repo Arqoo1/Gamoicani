@@ -9,6 +9,7 @@ import {
   Share,
   ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
@@ -103,18 +104,6 @@ export default function AndazebiScreen() {
     isDailyComplete,
     isPracticeMode,
   } = useAndazebiGame(user, updateUser, () => confettiRef.current?.start(), width);
-  const isDailyLocked = !isHydrated || isDailyDone;
-  const isLoading = !isHydrated || items.length === 0;
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator color={colors.accent} size="large" />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const shareResult = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -133,8 +122,25 @@ export default function AndazebiScreen() {
     }
   }, [sharePreview]);
 
+  const isDailyLocked = !isHydrated || isDailyDone;
+  const isLoading = !isHydrated || items.length === 0;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color={colors.accent} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView edges={["top", "right", "left"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "right", "left", "bottom"]} style={styles.safe}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}
+      />
       <ConfettiCannon
         ref={confettiRef}
         count={180}
@@ -403,7 +409,7 @@ export default function AndazebiScreen() {
         </ScrollView>
 
         {!isDailyComplete && currentItem && (
-          <View style={[styles.footer, { paddingBottom: Math.max(10, insets.bottom) }]}>
+          <View style={styles.footer}>
             <GeorgianKeyboard isShifted={isShifted} onKeyPress={handleKeyPress} />
           </View>
         )}
